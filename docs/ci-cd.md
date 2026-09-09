@@ -1,0 +1,197 @@
+# CI/CD
+
+Three workflows. A pull request must pass checks and carry an approving review;
+once it does, GitHub merges it and the merge deploys to Databricks.
+
+```
+ PR opened ──▶ pr-checks.yml          auto-merge.yml
+              ├─ content validation   └─ enables native auto-merge
+              ├─ tests (+ "PR must ship tests" gate)
+              ├─ bundle validation                │
+              └─ approving review present         ▼
+                          │            ruleset satisfied → GitHub merges
+                          ▼                                    │
+                    all green ───────────────────────────────┘
+                                                              ▼
+                                              main ──▶ deploy.yml ──▶ Databricks
+```
+
+---
+
+## Read this first: you cannot approve your own pull request
+
+GitHub does not allow a PR author to approve their own PR. **This repo currently
+has one contributor.** So a rule of "require 1 approval", applied naively, means
+nothing you open can ever merge.
+
+That is not a bug in the setup — it's what an approval gate *means*. Your options:
+
+| Option | What it gives you | Cost |
+| --- | --- | --- |
+| **Ruleset with bypass for the repo owner** (suggested while solo) | Outside contributions are genuinely gated. Your own PRs still run every check; you merge them yourself | Your own PRs aren't peer-reviewed — nobody can fix that alone |
+| **Add a second collaborator** | A real approval gate for everyone | Needs a second person |
+| **A second account of your own** | Technically satisfies the rule | Self-approval with extra steps; it buys nothing real |
+| **No approval requirement yet** | Simplest | Loses the gate entirely |
+
+The workflows are written so the approval gate works **properly the moment a
+second person exists** — no rework needed. Until then, bypass is honest and a
+second account is theatre.
+
+---
+
+## One-time setup
+
+### 1. Repository secrets
+
+`Settings → Secrets and variables → Actions → New repository secret`:
+
+| Secret | Value |
+| --- | --- |
+| `DATABRICKS_HOST` | `https://REDACTED.cloud.databricks.com` |
+| `DATABRICKS_CLIENT_ID` | `REDACTED-CLIENT-ID` |
+| `DATABRICKS_CLIENT_SECRET` | An OAuth secret you generate — see below |
+
+The service principal **`github-actions-ci`** already exists in the workspace
+(created 2026-09-09) and its ability to deploy has been verified end to end. It
+has **no active secrets** — every one created during testing was revoked
+immediately.
+
+Generate the one CI will use, and paste it straight into the GitHub secret. It is
+shown **once**:
+
+```bash
+databricks service-principal-secrets-proxy create REDACTED-SP-ID --profile FREE
+```
+
+> Treat the output as a live credential. Don't paste it into a terminal you're
+> screen-sharing, a chat, or an AI conversation. To rotate: create a new secret,
+> update the GitHub secret, then `... delete REDACTED-SP-ID <old-secret-id>`.
+> Secrets expire after two years.
+
+Why a service principal rather than your own token: CI acting as *you* means every
+deploy is attributed to you and inherits all your access. The SP has only what it
+needs, and revoking it doesn't disturb your own login.
+
+### 2. Deployment environment (optional but recommended)
+
+`Settings → Environments → New environment` → name it **`databricks-free`**.
+
+`deploy.yml` references it. Adding yourself as a required reviewer there gives you
+a manual gate in front of every deploy — useful while the pipeline is new.
+
+### 3. Allow auto-merge
+
+`Settings → General → Pull Requests` → tick **Allow auto-merge**.
+
+Without this, `auto-merge.yml` logs a warning and does nothing; PRs simply wait to
+be merged by hand.
+
+### 4. Branch ruleset for `main`
+
+**This is the actual enforcement.** The `approval` job in `pr-checks.yml` makes the
+requirement *visible*, but a workflow cannot stop someone with write access from
+merging — a ruleset can.
+
+`Settings → Rules → Rulesets → New branch ruleset`:
+
+- **Target**: default branch (`main`)
+- ✅ Restrict deletions
+- ✅ Block force pushes
+- ✅ **Require a pull request before merging**
+  - Required approvals: **1**
+  - ✅ Dismiss stale approvals when new commits are pushed
+- ✅ **Require status checks to pass**, and select:
+  - `Content validation`
+  - `Tests`
+  - `Bundle validation`
+  - `Approved by a reviewer`
+
+While you're the only contributor, add yourself under **Bypass list** — see the
+section at the top for why.
+
+---
+
+## What each workflow does
+
+### `pr-checks.yml`
+
+Runs on PR events **and on review submission** — a plain `pull_request` workflow
+doesn't re-run when someone approves, which would leave the approval check stale.
+
+| Job | Checks |
+| --- | --- |
+| **Content validation** | `validate_content.py`, plus the generated objective docs match their YAML |
+| **Tests** | The test-presence gate, then `pytest tools/tests` |
+| **Bundle validation** | `databricks bundle validate --strict` |
+| **Approved by a reviewer** | At least one approval, no outstanding "changes requested" |
+
+Bundle validation is offline — it parses and type-checks without contacting the
+workspace, so it needs no credentials and works on PRs from forks.
+
+### The "every PR must ship tests" gate
+
+You asked for this explicitly, so it fails a PR that adds or changes no tests. A
+file counts if it matches:
+
+- `tests/` or `test/` anywhere in its path
+- `test_*.py` or `*_test.py`
+- `*.spec.ts` / `*.test.tsx` (and the js variants)
+
+**The escape hatch:** apply the **`no-tests-needed`** label. Without one, a README
+typo fix could never merge, and a rule people route around by inventing junk tests
+is worse than no rule. The label leaves a visible record of the decision on each PR
+where it's used.
+
+### `auto-merge.yml`
+
+Turns on GitHub's *native* auto-merge rather than merging from a workflow. GitHub
+then merges the PR itself once the ruleset is satisfied. This keeps the ruleset as
+the single source of truth for "may this merge" — a workflow that merges directly
+would be a second, weaker copy of that logic.
+
+Skips drafts.
+
+### `deploy.yml`
+
+Runs on push to `main` (and manual dispatch). Re-runs validation and tests before
+deploying, because two individually-valid PRs can merge into a broken `main`.
+Then `databricks bundle deploy -t free`, with a concurrency group so two deploys
+can't race.
+
+---
+
+## Gotchas worth knowing
+
+**`DATABRICKS_CONFIG_PROFILE` overrides M2M env vars.** If that variable is set,
+the CLI looks for a named profile and *ignores* `DATABRICKS_CLIENT_ID` /
+`DATABRICKS_CLIENT_SECRET`. It's set in this machine's `~/.claude/settings.json`,
+so reproducing CI auth locally needs `env -u DATABRICKS_CONFIG_PROFILE`. CI
+runners don't set it, so they're unaffected.
+
+**Deploys land under the service principal's path**, not yours:
+`/Workspace/Users/<application-id>/.bundle/databricks-de-prep/free`. That's
+correct, and a good way to tell a CI deploy from one you ran by hand.
+
+**Free Edition quotas apply to CI too.** Deploying is cheap, but jobs the bundle
+runs are not — 5 concurrent tasks, one active pipeline per type, and blowing the
+compute quota shuts the workspace down for the rest of the day. Don't add
+run-on-every-merge jobs without thinking about that.
+
+**Right now the bundle deploys almost nothing.** It has targets and no resources
+yet; they arrive with the Phase 2 content. The pipeline is wired and verified
+first, deliberately, so content lands on rails that already work.
+
+---
+
+## Verifying it locally
+
+```bash
+# what CI runs on a PR
+./.venv/bin/python tools/validate_content.py
+./.venv/bin/python tools/render_objectives.py --check
+./.venv/bin/python -m pytest tools/tests -v
+cd bundle && databricks bundle validate --strict -t free --profile FREE
+
+# what CI runs on merge (deploys for real)
+cd bundle && databricks bundle deploy -t free --profile FREE
+```

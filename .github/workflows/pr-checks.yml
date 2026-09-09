@@ -1,0 +1,140 @@
+name: PR checks
+
+# pull_request_review is included so the approval gate re-evaluates when someone
+# reviews - a plain `pull_request` workflow does not re-run on review submission.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  content:
+    name: Content validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install tooling
+        run: pip install -r tools/requirements.txt -r tools/requirements-dev.txt
+      - name: Validate content
+        run: python tools/validate_content.py
+      - name: Objective docs must match their source YAML
+        run: python tools/render_objectives.py --check
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The repo's rule: a PR ships tests. The `no-tests-needed` label is the
+      # documented escape hatch for genuinely test-free changes (docs, comments),
+      # because without it a README typo fix could never merge.
+      - name: Require tests in this PR
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-tests-needed') }}
+        run: |
+          BASE="origin/${{ github.base_ref }}"
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          CHANGED=$(git diff --name-only "$BASE"...HEAD)
+
+          echo "Files changed in this PR:"
+          echo "$CHANGED" | sed 's/^/  /'
+
+          # Anything that is recognisably a test counts.
+          MATCHED=$(echo "$CHANGED" | grep -E \
+            -e '(^|/)tests?/' \
+            -e '(^|/)test_[^/]+\.py$' \
+            -e '[^/]+_test\.py$' \
+            -e '\.(spec|test)\.[jt]sx?$' \
+            || true)
+
+          if [ -z "$MATCHED" ]; then
+            echo
+            echo "::error::This PR adds or changes no tests."
+            echo "Add a test, or apply the 'no-tests-needed' label if this change genuinely cannot have one."
+            exit 1
+          fi
+
+          echo
+          echo "Test files in this PR:"
+          echo "$MATCHED" | sed 's/^/  /'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install tooling
+        run: pip install -r tools/requirements.txt -r tools/requirements-dev.txt
+      - name: Run pytest
+        run: python -m pytest tools/tests -v
+
+  bundle:
+    name: Bundle validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      # Validation is offline-safe: it parses and type-checks the bundle without
+      # contacting the workspace, so no credentials are needed on a PR from a fork.
+      - name: Validate bundle
+        working-directory: bundle
+        run: databricks bundle validate --strict -t free
+        env:
+          DATABRICKS_HOST: https://REDACTED.cloud.databricks.com
+          DATABRICKS_AUTH_TYPE: pat
+          DATABRICKS_TOKEN: not-a-real-token
+
+  approval:
+    name: Approved by a reviewer
+    runs-on: ubuntu-latest
+    steps:
+      # This job makes the approval requirement visible in the checks list.
+      # It is NOT the enforcement mechanism - a branch ruleset is (see
+      # docs/ci-cd.md). Anyone with write access could merge past a workflow;
+      # they cannot merge past a ruleset.
+      - name: Check for an approving review
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const pull_number = context.payload.pull_request.number;
+            const reviews = await github.paginate(
+              github.rest.pulls.listReviews, {owner, repo, pull_number}
+            );
+
+            // Only the most recent review from each person counts.
+            const latest = new Map();
+            for (const r of reviews) {
+              if (r.state === 'COMMENTED') continue;
+              latest.set(r.user.login, r.state);
+            }
+
+            const approvals = [...latest].filter(([, s]) => s === 'APPROVED').map(([u]) => u);
+            const blocking  = [...latest].filter(([, s]) => s === 'CHANGES_REQUESTED').map(([u]) => u);
+
+            if (blocking.length) {
+              core.setFailed(`Changes requested by: ${blocking.join(', ')}`);
+              return;
+            }
+            if (!approvals.length) {
+              core.setFailed(
+                'No approving review yet. GitHub does not let you approve your own PR - ' +
+                'see docs/ci-cd.md for how the repo owner handles their own PRs.'
+              );
+              return;
+            }
+            core.info(`Approved by: ${approvals.join(', ')}`);

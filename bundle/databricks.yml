@@ -1,0 +1,41 @@
+# Declarative Automation Bundle for the DE prep platform.
+#
+# Resources land in bundle/resources/*.yml as content is built out (Phase 2
+# onwards: dataset generators, lesson jobs, per-section grading jobs, the study
+# app). Right now the bundle is deliberately near-empty - it exists so the
+# deploy pipeline is real and testable before there is anything riding on it.
+#
+#   databricks bundle validate --strict -t free --profile FREE
+#   databricks bundle deploy -t free --profile FREE
+
+bundle:
+  name: databricks-de-prep
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Unity Catalog catalog that lab data is written to.
+    default: workspace
+  schema:
+    description: Schema within the catalog for lab and assignment tables.
+    default: de_prep
+
+targets:
+  # Free Edition - the required path. Serverless only; never add job clusters
+  # here, they do not exist on this tier.
+  free:
+    default: true
+    mode: development
+    workspace:
+      host: https://REDACTED.cloud.databricks.com
+
+  # Premium/trial workspace for the optional classic-compute labs.
+  # See docs/optional-classic-track.md - this target bills real infrastructure.
+  # No `workspace.host` here on purpose: it is resolved before variables are
+  # interpolated, so it cannot be parameterised. The host comes from the profile
+  # instead, which also makes it impossible to deploy here by accident:
+  #   databricks bundle deploy -t classic --profile TRIAL
+  classic:
+    mode: development

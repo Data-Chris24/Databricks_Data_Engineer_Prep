@@ -39,7 +39,9 @@ guides; content is being built section by section.
 | `notebooks/assignments/` | Graded assignments, on the `assess` datasets |
 | `notebooks/optional-classic/` | [Optional labs](docs/optional-classic-track.md) needing a paid/trial workspace |
 | `grading/` | Unit-test harness + optional [AI reviewer](docs/grading.md) |
-| [`tools/`](tools/) | Content validators — CI runs these |
+| [`tools/`](tools/) | Content validators + tests — CI runs these |
+| [`bundle/`](bundle/) | Declarative Automation Bundle; deploy target for labs and the app |
+| [`.github/workflows/`](.github/workflows/) | [CI/CD](docs/ci-cd.md): PR gate, auto-merge, deploy to Databricks |
 
 Design decisions and their rationale: [`docs/architecture.md`](docs/architecture.md).
 
@@ -66,8 +68,9 @@ they affect, in
 
 ```bash
 python3 -m venv .venv
-./.venv/bin/pip install -r tools/requirements.txt
+./.venv/bin/pip install -r tools/requirements.txt -r tools/requirements-dev.txt
 ./.venv/bin/python tools/validate_content.py
+./.venv/bin/python -m pytest tools/tests -q
 ```
 
 ---
@@ -104,6 +107,10 @@ explains how, and how to update the repo when it changes.
 ---
 
 ## Contributing
+
+Pull requests are gated by [CI](docs/ci-cd.md): content validation, tests, bundle
+validation and an approving review. **Every PR must add or change tests** — apply
+the `no-tests-needed` label if a change genuinely can't have any.
 
 [`docs/authoring-guide.md`](docs/authoring-guide.md) covers the contracts:
 objective IDs are permanent, dataset pairs must differ structurally, and every
