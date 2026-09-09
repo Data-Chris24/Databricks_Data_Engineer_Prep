@@ -179,6 +179,12 @@ databricks service-principals list --profile FREE
 Without this, `auto-merge.yml` logs a warning and does nothing; PRs simply wait to
 be merged by hand.
 
+> **Auto-merge does nothing until the ruleset exists.** It exists to merge a PR
+> once its *pending requirements* are met — so if no ruleset makes any check
+> required, the PR is immediately mergeable and GitHub refuses to enable
+> auto-merge on it ("Pull request is in clean status"). Step 4 is what gives it
+> something to wait for. This is a warning in the workflow log, not a failure.
+
 ### 4. Branch ruleset for `main`
 
 **This is the actual enforcement.** The `approval` job in `pr-checks.yml` makes the

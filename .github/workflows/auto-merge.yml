@@ -36,10 +36,17 @@ jobs:
               `, { id: pr.node_id });
               core.info(`Auto-merge enabled for #${pr.number}.`);
             } catch (e) {
-              // Most common cause: "Allow auto-merge" is off in repo settings,
-              // or no ruleset requires anything so the PR is already mergeable.
-              core.warning(
-                `Could not enable auto-merge: ${e.message}\n` +
-                `See docs/ci-cd.md - Settings > General > "Allow auto-merge" must be on.`
+              // Report what GitHub actually said rather than guessing a cause.
+              // The usual reasons, in rough order of likelihood:
+              //   "in clean status"    - nothing is required, so there is nothing
+              //                          to wait for. Create the branch ruleset.
+              //   "in unstable status" - checks were still running at PR-open time.
+              //   auto-merge disabled  - Settings > General > Allow auto-merge.
+              // None of these are failures: the PR simply waits to be merged.
+              core.warning(`Could not enable auto-merge: ${e.message}`);
+              core.info(
+                'This is not fatal - the PR just will not merge itself. ' +
+                'If the message mentions "clean status", no ruleset is making any ' +
+                'check required yet; see docs/ci-cd.md step 4.'
               );
             }
