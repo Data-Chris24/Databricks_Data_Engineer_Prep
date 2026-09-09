@@ -70,10 +70,11 @@ So the ruleset comes *after* the first pull request, not before:
 | --- | --- | --- |
 | 1 | Deployment environment | Any time |
 | 2 | Databricks credentials | After the environment exists (the secrets live on it) |
-| 3 | Allow auto-merge | Any time — but it does nothing until step 5 |
+| 3 | Allow auto-merge | Any time — but it does nothing until step 6 |
 | 4 | Merge style | Before your first merge, or you will merge the wrong way |
 | — | **Open your first PR and let the checks run** | Registers the four check names |
-| 5 | Branch ruleset for `main` | Now the checks are selectable |
+| 5 | Create the `no-tests-needed` label | Any time — before your first docs-only PR |
+| 6 | Branch ruleset for `main` | Now the checks are selectable |
 | — | Merge that first PR | |
 
 Two consequences worth expecting rather than discovering:
@@ -113,7 +114,7 @@ while this says "No restriction", the environment and its secrets can be reached
 from *any* branch by manually dispatching the workflow.
 
 > **Do not pick "Protected branches only" here.** It recognises only *classic*
-> branch protection rules, and step 5 below has you creating a **ruleset** — which
+> branch protection rules, and step 6 below has you creating a **ruleset** — which
 > it does not count. GitHub even warns you at the time: *"No repository branch
 > protection rules set: all branches are still allowed."* The setting would look
 > configured while doing nothing. "Selected branches and tags" is explicit,
@@ -233,7 +234,22 @@ be merged by hand.
 > Reasoning that would otherwise live in a series of commit messages belongs in
 > `docs/` instead, where it is far more discoverable than `git log`.
 
-### 5. Branch ruleset for `main`
+### 5. Create the `no-tests-needed` label
+
+The test-presence gate refuses a PR that adds or changes no tests, and names this
+label as the way out. **The label does not exist by default** — without it the
+escape hatch is unusable, and a docs-only PR can never merge.
+
+```bash
+gh label create "no-tests-needed" \
+  --description "Change genuinely cannot carry a test (docs, comments). Waives the test-presence gate." \
+  --color "0E8A16"
+```
+
+Or `Issues → Labels → New label`. The name must match exactly — the workflow
+checks for it literally.
+
+### 6. Branch ruleset for `main`
 
 **This is the actual enforcement.** The `approval` job in `pr-checks.yml` makes the
 requirement *visible*, but a workflow cannot stop someone with write access from
