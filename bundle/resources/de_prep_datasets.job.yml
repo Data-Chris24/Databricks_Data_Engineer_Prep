@@ -1,0 +1,19 @@
+# Generates the paired teach/assess datasets for a section into a UC volume.
+#
+# No compute block on purpose: a notebook task with no `new_cluster` or
+# `job_cluster_key` runs on serverless, which is the only compute Free Edition
+# offers. Adding a cluster spec here would make the job undeployable there.
+resources:
+  jobs:
+    generate_datasets_assoc_s2:
+      name: "[DE prep] Generate ASSOC-S2 datasets"
+      description: >-
+        Writes the flat retail-order `teach` dataset and the nested sensor-event
+        `assess` dataset to /Volumes/${var.catalog}/${var.schema}/raw. Seeded, so
+        every learner gets identical data and the graded answers match.
+      tasks:
+        - task_key: generate
+          notebook_task:
+            notebook_path: ../../notebooks/datasets/generate_ASSOC-S2.py
+      queue:
+        enabled: true

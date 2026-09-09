@@ -14,21 +14,25 @@ bundle:
 include:
   - resources/*.yml
 
+# The bundle lives in bundle/ but its notebooks live in notebooks/, above it.
+# By default a bundle can only sync files under its own root, so widen the sync
+# root to the repository. Without this, any notebook_task path fails validation
+# with "is not contained in sync root path".
+sync:
+  paths:
+    - ..
+  # No exclude list: bundle sync already honours .gitignore, which covers .venv,
+  # __pycache__ and the rest. Adding patterns for paths that do not exist yet
+  # fails `validate --strict`, which treats an unmatched pattern as a warning.
+
 variables:
   catalog:
-    description: Unity Catalog catalog that lab data is written to.
+    description: Unity Catalog catalog that lab and assignment data is written to.
     default: workspace
   schema:
     description: Schema within the catalog for lab and assignment tables.
     default: de_prep
 
-# Neither target hardcodes `workspace.host`. Two reasons: this is a public repo,
-# so a workspace URL does not belong in it; and `workspace.host` is resolved
-# before variables are interpolated, so it cannot be parameterised anyway.
-#
-# The host comes from your CLI profile locally, or DATABRICKS_HOST in CI:
-#   databricks bundle deploy -t free    --profile FREE
-#   databricks bundle deploy -t classic --profile TRIAL
 targets:
   # Free Edition - the required path. Serverless only; never add job clusters
   # here, they do not exist on this tier.
