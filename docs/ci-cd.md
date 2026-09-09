@@ -146,13 +146,6 @@ any other workflow — including ones added later — from reading them.
 Find your workspace URL in the browser address bar when signed in to Databricks, or
 with `databricks auth profiles`.
 
-> **If you already added these as repository secrets, delete them now**
-> (`Settings → Secrets and variables → Actions → Repository secrets`). Environment
-> secrets win for jobs that declare the environment, so the repository copies do
-> nothing for `deploy.yml` — but they stay readable by any workflow that *doesn't*
-> declare it, which is the exposure environment scope exists to prevent. Two copies
-> is also a rotation hazard: update one and the stale one still authenticates.
-
 #### d. Rotating and revoking
 
 Secrets are valid for up to two years, and a service principal can hold up to five
