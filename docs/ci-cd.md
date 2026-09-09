@@ -56,6 +56,35 @@ failures.
 
 ## One-time setup
 
+**Do these in order — there is a chicken-and-egg in the middle.**
+
+A branch ruleset requires status checks *by name*, and GitHub only offers names it
+has already seen. Until a pull request has actually run the workflows, the four
+checks do not exist as far as the ruleset UI is concerned, and you would be typing
+them from memory — where one typo produces a required check that never reports and
+blocks every PR forever.
+
+So the ruleset comes *after* the first pull request, not before:
+
+| # | Step | When |
+| --- | --- | --- |
+| 1 | Deployment environment | Any time |
+| 2 | Databricks credentials | After the environment exists (the secrets live on it) |
+| 3 | Allow auto-merge | Any time — but it does nothing until step 5 |
+| 4 | Merge style | Before your first merge, or you will merge the wrong way |
+| — | **Open your first PR and let the checks run** | Registers the four check names |
+| 5 | Branch ruleset for `main` | Now the checks are selectable |
+| — | Merge that first PR | |
+
+Two consequences worth expecting rather than discovering:
+
+- **Your first PR merges without the full gate**, because the ruleset does not
+  exist yet. That is unavoidable — and harmless, since all four checks still run
+  and you can read them. The gate protects everything after it.
+- **The second PR is the first real test of the gate.** Open one deliberately if
+  you have nothing pending; it is how you find out whether the ruleset does what
+  you think.
+
 ### 1. Deployment environment
 
 `Settings → Environments → New environment` → name it **`databricks-free`**,
@@ -209,6 +238,9 @@ be merged by hand.
 **This is the actual enforcement.** The `approval` job in `pr-checks.yml` makes the
 requirement *visible*, but a workflow cannot stop someone with write access from
 merging — a ruleset can.
+
+> **Do this after your first PR has run its checks** (see the ordering table
+> above), so the four check names appear in the picker instead of being typed.
 
 `Settings → Rules → Rulesets → New branch ruleset`:
 
