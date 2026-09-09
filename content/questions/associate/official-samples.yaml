@@ -1,0 +1,214 @@
+# Retired sample questions published by Databricks in the official
+# Data Engineer Associate exam guide (version May 4, 2026).
+#
+# These are reproduced with attribution because Databricks publishes them
+# precisely to illustrate the objectives. Explanations and distractor
+# rationales are written for this repo, not taken from the guide.
+#
+# `objective_ids` map each question to the CURRENT guide outline. Where the
+# guide's own stated objective for a question no longer matches its outline,
+# the mapping is noted on the question.
+meta:
+  source: >-
+    Databricks Certified Data Engineer Associate Exam Guide, version May 4, 2026 -
+    "Sample Questions" section. See docs/exam-guides/SOURCES.md.
+  note: >-
+    Databricks describes these as retired from a previous version of the exam.
+
+questions:
+  - id: ASSOC-S6-Q001
+    objective_ids: [ASSOC-S6-O3]
+    difficulty: analysis
+    provenance: official-sample
+    source_note: Official Associate exam guide (May 2026), sample question 1.
+    tags: [spark-ui, data-skew, aqe, shuffle]
+    stem: >-
+      A data engineer notices a batch job's duration has doubled after a new data
+      source was onboarded. In the Spark UI, the longest stage shows that most
+      tasks finish in under 30 seconds, but one task takes over 10 minutes. The
+      stage's task summary shows Min/Median shuffle read near 400 MB while Max
+      shuffle read exceeds 5 GB. Which solution reduces the job runtime?
+    options:
+      A: Increase cluster size to add more executors so the slow task finishes faster
+      B: >-
+        Confirm adaptive query execution with skew join handling is active to
+        automatically split the oversized partition at runtime
+      C: Reduce spark.sql.shuffle.partitions to coalesce more work into fewer tasks
+      D: >-
+        Manually repartition the dataset using a salt key before the join to
+        distribute skewed keys evenly
+    correct: B
+    explanation: >-
+      One task reading 5 GB while the median reads 400 MB is the signature of data
+      skew: a single partition holds far more of one join key than the others.
+      Adaptive Query Execution's skew join handling detects oversized partitions at
+      runtime and splits them automatically, which fixes the root cause with no
+      code change. Reach for AQE before hand-tuning.
+    distractor_rationale:
+      A: >-
+        Skew is a distribution problem, not a capacity one. Adding executors leaves
+        the one oversized partition on a single task - the job is still gated by
+        that task, and now costs more.
+      C: >-
+        Fewer partitions makes skew worse by packing even more data into each task.
+      D: >-
+        Salting genuinely works, and it is what you would do if AQE could not. But
+        it means rewriting the join by hand, so it is the wrong first move when the
+        engine can handle it automatically.
+
+  - id: ASSOC-S1-Q001
+    objective_ids: [ASSOC-S1-O1, ASSOC-S1-O2]
+    difficulty: application
+    provenance: official-sample
+    source_note: Official Associate exam guide (May 2026), sample question 2.
+    tags: [delta-lake, time-travel, unity-catalog, acid]
+    stem: >-
+      A data engineer requires rapid iteration on pipelines while maintaining
+      reliable rollbacks after bad ingests, ensuring audit trails for regulatory
+      compliance, and providing consistent access to a single source of truth for
+      both AI and BI workloads. Which strategy should the data engineer use to meet
+      these requirements?
+    options:
+      A: DBFS CSV storage with manual file versioning and nightly copies for rollback
+      B: >-
+        Delta Lake ACID transactions and time travel, governed by Unity Catalog for
+        consistent access and lineage
+      C: Cloud object storage only, with ad hoc SQL queries for recovery and governance
+      D: Ephemeral in-memory DataFrames for audit trails and BI distribution
+    correct: B
+    explanation: >-
+      Map each requirement to the feature that provides it. Reliable rollback comes
+      from Delta Lake time travel (RESTORE to a prior version); audit trails come
+      from the transaction log plus Unity Catalog lineage; a single source of truth
+      for AI and BI comes from UC governing one copy of the data. This pairing is
+      the platform's core answer and recurs across the exam.
+    distractor_rationale:
+      A: >-
+        Manual file versioning is exactly what Delta's transaction log replaces. No
+        ACID guarantees, and nightly copies mean losing up to a day.
+      C: >-
+        Object storage alone has no transaction log, so there is nothing to roll back
+        to and no governance layer.
+      D: >-
+        In-memory DataFrames are ephemeral by definition - the opposite of an audit
+        trail.
+
+  - id: ASSOC-S2-Q001
+    objective_ids: [ASSOC-S2-O1]
+    difficulty: recall
+    provenance: official-sample
+    source_note: Official Associate exam guide (May 2026), sample question 3.
+    tags: [audit-logs, ingestion, auto-loader, json]
+    stem: >-
+      A data engineer is building downstream pipelines to consume Databricks audit
+      logs from a customer-owned S3 bucket. Before implementing schema inference and
+      checkpointing, they want to understand the delivery format, typical ingestion
+      latency, and whether files may be overwritten. What is Databricks audit log
+      storage behavior?
+    options:
+      A: >-
+        Files are delivered as JSON with typical event logging under 15 minutes after
+        delivery begins, and new deliveries can overwrite existing files
+      B: >-
+        Files are delivered as CSV with sub-minute latency guarantees, and overwrites
+        never occur once a file is written to preserve immutability
+      C: >-
+        Files are delivered as Parquet with eventual consistency beyond 24 hours, and
+        overwrites are disabled to simplify streaming ingestion
+      D: >-
+        Files are delivered as JSON with delivery on a weekly batch cadence, and
+        overwrites replace prior content completely without appending
+    correct: A
+    explanation: >-
+      Audit logs arrive as JSON, typically within about 15 minutes, and Databricks
+      may overwrite an already-delivered file. That last point is the one that
+      matters for pipeline design: because files are mutable, an ingestion approach
+      that assumes append-only files can miss or duplicate records, so plan for
+      idempotent processing rather than trusting file immutability.
+    distractor_rationale:
+      B: Audit logs are JSON, not CSV, and there is no sub-minute guarantee.
+      C: Not Parquet, and the latency figure is far too pessimistic.
+      D: The format is right but the cadence is not - delivery is continuous, not weekly.
+
+  - id: ASSOC-S6-Q002
+    objective_ids: [ASSOC-S6-O5, ASSOC-S1-O2]
+    difficulty: application
+    provenance: official-sample
+    source_note: >-
+      Official Associate exam guide (May 2026), sample question 4. The guide states
+      this against the cluster-diagnostics objective; it also exercises compute
+      selection (ASSOC-S1-O2).
+    tags: [compute, concurrency, autoscaling, cost]
+    stem: >-
+      A data engineering team supports multiple business analysts who run ad hoc SQL
+      queries throughout the day on curated Delta tables. The team needs to ensure
+      efficient query performance, fast cluster startup, and support for multiple
+      simultaneous users, while managing cost by avoiding unnecessary scaling to very
+      large clusters. Which cluster configuration meets these requirements?
+    options:
+      A: A job cluster with autoscaling designed for scheduled ETL workflows
+      B: An all-purpose cluster configured with a fixed number of worker nodes
+      C: A high-concurrency cluster with autoscaling enabled
+      D: A single-node cluster configured for lightweight development tasks
+    correct: C
+    explanation: >-
+      Work the requirements one at a time: "multiple simultaneous users" points to
+      high concurrency, and "avoid unnecessary scaling" points to autoscaling rather
+      than a fixed large cluster. High concurrency plus autoscaling is the only
+      option satisfying both.
+    distractor_rationale:
+      A: >-
+        Job clusters are created per run and terminate after it - they exist for
+        scheduled work, not interactive ad hoc querying.
+      B: >-
+        A fixed node count cannot flex with demand: it is either wasteful when idle
+        or a bottleneck at peak.
+      D: >-
+        A single node cannot serve multiple concurrent analysts.
+
+  - id: ASSOC-S5-Q001
+    objective_ids: [ASSOC-S5-O3, ASSOC-S5-O1]
+    difficulty: application
+    provenance: official-sample
+    source_note: >-
+      Official Associate exam guide (May 2026), sample question 5. The guide states
+      this against the Git Folders objective; the answer is squarely about
+      Declarative Automation Bundles (ASSOC-S5-O3).
+    tags: [dabs, cicd, deployment, versioning]
+    stem: >-
+      A team wants a modular way to deploy, version, and orchestrate ETL pipelines in
+      Databricks - enabling CI/CD and repeatability. Which feature supports this
+      requirement?
+    options:
+      A: >-
+        Use models in Unity Catalog to represent ETL jobs, where each model stores the
+        pipeline code artifact and CI/CD promotes versions by updating model aliases
+        tied to Job tasks.
+      B: >-
+        Package transformation logic as wheel libraries stored in Unity Catalog Volumes
+        and bind them to Jobs tasks to ensure deterministic deployment across
+        environments.
+      C: >-
+        Package API logic inside a Volume-mounted notebook, and use Jobs API v2 to
+        trigger the notebook, depending on notebook revision history to act as a
+        versioning system.
+      D: >-
+        Use DABs to define resources and code assets, version them in Git, and promote
+        deployments across environments through automated CI/CD actions.
+    correct: D
+    explanation: >-
+      Declarative Automation Bundles (formerly Databricks Asset Bundles) are the
+      platform's answer to packaging jobs, pipelines and their configuration as
+      version-controlled code, then promoting the same definitions across dev, test
+      and prod with per-target overrides. When a question asks for deployment plus
+      versioning plus environment promotion together, it is describing bundles.
+    distractor_rationale:
+      A: >-
+        Models in Unity Catalog version ML models, not ETL job definitions. Using
+        model aliases to deploy pipelines misuses the registry.
+      B: >-
+        Wheels are a reasonable way to package transformation *code*, but they do not
+        define the jobs, pipelines or environment configuration around it.
+      C: >-
+        Notebook revision history is not a deployment mechanism, and relying on it for
+        versioning gives no reproducible promotion between environments.

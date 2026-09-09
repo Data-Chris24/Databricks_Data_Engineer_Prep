@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Data-Chris24/Databricks_Data_Engineer_Prep/content/questions/schema.json",
+  "title": "Question bank file",
+  "description": "One YAML file holds a list of questions under `questions`. Every question links to at least one objective ID from content/objectives/*.yaml.",
+  "type": "object",
+  "required": ["questions"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "description": "Optional provenance for the whole file.",
+      "additionalProperties": true,
+      "properties": {
+        "source": { "type": "string" },
+        "note": { "type": "string" }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/question" }
+    }
+  },
+  "$defs": {
+    "question": {
+      "type": "object",
+      "required": [
+        "id",
+        "objective_ids",
+        "stem",
+        "options",
+        "correct",
+        "explanation",
+        "provenance"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z]+-S[0-9]+-Q[0-9]{3}$",
+          "description": "Stable question ID, e.g. ASSOC-S2-Q001. Never reused once retired."
+        },
+        "objective_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(ASSOC|PRO)-S[0-9]+-O[0-9]+$"
+          },
+          "description": "Objectives this question tests. Must resolve against the objective maps."
+        },
+        "stem": {
+          "type": "string",
+          "minLength": 20,
+          "description": "The question itself. Scenario-based where possible - the real exams are."
+        },
+        "code": {
+          "type": "string",
+          "description": "Optional code or schema block shown with the stem."
+        },
+        "options": {
+          "type": "object",
+          "minProperties": 3,
+          "maxProperties": 6,
+          "propertyNames": { "pattern": "^[A-F]$" },
+          "additionalProperties": { "type": "string", "minLength": 1 },
+          "description": "Answer options keyed A-F."
+        },
+        "correct": {
+          "type": "string",
+          "pattern": "^[A-F]$",
+          "description": "Exactly one correct option key. Multi-select is not modelled - neither exam uses it."
+        },
+        "explanation": {
+          "type": "string",
+          "minLength": 20,
+          "description": "Why the correct answer is correct. Teach here; this is what the learner reads after answering."
+        },
+        "distractor_rationale": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[A-F]$" },
+          "additionalProperties": { "type": "string" },
+          "description": "Why each wrong option is wrong. Optional but strongly encouraged - misconceptions are where the learning is."
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["recall", "application", "analysis"],
+          "description": "recall = definition; application = apply to a scenario; analysis = diagnose or choose between trade-offs."
+        },
+        "provenance": {
+          "type": "string",
+          "enum": ["original", "official-sample", "concept-inspired"],
+          "description": "original: written for this repo. official-sample: retired sample published by Databricks in an exam guide. concept-inspired: concept taken from third-party material, question written from scratch - see docs/authoring-guide.md."
+        },
+        "source_note": {
+          "type": "string",
+          "description": "Required for official-sample and concept-inspired. Names the source, never quotes it."
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "provenance": { "enum": ["official-sample", "concept-inspired"] }
+            },
+            "required": ["provenance"]
+          },
+          "then": { "required": ["source_note"] }
+        }
+      ]
+    }
+  }
+}

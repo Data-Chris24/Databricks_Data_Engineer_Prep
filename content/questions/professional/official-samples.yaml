@@ -1,0 +1,421 @@
+# Retired sample questions published by Databricks in the official
+# Data Engineer Professional exam guide (version July 3, 2026).
+#
+# Reproduced with attribution - Databricks publishes them to illustrate the
+# objectives. Explanations and distractor rationales are written for this repo.
+#
+# Several of these questions state an objective from a RETIRED outline that no
+# longer appears in the current guide. Those are mapped to the nearest current
+# objective and the mismatch is called out in source_note, rather than pretending
+# the mapping is exact.
+meta:
+  source: >-
+    Databricks Certified Data Engineer Professional Exam Guide, version July 3,
+    2026 - "Sample Questions" section. See docs/exam-guides/SOURCES.md.
+  note: >-
+    Databricks describes these as retired from a previous version of the exam.
+
+questions:
+  - id: PRO-S10-Q001
+    objective_ids: [PRO-S10-O1]
+    difficulty: recall
+    provenance: official-sample
+    source_note: >-
+      Official Professional exam guide (July 2026), sample question 1. The guide
+      states a retired objective ("Delta Lake's catalog-metastore operations and
+      ACID compliance behavior"); mapped here to the nearest current objective.
+    tags: [delta-lake, metastore, external-table, rename]
+    stem: >-
+      A Delta Lake table was created with the first query below. Realizing that the
+      original query had a typographical error, the second query was executed. Which
+      result will occur after running the second command?
+    code: |
+      CREATE TABLE prod.sales_by_stor
+      USING DELTA
+      LOCATION "/mnt/prod/sales_by_store"
+
+      ALTER TABLE prod.sales_by_stor RENAME TO prod.sales_by_store
+    options:
+      A: All related files and metadata are dropped and recreated in a single ACID transaction.
+      B: The table name change is recorded in the Delta transaction log.
+      C: A new Delta transaction log is created for the renamed table.
+      D: The table reference in the metastore is updated.
+    correct: D
+    explanation: >-
+      The table was created with an explicit LOCATION, making it an external table.
+      Renaming it changes only the metastore's pointer - no data files move, and the
+      Delta transaction log is untouched. The key idea is the separation between the
+      catalog (which names things) and the transaction log (which records data
+      operations); a rename is purely a catalog operation.
+    distractor_rationale:
+      A: >-
+        Nothing is dropped or rewritten. A rename that moved terabytes of files would
+        be a very expensive typo fix.
+      B: >-
+        The transaction log records data operations on the table, not the name the
+        catalog knows it by.
+      C: >-
+        The log lives with the data at its storage location, which has not changed, so
+        no new log is created.
+
+  - id: PRO-S1-Q001
+    objective_ids: [PRO-S1-O8]
+    difficulty: analysis
+    provenance: official-sample
+    source_note: Official Professional exam guide (July 2026), sample question 2.
+    tags: [structured-streaming, trigger-interval, microbatch, sla]
+    stem: >-
+      A Structured Streaming job deployed to production has been experiencing delays
+      during peak hours of the day. Currently, during normal execution, each
+      microbatch of data is processed in under 3 seconds. During peak hours,
+      execution time for each microbatch becomes very inconsistent, sometimes
+      exceeding 30 seconds. The streaming write is currently configured with a
+      10-second trigger interval. Holding all other variables constant and assuming
+      records need to be processed in less than 10 seconds, which adjustment will
+      meet the requirement?
+    options:
+      A: >-
+        Use the trigger once option and configure a Databricks job to execute the query
+        every 8 seconds; this ensures all backlogged records are processed with each
+        batch.
+      B: >-
+        Decrease the trigger interval to 5 seconds; triggering batches more frequently
+        may prevent records from backing up and large batches from causing a spill.
+      C: >-
+        Decrease the trigger interval to 5 seconds; triggering batches more frequently
+        allows idle executors to begin processing the next batch while longer-running
+        tasks from previous batches finish.
+      D: >-
+        The trigger interval cannot be modified without modifying the checkpoint
+        directory; to maintain the current stream state, increase the number of shuffle
+        partitions to maximize parallelism.
+    correct: B
+    explanation: >-
+      Smaller, more frequent batches keep each microbatch's working set small enough
+      to avoid spilling to disk, which is what makes peak-hour runtimes blow out to
+      30 seconds. Note that B and C recommend the same action - the exam is testing
+      the *reasoning*, not the change. Read the justification, not just the verb.
+    distractor_rationale:
+      A: >-
+        Trigger-once processes all available data in one batch, which makes the batch
+        larger, not smaller - the opposite of what is needed.
+      C: >-
+        Right action, wrong mechanism. Structured Streaming microbatches run
+        sequentially; the next batch does not start while the previous one is still
+        finishing, so there are no idle executors overlapping work.
+      D: >-
+        The trigger interval can be changed without touching the checkpoint. Trigger
+        interval is not part of the checkpointed state.
+
+  - id: PRO-S10-Q002
+    objective_ids: [PRO-S10-O1]
+    difficulty: application
+    provenance: official-sample
+    source_note: Official Professional exam guide (July 2026), sample question 3.
+    tags: [partitioning, cardinality, delta-lake]
+    stem: >-
+      A Delta Lake table representing metadata about content posts from users has the
+      schema below. Based on that schema, which column should be used for partitioning
+      the Delta table?
+    code: |
+      user_id     LONG,
+      post_text   STRING,
+      post_id     STRING,
+      longitude   FLOAT,
+      latitude    FLOAT,
+      post_time   TIMESTAMP,
+      date        DATE
+    options:
+      A: post_id
+      B: post_time
+      C: date
+      D: user_id
+    correct: C
+    explanation: >-
+      A partition column needs low enough cardinality that each partition holds a
+      substantial amount of data - the usual guidance is at least around a gigabyte
+      per partition. `date` gives one partition per day, which is coarse enough to
+      avoid a small-file explosion and aligns with how such data is usually queried.
+      Worth knowing that modern Databricks guidance is to prefer Liquid Clustering
+      over partitioning for most tables (see PRO-S10-O3); this question predates that
+      shift and tests classic partition-column selection.
+    distractor_rationale:
+      A: >-
+        post_id is unique per row - one partition per post, which is the worst possible
+        choice.
+      B: >-
+        A TIMESTAMP has second or sub-second granularity, so partitioning on it creates
+        an enormous number of tiny partitions.
+      D: >-
+        user_id is high cardinality and skewed - a few prolific users would produce
+        huge partitions while most produce trivial ones.
+
+  - id: PRO-S8-Q001
+    objective_ids: [PRO-S8-O2]
+    difficulty: analysis
+    provenance: official-sample
+    source_note: Official Professional exam guide (July 2026), sample question 4.
+    tags: [unity-catalog, views, dynamic-views, is_member, column-masking]
+    stem: >-
+      A table named user_ltv is being used to create a view that will be used by data
+      analysts on various teams. Users in the workspace are configured into groups,
+      which are used for setting up data access using ACLs. The user_ltv table has the
+      schema `email STRING, age INT, ltv INT`. The view definition below is executed,
+      then an analyst who is NOT a member of the marketing group runs
+      `SELECT * FROM email_ltv`. What will be the result of this query?
+    code: |
+      CREATE VIEW email_ltv AS
+      SELECT
+        CASE WHEN is_member('marketing') THEN email ELSE 'REDACTED' END AS email,
+        ltv
+      FROM user_ltv
+    options:
+      A: >-
+        Only the email and ltv columns will be returned; the email column will contain
+        the string "REDACTED" in each row.
+      B: >-
+        Three columns will be returned, but one column will be named "REDACTED" and
+        contain only null values.
+      C: >-
+        Only the email and ltv columns will be returned; the email column will contain
+        all null values.
+      D: The email and ltv columns will be returned with the values in user_ltv.
+    correct: A
+    explanation: >-
+      This is a dynamic view. `is_member('marketing')` is evaluated per querying user,
+      so for a non-member the CASE yields the literal string 'REDACTED' in the email
+      column. The view selects only email and ltv, so `age` never appears regardless
+      of who asks - the view is the security boundary.
+    distractor_rationale:
+      B: >-
+        The column is aliased AS email; 'REDACTED' is the value, not the column name.
+        And only two columns are selected.
+      C: >-
+        The CASE returns a string literal, not NULL.
+      D: >-
+        This is what a marketing group member would see. The whole point of
+        is_member() is that the result differs by caller.
+
+  - id: PRO-S1-Q002
+    objective_ids: [PRO-S1-O10, PRO-S1-O5]
+    difficulty: application
+    provenance: official-sample
+    source_note: Official Professional exam guide (July 2026), sample question 5.
+    tags: [job-cluster, cost, scheduling, sla]
+    stem: >-
+      The business reporting team requires that data for their dashboards be updated
+      every hour. The total processing time for the pipeline, which extracts,
+      transforms, and loads data for its runs, is 10 minutes. Assuming normal operating
+      conditions, which configuration will meet their service-level agreement
+      requirements with the lowest cost?
+    options:
+      A: Schedule a job to execute the pipeline once an hour on a dedicated interactive cluster.
+      B: Schedule a job to execute the pipeline once an hour on a new job cluster.
+      C: Schedule a Structured Streaming job with a trigger interval of 60 minutes.
+      D: Configure a job that executes every time new data lands in a given directory.
+    correct: B
+    explanation: >-
+      A job cluster is created for the run and terminated when it finishes, so you pay
+      for roughly 10 minutes of compute per hour instead of 60. Job clusters are also
+      billed at a lower DBU rate than all-purpose compute. When a question pairs a
+      fixed schedule with "lowest cost", job clusters are almost always the answer.
+    distractor_rationale:
+      A: >-
+        A dedicated interactive cluster runs continuously (or must be manually managed),
+        so you pay for 60 minutes an hour to do 10 minutes of work - and at the higher
+        all-purpose rate.
+      C: >-
+        A streaming job keeps a cluster alive between triggers, which is the same
+        always-on cost problem for what is fundamentally a batch workload.
+      D: >-
+        File-arrival triggering does not meet a defined hourly SLA - it fires whenever
+        data happens to land, which could be far more or less often than hourly.
+
+  - id: PRO-S7-Q001
+    objective_ids: [PRO-S7-O1]
+    difficulty: recall
+    provenance: official-sample
+    source_note: >-
+      Official Professional exam guide (July 2026), sample question 6. The guide states
+      a retired objective about the notebook development environment; mapped here to
+      the nearest current security objective.
+    tags: [secrets, dbutils, redaction, jdbc]
+    stem: >-
+      The security team is exploring whether the Databricks secrets module can be
+      leveraged for connecting to an external database. After testing the code with all
+      Python variables defined as plain strings, they upload the password to the secrets
+      module and configure the correct permissions for the currently active user. They
+      modify their code as below, leaving all other variables unchanged. What will
+      happen when this code is executed?
+    code: |
+      password = dbutils.secrets.get(scope="db_creds", key="jdbc_password")
+      print(password)
+
+      df = (spark.read
+            .format("jdbc")
+            .option("url", connection)
+            .option("dbtable", tablename)
+            .option("user", username)
+            .option("password", password))
+    options:
+      A: The connection to the external table will succeed; the string "REDACTED" will be printed.
+      B: >-
+        The connection to the external table will succeed; the string value of the
+        password will be printed in plain text.
+      C: >-
+        An interactive input box will appear in the notebook; if the right password is
+        provided, the connection will succeed, and the password will be printed in plain
+        text.
+      D: >-
+        An interactive input box will appear in the notebook; if the right password is
+        provided, the connection will succeed, and the encoded password will be saved to
+        DBFS.
+    correct: A
+    explanation: >-
+      Secrets retrieved via dbutils.secrets.get hold their real value in code - so the
+      JDBC connection works - but Databricks redacts them from any notebook output.
+      Printing one displays "REDACTED". This is a deliberate guardrail against
+      accidentally leaking credentials into notebook results, logs or exported HTML.
+    distractor_rationale:
+      B: >-
+        This is precisely what redaction exists to prevent.
+      C: >-
+        dbutils.secrets.get reads from the secret scope; it never prompts. You may be
+        thinking of dbutils.widgets.
+      D: >-
+        No prompt appears, and nothing is written to DBFS.
+
+  - id: PRO-S6-Q001
+    objective_ids: [PRO-S6-O3]
+    difficulty: analysis
+    provenance: official-sample
+    source_note: Official Professional exam guide (July 2026), sample question 7.
+    tags: [file-sizing, parquet, partitioning, spark-config]
+    stem: >-
+      A data ingestion task requires a 1-TB JSON dataset to be written out to Parquet
+      with a target part-file size of 512 MB. Because Parquet is being used instead of
+      Delta Lake, built-in file-sizing features such as Auto-Optimize and
+      Auto-Compaction cannot be used. Which approach will work WITHOUT rearranging the
+      data?
+    options:
+      A: >-
+        Ingest the data, execute the narrow transformations, repartition to 2,048
+        partitions, and then write to Parquet.
+      B: >-
+        Set spark.sql.adaptive.advisoryPartitionSizeInBytes to 512 MB, ingest the data,
+        execute the narrow transformations, coalesce to 2,048 partitions, and then write
+        to Parquet.
+      C: >-
+        Set spark.sql.files.maxPartitionBytes to 512 MB, ingest the data, execute the
+        narrow transformations, and then write to Parquet.
+      D: >-
+        Set spark.sql.shuffle.partitions to 2,048 partitions, ingest the data, execute
+        the narrow transformations, optimize the data by sorting it (which automatically
+        repartitions the data), and then write to Parquet.
+    correct: C
+    explanation: >-
+      The constraint "without rearranging the data" is the whole question - it rules out
+      any shuffle. `spark.sql.files.maxPartitionBytes` controls how much data each
+      partition holds when files are *read*, so setting it to 512 MB gives partitions of
+      roughly that size that flow through narrow transformations untouched and land as
+      512 MB output files. No shuffle occurs at any point.
+    distractor_rationale:
+      A: >-
+        repartition() is a full shuffle - exactly what the question forbids.
+      B: >-
+        advisoryPartitionSizeInBytes applies to adaptive shuffle partitioning, and
+        coalesce still rearranges data across partitions.
+      D: >-
+        shuffle.partitions only affects operations that shuffle, and the sort explicitly
+        repartitions.
+
+  - id: PRO-S10-Q003
+    objective_ids: [PRO-S10-O1, PRO-S8-O1]
+    difficulty: application
+    provenance: official-sample
+    source_note: >-
+      Official Professional exam guide (July 2026), sample question 8. The guide states
+      a retired objective about Delta Lake clones; the correct answer is about views, so
+      it is mapped to the nearest current objectives.
+    tags: [views, data-sharing, simplicity, clone]
+    stem: >-
+      The marketing team wants to share data in an aggregate table with the sales
+      organization, but the field names used by the teams do not match, and a number of
+      marketing-specific fields have not been approved for the sales organization. Which
+      solution addresses the situation while emphasizing simplicity?
+    options:
+      A: >-
+        Create a view on the marketing table selecting only those fields approved for the
+        sales team; alias the names of any fields that should be standardized to the
+        sales naming conventions.
+      B: >-
+        Create a new table with the required schema and use Delta Lake's DEEP CLONE
+        functionality to sync up changes committed to one table to the corresponding
+        table.
+      C: >-
+        Use a CTAS statement to create a derivative table from the marketing table, and
+        then configure a production job to propagate the changes.
+      D: >-
+        Add a parallel table write to the current production pipeline, updating a new
+        sales table that varies as required from the marketing table.
+    correct: A
+    explanation: >-
+      A view solves both halves of the problem at once - column selection handles the
+      unapproved fields, aliasing handles the naming mismatch - and it stays current
+      automatically because it is computed at query time. Options B, C and D all create a
+      second physical copy that must be kept in sync. When a question emphasizes
+      "simplicity", prefer the solution that stores no duplicate data.
+    distractor_rationale:
+      B: >-
+        DEEP CLONE copies data and does not continuously sync; it also cannot rename or
+        drop columns.
+      C: >-
+        CTAS plus a propagation job is real duplication plus real operational burden, for
+        something a view does for free.
+      D: >-
+        A parallel write adds a second copy to maintain and a new failure mode in the
+        production pipeline.
+
+  - id: PRO-S1-Q003
+    objective_ids: [PRO-S1-O5]
+    difficulty: analysis
+    provenance: official-sample
+    source_note: Official Professional exam guide (July 2026), sample question 9.
+    tags: [jobs, multi-task, dependencies, transactions, failure]
+    stem: >-
+      A Databricks job has been configured with three tasks, each of which is a
+      Databricks notebook. Task A does not depend on other tasks. Tasks B and C run in
+      parallel, with each having a serial dependency on task A. What will be the
+      resulting state if tasks A and B complete successfully but task C fails during a
+      scheduled run?
+    options:
+      A: >-
+        All logic expressed in the notebook associated with tasks A and B will have been
+        successfully completed; some operations in task C may have been completed
+        successfully.
+      B: >-
+        Unless all tasks are completed successfully, no changes will be committed to the
+        Lakehouse; because task C failed, all commits will be rolled back automatically.
+      C: >-
+        All logic expressed in the notebook associated with tasks A and B will have been
+        successfully completed; any changes made in task C will be rolled back due to
+        task failure.
+      D: >-
+        Because all tasks are managed as a dependency graph, no changes will be committed
+        to the Lakehouse until all tasks have successfully been completed.
+    correct: A
+    explanation: >-
+      Delta Lake gives ACID guarantees per *write operation*, not across a multi-task
+      job. A job is not a distributed transaction: tasks A and B committed their writes
+      and those stand, and task C may have committed several writes before failing
+      partway through. This is why idempotent, restartable task design matters - the
+      platform will not undo partial work for you.
+    distractor_rationale:
+      B: >-
+        There is no job-level transaction to roll back. Committed writes from A and B are
+        durable.
+      C: >-
+        Only the individual write that was in flight when C failed is rolled back;
+        writes C already committed remain.
+      D: >-
+        The dependency graph controls execution *order*, not transactional atomicity.

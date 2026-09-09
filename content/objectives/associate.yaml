@@ -1,0 +1,272 @@
+# Databricks Certified Data Engineer Associate - objective map
+# Source: official exam guide, version May 4, 2026 (see docs/exam-guides/SOURCES.md)
+# Objective text is quoted from the guide. Stable IDs (ASSOC-Sn-On) are ours and
+# MUST NOT be renumbered - lessons, notebooks and questions reference them.
+#
+# Lab-feasibility tags (see docs/free-edition-constraints.md):
+#   free_edition_lab: full | partial | theory_only
+#     Omitted means `full` - practisable end-to-end on Free Edition serverless.
+#     Only the exceptions are annotated, so a missing tag is a positive claim
+#     that the objective needs no special treatment.
+#   optional_classic_lab: true
+#     A classic-compute lab exists under notebooks/optional-classic/ for this
+#     objective. Requires a Premium/trial workspace - never on the required path.
+#   verify_in_workspace: true
+#     Feasibility is genuinely uncertain and must be confirmed against a live
+#     Free Edition workspace before content is written. Do not guess.
+
+exam:
+  id: associate
+  name: Databricks Certified Data Engineer Associate
+  guide_version: "2026-05-04"
+  retrieved: "2026-09-09"
+  scored_items: 45
+  time_limit_minutes: 90
+  fee_usd: 200
+  validity_years: 2
+  weighting_source: exam_guide_pdf
+
+recommended_training:
+  instructor_led:
+    - Data Engineering with Databricks
+  self_paced:
+    - Data Ingestion with Lakeflow Connect
+    - Deploy Workloads with Lakeflow Jobs
+    - DevOps Essentials for Data Engineering
+    - Data Interoperability with Unity Catalog
+    - Build Data Pipelines with Lakeflow Spark Declarative Pipelines
+    - Get Started with Data Governance on Databricks
+
+sections:
+  - id: ASSOC-S1
+    number: 1
+    title: Databricks Intelligence Platform
+    weighting_pct: 6
+    objectives:
+      - id: ASSOC-S1-O1
+        text: >-
+          Understand the core components of the Databricks Data Intelligence
+          Platform, such as its architecture, Delta Lake, and Unity Catalog.
+      - id: ASSOC-S1-O2
+        free_edition_lab: theory_only
+        optional_classic_lab: true
+        note: >-
+          Free Edition is serverless-only with no custom compute configuration,
+          so comparing compute types and their cost models cannot be done
+          hands-on here.
+        text: >-
+          Understand Databricks Data Intelligence Platform's compute services,
+          including their characteristics, limitations, and cost models, and
+          select the most suitable option for each workload use case.
+
+  - id: ASSOC-S2
+    number: 2
+    title: Data Ingestion and Loading
+    weighting_pct: 21
+    objectives:
+      - id: ASSOC-S2-O1
+        text: >-
+          Enable and detail data ingestion patterns, including batch, streaming,
+          and incremental loading, and import data from sources such as local
+          files, Lakeflow Connect standard connectors, and Lakeflow Connect
+          managed connectors.
+      - id: ASSOC-S2-O2
+        text: >-
+          Use the COPY INTO command to incrementally load files from cloud object
+          storage (ADLS/S3/GCS) into Unity Catalog-governed tables.
+      - id: ASSOC-S2-O3
+        text: >-
+          Use Auto Loader with schema enforcement and schema evolution in batch
+          modes (for example, directory listing or file notification) to land
+          data into Unity Catalog-governed tables.
+      - id: ASSOC-S2-O4
+        verify_in_workspace: true
+        note: >-
+          Standard connectors should be fine, but managed connectors target SaaS
+          systems (Salesforce, Workday, ServiceNow) that a learner is unlikely to
+          have. Confirm which connectors Free Edition exposes before deciding how
+          much of this can be hands-on.
+        text: >-
+          Configure Lakeflow Connect to reliably ingest data from diverse
+          enterprise sources into Unity Catalog-governed tables.
+      - id: ASSOC-S2-O5
+        free_edition_lab: partial
+        verify_in_workspace: true
+        note: >-
+          Needs an external database to read from, and Free Edition restricts
+          egress to trusted domains. Promising workaround: use the account's own
+          Lakebase Postgres project as the JDBC source, keeping the lab entirely
+          inside Databricks. Verify Lakebase JDBC connectivity from a serverless
+          notebook before writing this.
+        text: >-
+          Use JDBC/ODBC or REST clients in notebooks to land data into cloud
+          storage or directly into Unity Catalog-governed tables, usually
+          orchestrated and scheduled with Lakeflow Jobs.
+      - id: ASSOC-S2-O6
+        text: >-
+          Prioritize between Auto Loader, Lakeflow Connect (standard and managed
+          connectors), partner connectors, and other ingestion methods based on
+          technical requirements such as data volume, ingestion frequency, data
+          types, and governance needs with Unity Catalog.
+      - id: ASSOC-S2-O7
+        text: >-
+          Ingest semi-structured and unstructured data (for example, JSON and
+          nested data) via Lakeflow Connect and other managed connectors into
+          Unity Catalog-governed Delta tables.
+
+  - id: ASSOC-S3
+    number: 3
+    title: Data Transformation and Modeling
+    weighting_pct: 22
+    objectives:
+      - id: ASSOC-S3-O1
+        text: >-
+          Implement data cleaning by reading bronze tables with PySpark/SQL,
+          cleaning nulls, standardizing data types, and writing to new silver
+          tables.
+      - id: ASSOC-S3-O2
+        text: >-
+          Combine DataFrames with operations such as inner join, left join,
+          broadcast join, multiple keys, cross join, union, and union all.
+      - id: ASSOC-S3-O3
+        text: >-
+          Manipulate columns, rows, and table structures by adding, dropping,
+          splitting, renaming column names, applying filters, and exploding
+          arrays.
+      - id: ASSOC-S3-O4
+        text: >-
+          Perform data deduplication operations and aggregate operations on
+          DataFrames, such as count, approximate count distinct, mean, and
+          summary.
+      - id: ASSOC-S3-O5
+        text: >-
+          Understand the basic tuning parameters
+          (spark.sql.shuffle.partitions, spark.default.parallelism,
+          spark.executor/driver.memory, spark.sql.autoBroadcastJoinThreshold)
+          and re-measure the performance.
+      - id: ASSOC-S3-O6
+        text: >-
+          Understand the difference between, and how to build, Gold layer objects
+          such as materialized views, views, streaming tables, and tables for BI
+          and analytics teams in Unity Catalog.
+      - id: ASSOC-S3-O7
+        text: >-
+          Apply data quality checks and validation rules to ensure reliable
+          Silver and Gold datasets.
+
+  - id: ASSOC-S4
+    number: 4
+    title: Working with Lakeflow Jobs
+    weighting_pct: 16
+    objectives:
+      - id: ASSOC-S4-O1
+        text: >-
+          Implement control flows (retries and conditional tasks such as
+          branching and looping) using Lakeflow Jobs for pipeline orchestration.
+      - id: ASSOC-S4-O2
+        text: >-
+          Configure common tasks (notebook, SQL query, dashboard, and pipeline
+          tasks) and their dependencies using Lakeflow Jobs and its DAG-based
+          task graph.
+      - id: ASSOC-S4-O3
+        text: >-
+          Implement job schedules using Lakeflow Jobs with an understanding of
+          trigger types (scheduled, file arrival, and table update).
+      - id: ASSOC-S4-O4
+        text: >-
+          Choose between time-based and data-driven triggers based on data
+          availability and pipeline dependencies.
+
+  - id: ASSOC-S5
+    number: 5
+    title: Implementing CI/CD
+    weighting_pct: 10
+    objectives:
+      - id: ASSOC-S5-O1
+        text: >-
+          Manage your code development workflow within the Databricks workspace
+          UI, including creating and switching between branches in Databricks Git
+          Folders (formerly Databricks Repos), committing and pushing changes,
+          and creating pull requests using Databricks Git integration.
+      - id: ASSOC-S5-O2
+        text: >-
+          Understand environment-specific configuration using Automation Bundle
+          (formerly Databricks Asset Bundles) variables and overrides while
+          promoting the same codebase across dev, test, and prod targets.
+      - id: ASSOC-S5-O3
+        text: >-
+          Deploy Declarative Automation Bundles (formerly Databricks Asset
+          Bundles) to package, configure, and promote Lakeflow Jobs, Lakeflow
+          Spark Declarative Pipelines, and other workspace assets across dev,
+          test, and prod environments.
+      - id: ASSOC-S5-O4
+        text: >-
+          Understand the Databricks CLI to validate, deploy, and manage
+          Declarative Automation Bundles (formerly Databricks Asset Bundles) and
+          other workspace assets in automated CI/CD workflows.
+
+  - id: ASSOC-S6
+    number: 6
+    title: Troubleshooting, Monitoring, and Optimization
+    weighting_pct: 10
+    objectives:
+      - id: ASSOC-S6-O1
+        text: >-
+          Identify trends in job performance using the Lakeflow Jobs run history
+          view to compare current execution times against historical baselines.
+      - id: ASSOC-S6-O2
+        text: >-
+          Use the Lakeflow Jobs UI to monitor pipeline health by interpreting job
+          statuses, viewing DAG-based task graphs to spot upstream blockers, and
+          tracking pipeline run times and failure rates.
+      - id: ASSOC-S6-O3
+        free_edition_lab: partial
+        optional_classic_lab: true
+        verify_in_workspace: true
+        note: >-
+          Skew and spill can be induced on serverless, but Spark UI depth on
+          serverless compute is limited. Confirm how much stage-level detail is
+          actually visible; the classic lab covers the full diagnostic surface.
+        text: >-
+          Identify common performance bottlenecks such as data skew, shuffling,
+          and disk spilling by interpreting stage-level metrics in the Spark UI.
+      - id: ASSOC-S6-O4
+        text: Understand the features of Liquid Clustering and predictive optimization.
+      - id: ASSOC-S6-O5
+        free_edition_lab: theory_only
+        optional_classic_lab: true
+        note: >-
+          There are no clusters to fail to start on serverless. The classic lab
+          deliberately breaks things - bad init script, conflicting pinned
+          library versions, a forced driver OOM - so the real errors get read.
+        text: >-
+          Diagnose cluster startup failures, library conflicts, and
+          out-of-memory issues.
+
+  - id: ASSOC-S7
+    number: 7
+    title: Governance and Security
+    weighting_pct: 15
+    objectives:
+      - id: ASSOC-S7-O1
+        text: >-
+          Differentiate between managed and external tables in Unity Catalog and
+          perform basic operations (create, modify, delete, and convert between
+          managed and external tables) on them.
+      - id: ASSOC-S7-O2
+        text: >-
+          Configure access controls using the UI and SQL by applying GRANT,
+          REVOKE, and DENY privileges to principals (users, groups, and service
+          principals) at appropriate levels of the security hierarchy.
+      - id: ASSOC-S7-O3
+        text: >-
+          Understand column-level masking and row-level security to restrict data
+          visibility based on user groups.
+      - id: ASSOC-S7-O4
+        verify_in_workspace: true
+        note: >-
+          ABAC policy availability on Free Edition is unconfirmed and the feature
+          has been moving quickly. Check before writing a lab that depends on it.
+        text: >-
+          Understand Unity Catalog ABAC policies to centrally control row-level
+          filtering and column masking for sensitive data.
