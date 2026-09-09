@@ -41,9 +41,37 @@ second account is theatre.
 
 ## One-time setup
 
-### 1. Repository secrets
+### 1. Deployment environment
 
-`Settings → Secrets and variables → Actions → New repository secret`:
+`Settings → Environments → New environment` → name it **`databricks-free`**,
+which is what `deploy.yml` references. Three settings on that page matter.
+
+**Required reviewers — tick it, add yourself.** Every deploy then pauses until you
+approve it in the Actions tab.
+
+> **This one works solo, unlike PR approval.** GitHub *does* let you approve a
+> deployment you triggered yourself. Ticking "Required reviewers" reveals a
+> **"Prevent self-review"** checkbox — leave it **unticked**. Turning it on would
+> recreate the same deadlock the PR approval gate has, and for the same reason.
+
+**Allow administrators to bypass configured protection rules — decide deliberately.**
+It defaults to ticked, and you are an admin, so you can skip your own gate. Leave it
+on for an escape hatch when a deploy is urgent; untick it if you want the pause to
+be one you genuinely cannot walk past. Either is defensible — just don't tick
+"Required reviewers", leave bypass on, and believe you have a hard gate.
+
+**Deployment branches and tags — change "No restriction" to `main`.** `deploy.yml`
+has a `workflow_dispatch` trigger, so as it stands the environment (and its
+secrets) can be reached from *any* branch by manually dispatching the workflow.
+Selecting **Protected branches** or adding a `main` name pattern closes that.
+
+### 2. Databricks credentials
+
+Add these as **environment** secrets on `databricks-free`
+(`Settings → Environments → databricks-free → Add environment secret`), not as
+repository secrets. Only `deploy.yml` needs them, and it is the only workflow that
+declares the environment — so environment scope means no other workflow, present or
+future, can read your Databricks credentials.
 
 | Secret | Value |
 | --- | --- |
@@ -71,13 +99,6 @@ databricks service-principal-secrets-proxy create REDACTED-SP-ID --profile FREE
 Why a service principal rather than your own token: CI acting as *you* means every
 deploy is attributed to you and inherits all your access. The SP has only what it
 needs, and revoking it doesn't disturb your own login.
-
-### 2. Deployment environment (optional but recommended)
-
-`Settings → Environments → New environment` → name it **`databricks-free`**.
-
-`deploy.yml` references it. Adding yourself as a required reviewer there gives you
-a manual gate in front of every deploy — useful while the pipeline is new.
 
 ### 3. Allow auto-merge
 
