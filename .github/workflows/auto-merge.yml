@@ -47,6 +47,6 @@ jobs:
               core.info(
                 'This is not fatal - the PR just will not merge itself. ' +
                 'If the message mentions "clean status", no ruleset is making any ' +
-                'check required yet; see docs/ci-cd.md step 4.'
+                'check required yet; see docs/ci-cd.md step 5.'
               );
             }
