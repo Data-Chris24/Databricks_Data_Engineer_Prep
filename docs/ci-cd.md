@@ -54,11 +54,13 @@ approve it in the Actions tab.
 > **"Prevent self-review"** checkbox — leave it **unticked**. Turning it on would
 > recreate the same deadlock the PR approval gate has, and for the same reason.
 
-**Allow administrators to bypass configured protection rules — decide deliberately.**
-It defaults to ticked, and you are an admin, so you can skip your own gate. Leave it
-on for an escape hatch when a deploy is urgent; untick it if you want the pause to
-be one you genuinely cannot walk past. Either is defensible — just don't tick
-"Required reviewers", leave bypass on, and believe you have a hard gate.
+**Allow administrators to bypass configured protection rules — untick it.** It
+defaults to ticked. Since you are already a required reviewer with self-review
+allowed, you can approve your own deploys in one click; bypass is a second route to
+something you can do anyway. That redundancy is the problem: the day you add a
+collaborator or tick "Prevent self-review", admin bypass would silently reopen the
+gate you just closed. Leave it ticked only if you specifically want a break-glass
+path — and on a personal project, no deploy is that urgent.
 
 **Deployment branches and tags — change "No restriction" to `main`.** `deploy.yml`
 has a `workflow_dispatch` trigger, so as it stands the environment (and its
