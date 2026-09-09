@@ -21,8 +21,8 @@ jobs:
     name: Content validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: pip
@@ -37,7 +37,7 @@ jobs:
     name: Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -73,7 +73,7 @@ jobs:
           echo "Test files in this PR:"
           echo "$MATCHED" | sed 's/^/  /'
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: pip
@@ -86,8 +86,8 @@ jobs:
     name: Bundle validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: pip
@@ -109,39 +109,83 @@ jobs:
     name: Approved by a reviewer
     runs-on: ubuntu-latest
     steps:
-      # This job makes the approval requirement visible in the checks list.
-      # It is NOT the enforcement mechanism - a branch ruleset is (see
-      # docs/ci-cd.md). Anyone with write access could merge past a workflow;
-      # they cannot merge past a ruleset.
+      # Makes the approval requirement visible in the checks list. It is NOT the
+      # enforcement mechanism - a branch ruleset is (see docs/ci-cd.md). Anyone
+      # with write access could merge past a workflow; not past a ruleset.
+      #
+      # GitHub forbids approving your own PR. While this repo has a single
+      # maintainer, requiring an approval would mean nothing they open can ever
+      # merge. So the job first asks whether a second reviewer *exists*:
+      #   - someone else has write access -> an approval is genuinely required
+      #   - nobody else does              -> waived, loudly, with a reason
+      # Add a collaborator and this becomes a hard gate with no changes here.
       - name: Check for an approving review
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const {owner, repo} = context.repo;
-            const pull_number = context.payload.pull_request.number;
+            const pr = context.payload.pull_request;
+            const pull_number = pr.number;
+            const author = pr.user.login;
+
             const reviews = await github.paginate(
               github.rest.pulls.listReviews, {owner, repo, pull_number}
             );
 
-            // Only the most recent review from each person counts.
+            // Only each reviewer's most recent decisive review counts.
             const latest = new Map();
             for (const r of reviews) {
               if (r.state === 'COMMENTED') continue;
               latest.set(r.user.login, r.state);
             }
-
             const approvals = [...latest].filter(([, s]) => s === 'APPROVED').map(([u]) => u);
             const blocking  = [...latest].filter(([, s]) => s === 'CHANGES_REQUESTED').map(([u]) => u);
 
+            // Changes requested always blocks, solo or not.
             if (blocking.length) {
               core.setFailed(`Changes requested by: ${blocking.join(', ')}`);
               return;
             }
-            if (!approvals.length) {
+            if (approvals.length) {
+              core.info(`Approved by: ${approvals.join(', ')}`);
+              return;
+            }
+
+            // No approval. Could anyone other than the author have given one?
+            let eligible = [];
+            try {
+              const collaborators = await github.paginate(
+                github.rest.repos.listCollaborators, {owner, repo, affiliation: 'all'}
+              );
+              eligible = collaborators
+                .filter(c => c.permissions && (c.permissions.push || c.permissions.admin))
+                .map(c => c.login)
+                .filter(login => login !== author && !login.endsWith('[bot]'));
+            } catch (e) {
               core.setFailed(
-                'No approving review yet. GitHub does not let you approve your own PR - ' +
-                'see docs/ci-cd.md for how the repo owner handles their own PRs.'
+                `No approving review, and the collaborator list could not be read ` +
+                `to determine whether one was possible: ${e.message}`
               );
               return;
             }
-            core.info(`Approved by: ${approvals.join(', ')}`);
+
+            if (eligible.length === 0) {
+              core.warning(
+                `No approving review. Waived: ${author} is the only person with write ` +
+                `access, and GitHub does not allow approving your own pull request. ` +
+                `This check becomes a hard requirement as soon as a collaborator is added.`
+              );
+              core.summary
+                .addHeading('Approval waived', 3)
+                .addRaw(
+                  `No second reviewer exists - **${author}** is the only account with ` +
+                  `write access, and GitHub forbids self-approval. Add a collaborator ` +
+                  `and this check starts requiring a real approval automatically.`
+                )
+                .write();
+              return;
+            }
+
+            core.setFailed(
+              `No approving review yet. These people can approve it: ${eligible.join(', ')}`
+            );

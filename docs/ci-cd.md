@@ -24,24 +24,33 @@ approve the deployment.
 
 ---
 
-## Read this first: you cannot approve your own pull request
+## How the approval gate handles a single maintainer
 
-GitHub does not allow a PR author to approve their own PR. **This repo currently
-has one contributor.** So a rule of "require 1 approval", applied naively, means
-nothing you open can ever merge.
+GitHub does not let you approve your own pull request. With one contributor, a
+naive "require 1 approval" would mean nothing you open can ever merge.
 
-That is not a bug in the setup — it's what an approval gate *means*. Your options:
+So the **Approved by a reviewer** check asks whether a second reviewer actually
+exists before demanding one:
 
-| Option | What it gives you | Cost |
-| --- | --- | --- |
-| **Ruleset with bypass for the repo owner** (suggested while solo) | Outside contributions are genuinely gated. Your own PRs still run every check; you merge them yourself | Your own PRs aren't peer-reviewed — nobody can fix that alone |
-| **Add a second collaborator** | A real approval gate for everyone | Needs a second person |
-| **A second account of your own** | Technically satisfies the rule | Self-approval with extra steps; it buys nothing real |
-| **No approval requirement yet** | Simplest | Loses the gate entirely |
+| Situation | Result |
+| --- | --- |
+| Someone approved it | Passes |
+| Anyone requested changes | **Fails** — always, solo or not |
+| No approval, but other people have write access | **Fails**, naming who can approve |
+| No approval, and you are the only account with write access | **Waived**, with a loud warning and a note in the run summary explaining why |
 
-The workflows are written so the approval gate works **properly the moment a
-second person exists** — no rework needed. Until then, bypass is honest and a
-second account is theatre.
+The waiver is deliberately noisy rather than silent: it says on every run that the
+gate is not currently protecting anything. **Add a collaborator and it becomes a
+hard requirement automatically** — no changes to the workflow.
+
+This is honest about what a solo repo can enforce, instead of either pretending to
+have peer review or leaving a permanent red X that trains you to merge past
+failures.
+
+> **On the ruleset:** while you are the only contributor, put yourself in its
+> **Bypass list**. The ruleset requires an approval that cannot exist for your own
+> PRs; the bypass is what lets you merge them. A second account of your own would
+> technically satisfy the rule while buying nothing real.
 
 ---
 
@@ -207,7 +216,7 @@ doesn't re-run when someone approves, which would leave the approval check stale
 | **Content validation** | `validate_content.py`, plus the generated objective docs match their YAML |
 | **Tests** | The test-presence gate, then `pytest tools/tests` |
 | **Bundle validation** | `tools/validate_bundle.py` — schema + repo invariants, offline |
-| **Approved by a reviewer** | At least one approval, no outstanding "changes requested" |
+| **Approved by a reviewer** | An approval, or a waiver if no second reviewer exists — see above |
 
 **Why the PR does not run `databricks bundle validate`.** That command always
 resolves the current user over SCIM, so it needs working credentials — it is not an
