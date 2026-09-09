@@ -106,7 +106,11 @@ sections:
           here, so dbutils.secrets.get is available for the exam-shaped
           credential pattern. An external Postgres on 5432 was reachable too, but
           do not build the required path on that - it may depend on
-          account-level verified internet access.
+          account-level verified internet access. An optional extension uses a
+          Lakebase Postgres database as a real Postgres source, sharing the
+          single Lakebase project with the study app. A local Docker Postgres
+          cannot work here: serverless runs in Databricks' cloud and has no route
+          to the learner's machine.
         text: >-
           Use JDBC/ODBC or REST clients in notebooks to land data into cloud
           storage or directly into Unity Catalog-governed tables, usually
