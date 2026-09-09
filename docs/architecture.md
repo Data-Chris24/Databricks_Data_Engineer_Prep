@@ -118,6 +118,36 @@ absent. Adding them later means re-running the data-access decision.
 
 ---
 
+## Decision 4b: Lakebase serves both the app and the JDBC lab
+
+Free Edition allows **one Lakebase project**, but a project holds multiple
+databases — so the single project serves both the study app's user state and a
+`de_prep_source` database used as a genuine Postgres source for the
+`ASSOC-S2-O5` JDBC lab. No quota conflict.
+
+**Why not a local Docker Postgres**, which is the obvious first idea: Databricks
+serverless compute runs in Databricks' cloud, so it has no route to a container on
+the learner's machine. This was measured, not assumed — a probe against
+`jdbc:postgresql://127.0.0.1:5432` resolved to the *serverless host's* loopback and
+returned `Connection refused` with the driver loaded fine. Tunnelling could expose
+a local container, but it adds a public URL and a dependency on egress behaviour we
+cannot guarantee.
+
+Structure of the objective's coverage:
+
+| Path | Source | Reachability |
+| --- | --- | --- |
+| **Required** | The workspace's own SQL warehouse over JDBC | Guaranteed — measured working |
+| **Optional** | A Lakebase Postgres database | In-workspace, no egress dependency |
+| Not offered | Local Docker | Structurally unreachable from serverless |
+| Not offered (yet) | Free managed Postgres (Neon/Supabase) | Depends on unverifiable egress |
+
+Docker still has a legitimate place later, for `PRO-S1-O11` — a local Spark
+container lets learners run `assertDataFrameEqual` tests without spending workspace
+quota. Just not for ingestion.
+
+---
+
 ## Decision 5: Paired datasets — the anti-transplant property
 
 Every lesson teaches on a `teach` dataset; every assignment is set on a
