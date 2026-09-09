@@ -68,6 +68,28 @@ def check_repo_settings(slug):
     if data.get("visibility") == "public":
         record(OK, "repo", "public repo (no secrets may be committed)")
 
+    # The project squashes: one commit per PR on main. auto-merge.yml is set to
+    # SQUASH, so leaving the other methods enabled lets a manual merge silently
+    # produce a different history shape than an automatic one.
+    if not data.get("allow_squash_merge"):
+        record(FAIL, "repo", "squash merging is disabled but auto-merge.yml uses it",
+               "Settings > General > Pull Requests > tick 'Allow squash merging'")
+    else:
+        others = [n for n, k in (("merge commits", "allow_merge_commit"),
+                                 ("rebase merging", "allow_rebase_merge"))
+                  if data.get(k)]
+        if others:
+            record(WARN, "repo", f"squash is the project's merge style, but {' and '.join(others)} are also allowed",
+                   "Untick them so every PR lands the same way, by hand or by auto-merge")
+        else:
+            record(OK, "repo", "squash is the only merge method")
+
+    if data.get("delete_branch_on_merge"):
+        record(OK, "repo", "merged branches are deleted automatically")
+    else:
+        record(WARN, "repo", "merged branches are not deleted automatically",
+               "Settings > General > tick 'Automatically delete head branches'")
+
 
 def check_environment(slug):
     ok, env = gh(f"repos/{slug}/environments/{ENVIRONMENT}")
@@ -152,7 +174,7 @@ def check_ruleset(slug):
         return
     if not rulesets:
         record(FAIL, "ruleset", f"no ruleset protecting '{DEFAULT_BRANCH}'",
-               "Settings > Rules > Rulesets > New branch ruleset (see docs/ci-cd.md step 4)")
+               "Settings > Rules > Rulesets > New branch ruleset (see docs/ci-cd.md step 5)")
         return
 
     for rs in rulesets:

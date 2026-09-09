@@ -84,7 +84,7 @@ while this says "No restriction", the environment and its secrets can be reached
 from *any* branch by manually dispatching the workflow.
 
 > **Do not pick "Protected branches only" here.** It recognises only *classic*
-> branch protection rules, and step 4 below has you creating a **ruleset** — which
+> branch protection rules, and step 5 below has you creating a **ruleset** — which
 > it does not count. GitHub even warns you at the time: *"No repository branch
 > protection rules set: all branches are still allowed."* The setting would look
 > configured while doing nothing. "Selected branches and tags" is explicit,
@@ -185,7 +185,26 @@ be merged by hand.
 > auto-merge on it ("Pull request is in clean status"). Step 4 is what gives it
 > something to wait for. This is a warning in the workflow log, not a failure.
 
-### 4. Branch ruleset for `main`
+### 4. Merge style
+
+`Settings → General → Pull Requests`:
+
+- ✅ **Allow squash merging** — the project's merge style: one commit per PR, so
+  `main` reads as a list of changes rather than a tangle of merge bubbles. The
+  content PRs ahead are naturally cohesive (a section's lessons, labs and
+  questions), so they squash well.
+- ❌ Untick **merge commits** and **rebase merging**. `auto-merge.yml` is set to
+  `SQUASH`; leaving the others enabled means a PR merged by hand lands differently
+  from one merged automatically, which is a difference nobody will remember.
+- ✅ **Automatically delete head branches** — saves a manual cleanup per PR.
+  Deleting a merged branch never blocks a rollback: the change is a commit on
+  `main`, so `git revert <sha>` is all a rollback needs, and GitHub keeps the
+  deleted ref restorable from the PR anyway.
+
+> Reasoning that would otherwise live in a series of commit messages belongs in
+> `docs/` instead, where it is far more discoverable than `git log`.
+
+### 5. Branch ruleset for `main`
 
 **This is the actual enforcement.** The `approval` job in `pr-checks.yml` makes the
 requirement *visible*, but a workflow cannot stop someone with write access from
