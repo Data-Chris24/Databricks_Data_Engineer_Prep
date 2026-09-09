@@ -12,6 +12,11 @@
 # MAGIC loaded.** Running it twice does not double your data. That is what makes it
 # MAGIC *incremental* rather than merely a bulk insert, and it is the property the exam
 # MAGIC keeps asking about.
+# MAGIC
+# MAGIC > **One error is caused here on purpose.** Section 1 explains why declaring
+# MAGIC > typed columns for a CSV source fails with `DELTA_FAILED_TO_MERGE_FIELDS`.
+# MAGIC > See `content/lessons/associate/S2/errors-worth-meeting.md` for that and the
+# MAGIC > three others this section deliberately provokes.
 
 # COMMAND ----------
 

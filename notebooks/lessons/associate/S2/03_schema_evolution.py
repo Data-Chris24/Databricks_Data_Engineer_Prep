@@ -9,8 +9,14 @@
 # MAGIC
 # MAGIC ## Read this before running
 # MAGIC
+# MAGIC ### Auto Loader runs fine in a notebook
+# MAGIC
+# MAGIC Nothing here says otherwise — `02_auto_loader.py` is a notebook and it works.
+# MAGIC What needs care is narrower: **what happens the first time a new column
+# MAGIC appears.**
+# MAGIC
 # MAGIC With `schemaEvolutionMode = addNewColumns`, Auto Loader **deliberately fails**
-# MAGIC the first time it meets a new column:
+# MAGIC when it first meets one:
 # MAGIC
 # MAGIC ```
 # MAGIC [UNKNOWN_FIELD_EXCEPTION.NEW_FIELDS_IN_FILE] Encountered unknown fields
@@ -19,19 +25,38 @@
 # MAGIC
 # MAGIC Note the last clause — *fixed by an automatic retry*. The failure **is** the
 # MAGIC mechanism: Auto Loader records the wider schema, stops so a human notices, and
-# MAGIC succeeds on restart.
+# MAGIC succeeds next time. Something just has to run it again.
 # MAGIC
-# MAGIC **So this notebook is expected to fail on its first run and succeed on its
-# MAGIC second.** That is not a defect in the lesson. The bundle job that runs it sets
-# MAGIC `max_retries: 2`, which is exactly how you would configure it in production —
-# MAGIC and it is why schema evolution *looks* seamless in a real pipeline: a retry
-# MAGIC policy absorbs the restart and nobody ever sees the exception.
+# MAGIC | Where you run it | New column appears | Why |
+# MAGIC |---|---|---|
+# MAGIC | **Notebook, interactively** | works | the stream fails once, **you re-run the cell** — you are the retry |
+# MAGIC | **Job task with `max_retries`** | works | the retry policy restarts it and nobody sees the failure |
+# MAGIC | Notebook run as a job task, no retries | fails | nothing restarts it |
+# MAGIC | `try`/`except` inside one notebook run | fails | see below |
 # MAGIC
-# MAGIC Catching the exception inside one notebook run does not work, incidentally.
-# MAGIC Databricks tracks terminated streaming queries per notebook and fails the cell
-# MAGIC with *"Some streams terminated before this command could finish!"* even when the
-# MAGIC exception is handled, and `spark.streams.resetTerminated()` does not clear it.
-# MAGIC The retry has to happen at the job level, which is where it belongs anyway.
+# MAGIC **If you are working through this interactively, just run the stream cell
+# MAGIC twice.** That is the whole trick, and it is worth doing by hand once so the
+# MAGIC mechanism is not a mystery later.
+# MAGIC
+# MAGIC ### Why you cannot simply catch the exception
+# MAGIC
+# MAGIC An obvious idea that does not work: wrap the stream in `try`/`except` and
+# MAGIC restart it in the handler. Databricks tracks terminated streaming queries per
+# MAGIC notebook and fails the cell with
+# MAGIC *"Some streams terminated before this command could finish!"* **even when the
+# MAGIC exception was caught**, and `spark.streams.resetTerminated()` does not clear it.
+# MAGIC The restart has to come from outside the notebook run — which is where it
+# MAGIC belongs anyway.
+# MAGIC
+# MAGIC ### How this notebook is run
+# MAGIC
+# MAGIC The bundle job runs it as a task with `max_retries: 2`, so **it is expected to
+# MAGIC fail on attempt 0 and succeed on attempt 1.** That is not a defect in the
+# MAGIC lesson; it is the production configuration, and it is the reason schema
+# MAGIC evolution *looks* seamless in a real pipeline.
+# MAGIC
+# MAGIC Setup below is written to be idempotent for exactly that reason — a retry must
+# MAGIC not wipe the state it needs.
 
 # COMMAND ----------
 
@@ -143,6 +168,21 @@ display(spark.sql("""
 # MAGIC - The checkpoint is what makes the restart safe — no row is loaded twice.
 # MAGIC - Use `rescuedDataColumn` regardless. It is the difference between a
 # MAGIC   surprising column and silently lost data.
+# MAGIC
+# MAGIC ### The failures this section causes on purpose
+# MAGIC
+# MAGIC `content/lessons/associate/S2/errors-worth-meeting.md` collects all four, what
+# MAGIC each one is protecting you from, and the exam-shaped question behind it:
+# MAGIC
+# MAGIC | Error | Protects you from |
+# MAGIC |---|---|
+# MAGIC | `DELTA_FAILED_TO_MERGE_FIELDS` | CSV text being silently coerced into your types |
+# MAGIC | `UNKNOWN_FIELD_EXCEPTION.NEW_FIELDS_IN_FILE` | a source schema change nobody notices |
+# MAGIC | `DELTA_METADATA_MISMATCH` | a typo silently becoming a column |
+# MAGIC | `Some streams terminated…` | believing data loaded when the stream died |
+# MAGIC
+# MAGIC The general habit: when something fails on Databricks, ask *what would have
+# MAGIC gone wrong if this had worked?*
 
 # COMMAND ----------
 
