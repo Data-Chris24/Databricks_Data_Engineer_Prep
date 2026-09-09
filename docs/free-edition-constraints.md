@@ -20,7 +20,7 @@ Verified 2026-09-09 against an AWS-backed Free Edition workspace.
 | Lakeflow Pipelines | **1 active pipeline per type** | Documented |
 | Lakebase | **1 project per account**, scale-to-zero | Documented |
 | Languages | **No R, no Scala** | Documented — irrelevant, both exams are Python + SQL |
-| Egress | Restricted to trusted domains. **Not customisable** — network policies are Enterprise-tier | Documented |
+| Egress | Docs say "a limited set of trusted domains", not customisable. **Measured looser than that** — see below | Partly measured |
 | DABs | Work. Deploy from a local machine, use serverless, avoid job clusters | **Measured** — validate + deploy + destroy all succeeded |
 | Catalogs present | `system`, `samples`, `workspace`, `dbacademy` | Measured |
 
@@ -35,6 +35,23 @@ It was tested rather than assumed. A minimal AppKit app deployed cleanly —
 `Installing packages` → `Building app` → `App started successfully`, reaching
 `RUNNING`. **npm egress works.** Details in
 [architecture.md](architecture.md#decision-3-appkit-on-free-edition--verified-not-assumed).
+
+### Egress is less restricted than the docs imply — but don't rely on it
+
+The limitations page says outbound access is limited to "a limited set of trusted
+domains". Two measurements complicate that:
+
+- **npm and PyPI are reachable** — a Databricks App built and started successfully,
+  which requires `registry.npmjs.org`.
+- **An outbound JDBC connection to a public Postgres on port 5432 succeeded** from
+  serverless compute (2026-09-09).
+
+The second is the surprising one. It may depend on account-level verified internet
+access, which there is no API to check for, so **it is not something to build a
+required lab on.** Treat reachable egress as a bonus that some learners have and
+others may not: every lab on the required path must work with no external network
+at all. Where a lesson wants to show an external source, make it an optional
+variant and say plainly that it may not work for everyone.
 
 ### The 24-hour auto-stop
 
@@ -70,11 +87,17 @@ Not practisable here at all. Both have an optional classic-compute lab.
 | `ASSOC-S1-O2` — compute services, limits, cost models | Serverless-only, no custom compute config: there is nothing to compare |
 | `ASSOC-S6-O5` — cluster startup failures, library conflicts, OOM | There are no clusters to fail to start |
 
+### Settled by measurement, 2026-09-09
+
+| Objective | Finding |
+| --- | --- |
+| `ASSOC-S2-O4` — Lakeflow Connect | **partial.** Standard connectors (Auto Loader / `read_files` over a UC volume) are fully hands-on. Managed connectors cannot be created: the database ones need an ingestion gateway on classic compute, which does not exist here. Cover them as a dry-run spec walkthrough. |
+| `ASSOC-S2-O5` — JDBC ingestion | **full** — better than expected. `spark.read.format("jdbc")` works on serverless, and the workspace's own SQL warehouse serves as the JDBC source, so no external database and no Lakebase project is needed. Secret scopes work too, so `dbutils.secrets.get` is available. |
+
 ### Partly hands-on
 
 | Objective | What's reachable | What isn't |
 | --- | --- | --- |
-| `ASSOC-S2-O5` — JDBC/ODBC ingestion | Possibly via the account's own Lakebase Postgres as the source | Arbitrary external databases — egress is restricted |
 | `ASSOC-S6-O3` — Spark UI stage metrics | Skew and spill can be induced | Spark UI depth on serverless |
 | `PRO-S1-O2` — third-party libraries | Notebook-scoped `%pip`, serverless environments | Cluster-scoped libraries, init scripts |
 | `PRO-S1-O10` — env/dependency configs | Retry and environment config | High-memory compute selection |
@@ -90,8 +113,6 @@ workspace before content is written — **the failure mode here is guessing**.
 
 | Objective | Open question |
 | --- | --- |
-| `ASSOC-S2-O4` — Lakeflow Connect | Which connectors does Free Edition expose? Managed connectors target SaaS systems a learner won't have |
-| `ASSOC-S2-O5` — JDBC | Can a serverless notebook reach the account's own Lakebase over JDBC? |
 | `ASSOC-S6-O3` — Spark UI | How much stage-level detail is actually visible on serverless? |
 | `ASSOC-S7-O4` — Unity Catalog ABAC | Is ABAC available on Free Edition? The feature has been moving quickly |
 | `PRO-S4-O1..O3` — Sharing / Federation | How far can these go single-handed? |

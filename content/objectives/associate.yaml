@@ -80,24 +80,33 @@ sections:
           modes (for example, directory listing or file notification) to land
           data into Unity Catalog-governed tables.
       - id: ASSOC-S2-O4
-        verify_in_workspace: true
+        free_edition_lab: partial
         note: >-
-          Standard connectors should be fine, but managed connectors target SaaS
-          systems (Salesforce, Workday, ServiceNow) that a learner is unlikely to
-          have. Confirm which connectors Free Edition exposes before deciding how
-          much of this can be hands-on.
+          Verified 2026-09-09. Standard connectors are fully hands-on - Auto
+          Loader / read_files over a UC volume inside a declarative pipeline is
+          the same product surface and needs no external system. Managed
+          connectors are not creatable here: the database connectors require an
+          ingestion gateway that runs on classic compute, which Free Edition does
+          not have, and every dry-run pipeline spec carrying an
+          ingestion_definition was rejected with "libraries must contain at least
+          one element". Teach managed connectors as a spec walkthrough validated
+          with a dry-run create, which consumes no quota.
         text: >-
           Configure Lakeflow Connect to reliably ingest data from diverse
           enterprise sources into Unity Catalog-governed tables.
       - id: ASSOC-S2-O5
-        free_edition_lab: partial
-        verify_in_workspace: true
         note: >-
-          Needs an external database to read from, and Free Edition restricts
-          egress to trusted domains. Promising workaround: use the account's own
-          Lakebase Postgres project as the JDBC source, keeping the lab entirely
-          inside Databricks. Verify Lakebase JDBC connectivity from a serverless
-          notebook before writing this.
+          Verified 2026-09-09 on serverless (DBR 19.6, Spark 4.2) - better than
+          expected, so no Lakebase project is needed. spark.read.format("jdbc")
+          is fully supported and the bundled postgresql, mysql, sqlserver and
+          databricks drivers all load. The lab reads from the workspace's OWN SQL
+          warehouse over JDBC (jdbc:databricks://...;AuthMech=11;
+          Auth_AccessToken=<token>;httpPath=/sql/1.0/warehouses/<id>) and writes
+          into a UC table, which needs nothing external. Secret scopes also work
+          here, so dbutils.secrets.get is available for the exam-shaped
+          credential pattern. An external Postgres on 5432 was reachable too, but
+          do not build the required path on that - it may depend on
+          account-level verified internet access.
         text: >-
           Use JDBC/ODBC or REST clients in notebooks to land data into cloud
           storage or directly into Unity Catalog-governed tables, usually
