@@ -67,38 +67,85 @@ Selecting **Protected branches** or adding a `main` name pattern closes that.
 
 ### 2. Databricks credentials
 
-Add these as **environment** secrets on `databricks-free`
-(`Settings → Environments → databricks-free → Add environment secret`), not as
-repository secrets. Only `deploy.yml` needs them, and it is the only workflow that
-declares the environment — so environment scope means no other workflow, present or
-future, can read your Databricks credentials.
+CI authenticates to Databricks as a **service principal** using OAuth
+machine-to-machine, never as you. A service principal holds only the access it
+needs, deploys are attributable to CI rather than to a person, and revoking it
+does not disturb your own login.
+
+> **This is a public repository.** Nothing below — no workspace URL, no client ID,
+> no secret — belongs in a committed file. All three live in GitHub secrets, and
+> every value in this document is a placeholder.
+>
+> If you are the maintainer, your own filled-in values live in
+> `docs/local/workspace-values.md`, which is gitignored and never pushed. Keep it
+> that way: placeholders here, real values there.
+
+#### a. Create the service principal
+
+Run this against your own workspace, with a CLI profile you have already
+authenticated (`databricks auth login --host <your-workspace-url> --profile FREE`):
+
+```bash
+databricks service-principals create --display-name "github-actions-ci" --profile FREE
+```
+
+Two fields from the response matter — note both:
+
+| Response field | Used for | Looks like |
+| --- | --- | --- |
+| `applicationId` | the `DATABRICKS_CLIENT_ID` secret | a UUID |
+| `id` | the numeric ID the secrets commands take | a long integer |
+
+The service principal is created with `workspace-access` and
+`databricks-sql-access` entitlements, which is enough to deploy a bundle.
+
+#### b. Create its OAuth secret
+
+```bash
+databricks service-principal-secrets-proxy create <NUMERIC_ID> --profile FREE
+```
+
+The `secret` field is **shown once and never again**.
+
+> **Handle it like the credential it is.** Copy it straight into the GitHub secret
+> below. Do not paste it into a chat, an AI conversation, a terminal you are
+> screen-sharing, or a file — including a `.env` you intend to gitignore. If it is
+> ever exposed, revoke it (step d) and issue a new one; the exposure is only as bad
+> as the time it stays valid.
+
+#### c. Store all three as environment secrets
+
+`Settings → Environments → databricks-free → Add environment secret`.
+
+Environment secrets, **not repository secrets**: only `deploy.yml` needs these and
+it is the sole workflow declaring the environment, so environment scope prevents
+any other workflow — including ones added later — from reading them.
 
 | Secret | Value |
 | --- | --- |
-| `DATABRICKS_HOST` | `https://REDACTED.cloud.databricks.com` |
-| `DATABRICKS_CLIENT_ID` | `REDACTED-CLIENT-ID` |
-| `DATABRICKS_CLIENT_SECRET` | An OAuth secret you generate — see below |
+| `DATABRICKS_HOST` | Your workspace URL, e.g. `https://dbc-XXXXXXXX-XXXX.cloud.databricks.com` |
+| `DATABRICKS_CLIENT_ID` | The `applicationId` from step (a) |
+| `DATABRICKS_CLIENT_SECRET` | The `secret` from step (b) |
 
-The service principal **`github-actions-ci`** already exists in the workspace
-(created 2026-09-09) and its ability to deploy has been verified end to end. It
-has **no active secrets** — every one created during testing was revoked
-immediately.
+Find your workspace URL in the browser address bar when signed in to Databricks, or
+with `databricks auth profiles`.
 
-Generate the one CI will use, and paste it straight into the GitHub secret. It is
-shown **once**:
+#### d. Rotating and revoking
+
+Secrets are valid for up to two years, and a service principal can hold up to five
+at once — so rotation is create-then-delete, with no downtime:
 
 ```bash
-databricks service-principal-secrets-proxy create REDACTED-SP-ID --profile FREE
+databricks service-principal-secrets-proxy list <NUMERIC_ID> --profile FREE
+databricks service-principal-secrets-proxy create <NUMERIC_ID> --profile FREE   # update the GitHub secret
+databricks service-principal-secrets-proxy delete <NUMERIC_ID> <OLD_SECRET_ID> --profile FREE
 ```
 
-> Treat the output as a live credential. Don't paste it into a terminal you're
-> screen-sharing, a chat, or an AI conversation. To rotate: create a new secret,
-> update the GitHub secret, then `... delete REDACTED-SP-ID <old-secret-id>`.
-> Secrets expire after two years.
+To find the numeric ID again later:
 
-Why a service principal rather than your own token: CI acting as *you* means every
-deploy is attributed to you and inherits all your access. The SP has only what it
-needs, and revoking it doesn't disturb your own login.
+```bash
+databricks service-principals list --profile FREE
+```
 
 ### 3. Allow auto-merge
 

@@ -50,7 +50,7 @@ the paid-tier track.
 
 ## Decision 3: AppKit on Free Edition — verified, not assumed
 
-**Status: ✅ verified 2026-09-09 against `REDACTED.cloud.databricks.com`.**
+**Status: ✅ verified 2026-09-09 against a live Free Edition workspace (AWS).**
 
 ### The risk
 

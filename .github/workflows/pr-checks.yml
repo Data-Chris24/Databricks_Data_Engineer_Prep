@@ -94,7 +94,10 @@ jobs:
         working-directory: bundle
         run: databricks bundle validate --strict -t free
         env:
-          DATABRICKS_HOST: https://REDACTED.cloud.databricks.com
+          # Deliberately fake. `bundle validate` never contacts the workspace, so
+          # these only need to exist for the CLI's config resolver to be satisfied.
+          # The real host lives in an environment secret used solely by deploy.yml.
+          DATABRICKS_HOST: https://example.cloud.databricks.com
           DATABRICKS_AUTH_TYPE: pat
           DATABRICKS_TOKEN: not-a-real-token
 

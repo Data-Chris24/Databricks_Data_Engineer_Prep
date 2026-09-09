@@ -22,20 +22,21 @@ variables:
     description: Schema within the catalog for lab and assignment tables.
     default: de_prep
 
+# Neither target hardcodes `workspace.host`. Two reasons: this is a public repo,
+# so a workspace URL does not belong in it; and `workspace.host` is resolved
+# before variables are interpolated, so it cannot be parameterised anyway.
+#
+# The host comes from your CLI profile locally, or DATABRICKS_HOST in CI:
+#   databricks bundle deploy -t free    --profile FREE
+#   databricks bundle deploy -t classic --profile TRIAL
 targets:
   # Free Edition - the required path. Serverless only; never add job clusters
   # here, they do not exist on this tier.
   free:
     default: true
     mode: development
-    workspace:
-      host: https://REDACTED.cloud.databricks.com
 
   # Premium/trial workspace for the optional classic-compute labs.
   # See docs/optional-classic-track.md - this target bills real infrastructure.
-  # No `workspace.host` here on purpose: it is resolved before variables are
-  # interpolated, so it cannot be parameterised. The host comes from the profile
-  # instead, which also makes it impossible to deploy here by accident:
-  #   databricks bundle deploy -t classic --profile TRIAL
   classic:
     mode: development

@@ -42,6 +42,11 @@ pnpm-debug.log*
 .databricks-login.json
 **/.bundle/
 
+# ---- Personal, never-committed docs ----
+# Real workspace URLs, service principal IDs and other identifiers that are fine
+# on your own machine but do not belong in a public repo. See docs/ci-cd.md.
+docs/local/
+
 # ---- Secrets & local config ----
 .env
 .env.*
