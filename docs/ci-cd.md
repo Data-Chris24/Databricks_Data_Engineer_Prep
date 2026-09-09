@@ -62,10 +62,18 @@ collaborator or tick "Prevent self-review", admin bypass would silently reopen t
 gate you just closed. Leave it ticked only if you specifically want a break-glass
 path — and on a personal project, no deploy is that urgent.
 
-**Deployment branches and tags — change "No restriction" to `main`.** `deploy.yml`
-has a `workflow_dispatch` trigger, so as it stands the environment (and its
-secrets) can be reached from *any* branch by manually dispatching the workflow.
-Selecting **Protected branches** or adding a `main` name pattern closes that.
+**Deployment branches and tags — pick "Selected branches and tags" and add the
+pattern `main`.** This is the only setting on the page that closes a real path to
+your Databricks credentials: `deploy.yml` has a `workflow_dispatch` trigger, so
+while this says "No restriction", the environment and its secrets can be reached
+from *any* branch by manually dispatching the workflow.
+
+> **Do not pick "Protected branches only" here.** It recognises only *classic*
+> branch protection rules, and step 4 below has you creating a **ruleset** — which
+> it does not count. GitHub even warns you at the time: *"No repository branch
+> protection rules set: all branches are still allowed."* The setting would look
+> configured while doing nothing. "Selected branches and tags" is explicit,
+> self-contained, and unaffected by that incompatibility.
 
 ### 2. Databricks credentials
 
