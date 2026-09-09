@@ -1,0 +1,13 @@
+# Runs the reference solution. Two jobs in one: it proves the solution still works
+# against the current data, and it emits the expected-value fixtures the graded
+# test suite asserts against.
+resources:
+  jobs:
+    run_solution_assoc_s2:
+      name: "[DE prep] Reference solution ASSOC-S2"
+      tasks:
+        - task_key: solution
+          notebook_task:
+            notebook_path: ../../solutions/ASSOC-S2/solution.py
+      queue:
+        enabled: true
