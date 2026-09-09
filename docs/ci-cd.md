@@ -1,7 +1,8 @@
 # CI/CD
 
 Three workflows. A pull request must pass checks and carry an approving review;
-once it does, GitHub merges it and the merge deploys to Databricks.
+once it does GitHub merges it, and the merge deploys to Databricks after you
+approve the deployment.
 
 ```
  PR opened ──▶ pr-checks.yml          auto-merge.yml
@@ -13,7 +14,12 @@ once it does, GitHub merges it and the merge deploys to Databricks.
                           ▼                                    │
                     all green ───────────────────────────────┘
                                                               ▼
-                                              main ──▶ deploy.yml ──▶ Databricks
+                                                 main ──▶ deploy.yml
+                                                              │
+                                              ⏸  pauses for your approval
+                                                 (databricks-free environment)
+                                                              ▼
+                                                         Databricks
 ```
 
 ---
@@ -140,6 +146,13 @@ any other workflow — including ones added later — from reading them.
 Find your workspace URL in the browser address bar when signed in to Databricks, or
 with `databricks auth profiles`.
 
+> **If you already added these as repository secrets, delete them now**
+> (`Settings → Secrets and variables → Actions → Repository secrets`). Environment
+> secrets win for jobs that declare the environment, so the repository copies do
+> nothing for `deploy.yml` — but they stay readable by any workflow that *doesn't*
+> declare it, which is the exposure environment scope exists to prevent. Two copies
+> is also a rotation hazard: update one and the stale one still authenticates.
+
 #### d. Rotating and revoking
 
 Secrets are valid for up to two years, and a service principal can hold up to five
@@ -231,24 +244,35 @@ Skips drafts.
 
 ### `deploy.yml`
 
-Runs on push to `main` (and manual dispatch). Re-runs validation and tests before
-deploying, because two individually-valid PRs can merge into a broken `main`.
-Then `databricks bundle deploy -t free`, with a concurrency group so two deploys
-can't race.
+Runs on push to `main` (and manual dispatch). Because it declares
+`environment: databricks-free`, it **pauses and waits for your approval** in the
+Actions tab before any step runs — including before it can read the environment's
+secrets.
+
+Once approved it re-runs validation and tests before deploying, since two
+individually-valid PRs can merge into a broken `main`. Then
+`databricks bundle deploy -t free`, with a concurrency group so two deploys can't
+race.
 
 ---
 
 ## Gotchas worth knowing
 
-**`DATABRICKS_CONFIG_PROFILE` overrides M2M env vars.** If that variable is set,
-the CLI looks for a named profile and *ignores* `DATABRICKS_CLIENT_ID` /
-`DATABRICKS_CLIENT_SECRET`. It's set in this machine's `~/.claude/settings.json`,
-so reproducing CI auth locally needs `env -u DATABRICKS_CONFIG_PROFILE`. CI
-runners don't set it, so they're unaffected.
+**`DATABRICKS_CONFIG_PROFILE` overrides M2M env vars.** If that variable is set in
+your shell, the CLI resolves a named profile and *ignores* `DATABRICKS_CLIENT_ID` /
+`DATABRICKS_CLIENT_SECRET` — so a local attempt to reproduce CI auth will silently
+run as *you* instead of as the service principal, and appear to work. Use
+`env -u DATABRICKS_CONFIG_PROFILE` to test it honestly. CI runners never set it.
 
 **Deploys land under the service principal's path**, not yours:
 `/Workspace/Users/<application-id>/.bundle/databricks-de-prep/free`. That's
 correct, and a good way to tell a CI deploy from one you ran by hand.
+
+**The bundle hardcodes no workspace URL.** `bundle/databricks.yml` deliberately
+omits `workspace.host` on both targets — it does not belong in a public repo, and
+it cannot be parameterised anyway (it resolves before variables interpolate). The
+host comes from your CLI profile locally (`--profile FREE`) and from
+`DATABRICKS_HOST` in CI. That is why every local command below passes `--profile`.
 
 **Free Edition quotas apply to CI too.** Deploying is cheap, but jobs the bundle
 runs are not — 5 concurrent tasks, one active pipeline per type, and blowing the
