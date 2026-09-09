@@ -87,19 +87,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install tooling
+        run: pip install -r tools/requirements.txt
       - uses: databricks/setup-cli@main
-      # Validation is offline-safe: it parses and type-checks the bundle without
-      # contacting the workspace, so no credentials are needed on a PR from a fork.
-      - name: Validate bundle
-        working-directory: bundle
-        run: databricks bundle validate --strict -t free
-        env:
-          # Deliberately fake. `bundle validate` never contacts the workspace, so
-          # these only need to exist for the CLI's config resolver to be satisfied.
-          # The real host lives in an environment secret used solely by deploy.yml.
-          DATABRICKS_HOST: https://example.cloud.databricks.com
-          DATABRICKS_AUTH_TYPE: pat
-          DATABRICKS_TOKEN: not-a-real-token
+      # NOT `databricks bundle validate`: that always resolves the current user
+      # over SCIM, so it needs real credentials. Pull requests from forks get no
+      # secrets on a public repo, and handing credentials to a PR-triggered
+      # workflow is not something we want to do regardless.
+      #
+      # This validates databricks.yml against the schema the CLI itself emits
+      # (no credentials needed) plus this repo's own invariants. The
+      # authoritative `bundle validate --strict` runs in deploy.yml.
+      - name: Validate bundle structure (offline)
+        run: python tools/validate_bundle.py
 
   approval:
     name: Approved by a reviewer

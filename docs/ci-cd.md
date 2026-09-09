@@ -206,11 +206,20 @@ doesn't re-run when someone approves, which would leave the approval check stale
 | --- | --- |
 | **Content validation** | `validate_content.py`, plus the generated objective docs match their YAML |
 | **Tests** | The test-presence gate, then `pytest tools/tests` |
-| **Bundle validation** | `databricks bundle validate --strict` |
+| **Bundle validation** | `tools/validate_bundle.py` — schema + repo invariants, offline |
 | **Approved by a reviewer** | At least one approval, no outstanding "changes requested" |
 
-Bundle validation is offline — it parses and type-checks without contacting the
-workspace, so it needs no credentials and works on PRs from forks.
+**Why the PR does not run `databricks bundle validate`.** That command always
+resolves the current user over SCIM, so it needs working credentials — it is not an
+offline check, despite looking like one. On a public repo, pull requests from forks
+receive no secrets, so requiring credentials would fail every outside contribution;
+and giving a PR-triggered workflow real credentials is a bad idea in its own right.
+
+So the PR check validates `databricks.yml` against the schema the CLI emits
+(`databricks bundle schema` needs no credentials) plus this repo's own invariants —
+notably that no target hardcodes `workspace.host`. The authoritative
+`bundle validate --strict` runs in `deploy.yml` against the real workspace before
+anything is deployed. Early warning on the PR; the real gate before deploy.
 
 ### The "every PR must ship tests" gate
 
@@ -285,7 +294,10 @@ first, deliberately, so content lands on rails that already work.
 ./.venv/bin/python tools/validate_content.py
 ./.venv/bin/python tools/render_objectives.py --check
 ./.venv/bin/python -m pytest tools/tests -v
-cd bundle && databricks bundle validate --strict -t free --profile FREE
+./.venv/bin/python tools/validate_bundle.py
+
+# check the GitHub side matches this doc (needs: gh auth login)
+./.venv/bin/python tools/verify_ci_setup.py
 
 # what CI runs on merge (deploys for real)
 cd bundle && databricks bundle deploy -t free --profile FREE
