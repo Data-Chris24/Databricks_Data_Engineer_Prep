@@ -1,0 +1,191 @@
+name: PR checks
+
+# pull_request_review is included so the approval gate re-evaluates when someone
+# reviews - a plain `pull_request` workflow does not re-run on review submission.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  content:
+    name: Content validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install tooling
+        run: pip install -r tools/requirements.txt -r tools/requirements-dev.txt
+      - name: Validate content
+        run: python tools/validate_content.py
+      - name: Objective docs must match their source YAML
+        run: python tools/render_objectives.py --check
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # The repo's rule: a PR ships tests. The `no-tests-needed` label is the
+      # documented escape hatch for genuinely test-free changes (docs, comments),
+      # because without it a README typo fix could never merge.
+      - name: Require tests in this PR
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-tests-needed') }}
+        run: |
+          BASE="origin/${{ github.base_ref }}"
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          CHANGED=$(git diff --name-only "$BASE"...HEAD)
+
+          echo "Files changed in this PR:"
+          echo "$CHANGED" | sed 's/^/  /'
+
+          # Anything that is recognisably a test counts.
+          MATCHED=$(echo "$CHANGED" | grep -E \
+            -e '(^|/)tests?/' \
+            -e '(^|/)test_[^/]+\.py$' \
+            -e '[^/]+_test\.py$' \
+            -e '\.(spec|test)\.[jt]sx?$' \
+            || true)
+
+          if [ -z "$MATCHED" ]; then
+            echo
+            echo "::error::This PR adds or changes no tests."
+            echo "Add a test, or apply the 'no-tests-needed' label if this change genuinely cannot have one."
+            exit 1
+          fi
+
+          echo
+          echo "Test files in this PR:"
+          echo "$MATCHED" | sed 's/^/  /'
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install tooling
+        run: pip install -r tools/requirements.txt -r tools/requirements-dev.txt
+      - name: Run pytest
+        run: python -m pytest tools/tests -v
+
+  bundle:
+    name: Bundle validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install tooling
+        run: pip install -r tools/requirements.txt
+      - uses: databricks/setup-cli@main
+      # NOT `databricks bundle validate`: that always resolves the current user
+      # over SCIM, so it needs real credentials. Pull requests from forks get no
+      # secrets on a public repo, and handing credentials to a PR-triggered
+      # workflow is not something we want to do regardless.
+      #
+      # This validates databricks.yml against the schema the CLI itself emits
+      # (no credentials needed) plus this repo's own invariants. The
+      # authoritative `bundle validate --strict` runs in deploy.yml.
+      - name: Validate bundle structure (offline)
+        run: python tools/validate_bundle.py
+
+  approval:
+    name: Approved by a reviewer
+    runs-on: ubuntu-latest
+    steps:
+      # Makes the approval requirement visible in the checks list. It is NOT the
+      # enforcement mechanism - a branch ruleset is (see docs/ci-cd.md). Anyone
+      # with write access could merge past a workflow; not past a ruleset.
+      #
+      # GitHub forbids approving your own PR. While this repo has a single
+      # maintainer, requiring an approval would mean nothing they open can ever
+      # merge. So the job first asks whether a second reviewer *exists*:
+      #   - someone else has write access -> an approval is genuinely required
+      #   - nobody else does              -> waived, loudly, with a reason
+      # Add a collaborator and this becomes a hard gate with no changes here.
+      - name: Check for an approving review
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const pr = context.payload.pull_request;
+            const pull_number = pr.number;
+            const author = pr.user.login;
+
+            const reviews = await github.paginate(
+              github.rest.pulls.listReviews, {owner, repo, pull_number}
+            );
+
+            // Only each reviewer's most recent decisive review counts.
+            const latest = new Map();
+            for (const r of reviews) {
+              if (r.state === 'COMMENTED') continue;
+              latest.set(r.user.login, r.state);
+            }
+            const approvals = [...latest].filter(([, s]) => s === 'APPROVED').map(([u]) => u);
+            const blocking  = [...latest].filter(([, s]) => s === 'CHANGES_REQUESTED').map(([u]) => u);
+
+            // Changes requested always blocks, solo or not.
+            if (blocking.length) {
+              core.setFailed(`Changes requested by: ${blocking.join(', ')}`);
+              return;
+            }
+            if (approvals.length) {
+              core.info(`Approved by: ${approvals.join(', ')}`);
+              return;
+            }
+
+            // No approval. Could anyone other than the author have given one?
+            let eligible = [];
+            try {
+              const collaborators = await github.paginate(
+                github.rest.repos.listCollaborators, {owner, repo, affiliation: 'all'}
+              );
+              eligible = collaborators
+                .filter(c => c.permissions && (c.permissions.push || c.permissions.admin))
+                .map(c => c.login)
+                .filter(login => login !== author && !login.endsWith('[bot]'));
+            } catch (e) {
+              core.setFailed(
+                `No approving review, and the collaborator list could not be read ` +
+                `to determine whether one was possible: ${e.message}`
+              );
+              return;
+            }
+
+            if (eligible.length === 0) {
+              core.warning(
+                `No approving review. Waived: ${author} is the only person with write ` +
+                `access, and GitHub does not allow approving your own pull request. ` +
+                `This check becomes a hard requirement as soon as a collaborator is added.`
+              );
+              core.summary
+                .addHeading('Approval waived', 3)
+                .addRaw(
+                  `No second reviewer exists - **${author}** is the only account with ` +
+                  `write access, and GitHub forbids self-approval. Add a collaborator ` +
+                  `and this check starts requiring a real approval automatically.`
+                )
+                .write();
+              return;
+            }
+
+            core.setFailed(
+              `No approving review yet. These people can approve it: ${eligible.join(', ')}`
+            );

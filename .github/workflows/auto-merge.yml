@@ -1,0 +1,52 @@
+name: Enable auto-merge
+
+# Turns on GitHub's native auto-merge for a PR. GitHub then merges it by itself
+# once the branch ruleset is satisfied - required approvals in, required checks
+# green. Doing it this way rather than merging from a workflow means the ruleset
+# stays the single source of truth for "is this allowed to merge".
+on:
+  pull_request:
+    types: [opened, ready_for_review, labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  enable:
+    name: Enable auto-merge
+    runs-on: ubuntu-latest
+    # Drafts are not ready, and Dependabot-style bot PRs should be opted in
+    # deliberately rather than by default.
+    if: ${{ !github.event.pull_request.draft }}
+    steps:
+      - name: Turn on auto-merge
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            try {
+              await github.graphql(`
+                mutation($id: ID!) {
+                  enablePullRequestAutoMerge(input: {
+                    pullRequestId: $id,
+                    mergeMethod: SQUASH
+                  }) { clientMutationId }
+                }
+              `, { id: pr.node_id });
+              core.info(`Auto-merge enabled for #${pr.number}.`);
+            } catch (e) {
+              // Report what GitHub actually said rather than guessing a cause.
+              // The usual reasons, in rough order of likelihood:
+              //   "in clean status"    - nothing is required, so there is nothing
+              //                          to wait for. Create the branch ruleset.
+              //   "in unstable status" - checks were still running at PR-open time.
+              //   auto-merge disabled  - Settings > General > Allow auto-merge.
+              // None of these are failures: the PR simply waits to be merged.
+              core.warning(`Could not enable auto-merge: ${e.message}`);
+              core.info(
+                'This is not fatal - the PR just will not merge itself. ' +
+                'If the message mentions "clean status", no ruleset is making any ' +
+                'check required yet; see docs/ci-cd.md step 4.'
+              );
+            }

@@ -1,0 +1,365 @@
+# Databricks Certified Data Engineer Professional - objective map
+# Source: official exam guide, version July 3, 2026 (see docs/exam-guides/SOURCES.md)
+# Objective text is quoted from the guide. Stable IDs (PRO-Sn-On) are ours and
+# MUST NOT be renumbered - lessons, notebooks and questions reference them.
+#
+# NOTE: the Professional guide PDF lists the ten sections WITHOUT percentages.
+# The weightings below come from the Databricks certification web page, hence
+# weighting_source: certification_page. Treat them as indicative, not quoted.
+#
+# Lab-feasibility tags (see docs/free-edition-constraints.md):
+#   free_edition_lab: full | partial | theory_only
+#     Omitted means `full` - practisable end-to-end on Free Edition serverless.
+#     Only the exceptions are annotated, so a missing tag is a positive claim
+#     that the objective needs no special treatment.
+#   optional_classic_lab: true
+#     A classic-compute lab exists under notebooks/optional-classic/ for this
+#     objective. Requires a Premium/trial workspace - never on the required path.
+#   verify_in_workspace: true
+#     Feasibility is genuinely uncertain and must be confirmed against a live
+#     Free Edition workspace before content is written. Do not guess.
+
+exam:
+  id: professional
+  name: Databricks Certified Data Engineer Professional
+  guide_version: "2026-07-03"
+  retrieved: "2026-09-09"
+  scored_items: 59
+  time_limit_minutes: 120
+  fee_usd: 200
+  validity_years: 2
+  weighting_source: certification_page
+
+recommended_training:
+  instructor_led:
+    - Advanced Data Engineering with Databricks
+  self_paced:
+    - Advanced Techniques with Spark Declarative Pipelines
+    - Databricks Data Privacy
+    - Databricks Performance Optimization
+    - Automated Deployment with Declarative Automation Bundles
+
+sections:
+  - id: PRO-S1
+    number: 1
+    title: Developing Code for Data Processing using Python and SQL
+    weighting_pct: 22
+    groups:
+      - Using Python and Tools for development
+      - Building and Testing an ETL pipeline with Lakeflow Spark Declarative
+        Pipelines, SQL, and Apache Spark on the Databricks Platform
+    objectives:
+      - id: PRO-S1-O1
+        group: python_tooling
+        text: >-
+          Design and implement a scalable Python project structure optimized for
+          Declarative Automation Bundles (formerly Databricks Asset Bundles /
+          DABs), enabling modular development, deployment automation, and CI/CD
+          integration.
+      - id: PRO-S1-O2
+        group: python_tooling
+        free_edition_lab: partial
+        optional_classic_lab: true
+        note: >-
+          Notebook-scoped %pip and serverless environments cover most of this.
+          Cluster-scoped libraries and init scripts - and the conflicts they
+          cause - need classic compute.
+        text: >-
+          Manage and troubleshoot external third-party library installations and
+          dependencies in Databricks, including PyPI packages, local wheels, and
+          source archives.
+      - id: PRO-S1-O3
+        group: python_tooling
+        text: Develop User-Defined Functions (UDFs) using Pandas/Python UDF.
+      - id: PRO-S1-O4
+        group: etl_pipelines
+        text: >-
+          Build and manage reliable, production-ready data pipelines for batch and
+          streaming data using Lakeflow Spark Declarative Pipelines and Auto
+          Loader.
+      - id: PRO-S1-O5
+        group: etl_pipelines
+        text: Create and automate ETL workloads using Jobs via UI/APIs/CLI.
+      - id: PRO-S1-O6
+        group: etl_pipelines
+        text: >-
+          Explain the advantages and disadvantages of streaming tables compared to
+          materialized views.
+      - id: PRO-S1-O7
+        group: etl_pipelines
+        text: >-
+          Use AUTO CDC APIs (formerly APPLY CHANGES) to simplify CDC in Lakeflow
+          Spark Declarative Pipelines.
+      - id: PRO-S1-O8
+        group: etl_pipelines
+        text: >-
+          Compare Spark Structured Streaming and Lakeflow Spark Declarative
+          Pipelines to determine the optimal approach for building scalable ETL
+          pipelines.
+      - id: PRO-S1-O9
+        group: etl_pipelines
+        text: >-
+          Create a pipeline component that uses control flow operators (e.g.,
+          if/else, for/each, etc.).
+      - id: PRO-S1-O10
+        group: etl_pipelines
+        free_edition_lab: partial
+        optional_classic_lab: true
+        note: >-
+          Retry and environment config is doable on serverless; selecting
+          high-memory compute for a notebook task is not.
+        text: >-
+          Choose the appropriate configs for environments and dependencies, high
+          memory for notebook tasks, and auto-optimization to disallow retries.
+      - id: PRO-S1-O11
+        group: etl_pipelines
+        text: >-
+          Develop unit and integration tests using assertDataFrameEqual,
+          assertSchemaEqual, DataFrame.transform, and testing frameworks, to
+          ensure code correctness, including a built-in debugger.
+
+  - id: PRO-S2
+    number: 2
+    title: Data Ingestion & Acquisition
+    weighting_pct: 7
+    objectives:
+      - id: PRO-S2-O1
+        text: >-
+          Design and implement data ingestion pipelines to efficiently ingest a
+          variety of data formats including Delta Lake, Parquet, ORC, AVRO, JSON,
+          CSV, XML, Text and Binary from diverse sources such as message buses and
+          cloud storage.
+      - id: PRO-S2-O2
+        text: >-
+          Create an append-only data pipeline capable of handling both batch and
+          streaming data using Delta.
+
+  - id: PRO-S3
+    number: 3
+    title: Data Transformation, Cleansing, and Quality
+    weighting_pct: 10
+    objectives:
+      - id: PRO-S3-O1
+        text: >-
+          Write efficient Spark SQL and PySpark code to apply advanced data
+          transformations, including window functions, joins, and aggregations, to
+          manipulate and analyze large datasets.
+      - id: PRO-S3-O2
+        text: >-
+          Develop a quarantining process for bad data with Lakeflow Spark
+          Declarative Pipelines, or Auto Loader in classic jobs.
+
+  - id: PRO-S4
+    number: 4
+    title: Data Sharing and Federation
+    weighting_pct: 5
+    objectives:
+      - id: PRO-S4-O1
+        free_edition_lab: partial
+        verify_in_workspace: true
+        note: >-
+          D2D sharing needs a second Databricks account to share with; D2O needs
+          an external consumer. A learner working alone can likely create the
+          share and recipient and inspect the artifacts without completing a
+          cross-account handshake. Confirm what Free Edition permits.
+        text: >-
+          Demonstrate Delta Sharing securely between Databricks deployments using
+          Databricks-to-Databricks sharing (D2D) or to external platforms using
+          the open sharing protocol (D2O).
+      - id: PRO-S4-O2
+        free_edition_lab: partial
+        verify_in_workspace: true
+        note: >-
+          Federation needs a reachable foreign source, and Free Edition egress is
+          restricted. The account's own Lakebase Postgres project is the most
+          promising federation target - verify a PostgreSQL connection can be
+          created against it.
+        text: >-
+          Configure Lakehouse Federation with proper governance across the
+          supported source systems.
+      - id: PRO-S4-O3
+        free_edition_lab: partial
+        verify_in_workspace: true
+        note: See PRO-S4-O1 - needs an external consumer to complete end-to-end.
+        text: >-
+          Use Delta Sharing to share live data from the Lakehouse to any computing
+          platform.
+
+  - id: PRO-S5
+    number: 5
+    title: Monitoring and Alerting
+    weighting_pct: 10
+    groups:
+      - Monitoring
+      - Alerting
+    objectives:
+      - id: PRO-S5-O1
+        group: monitoring
+        verify_in_workspace: true
+        note: >-
+          Which system table schemas are enabled on Free Edition is unconfirmed -
+          billing and audit tables in particular. Enumerate system.* before
+          writing queries against it.
+        text: >-
+          Use system tables for observability over resource utilization, cost,
+          auditing and workload monitoring.
+      - id: PRO-S5-O2
+        group: monitoring
+        free_edition_lab: partial
+        optional_classic_lab: true
+        note: >-
+          Query Profiler works on the SQL warehouse. Spark UI depth is the gap -
+          see ASSOC-S6-O3.
+        text: Use Query Profiler UI and Spark UI to monitor workloads.
+      - id: PRO-S5-O3
+        group: monitoring
+        text: >-
+          Use the Databricks REST APIs / Databricks CLI for monitoring jobs and
+          pipelines.
+      - id: PRO-S5-O4
+        group: monitoring
+        text: >-
+          Use Lakeflow Spark Declarative Pipelines event logs to monitor
+          pipelines.
+      - id: PRO-S5-O5
+        group: alerting
+        text: Use SQL Alerts to monitor data quality.
+      - id: PRO-S5-O6
+        group: alerting
+        text: >-
+          Use the Lakeflow Jobs UI and Jobs API to set up notifications for job
+          status and performance issues.
+
+  - id: PRO-S6
+    number: 6
+    title: Cost & Performance Optimization
+    weighting_pct: 13
+    objectives:
+      - id: PRO-S6-O1
+        text: >-
+          Understand how and why using Unity Catalog managed tables reduces
+          operational overhead and maintenance burden.
+      - id: PRO-S6-O2
+        text: >-
+          Understand Delta optimization techniques, such as deletion vectors and
+          liquid clustering.
+      - id: PRO-S6-O3
+        text: >-
+          Understand the optimization techniques used by Databricks to ensure the
+          performance of queries on large datasets (data skipping, file pruning,
+          etc.).
+      - id: PRO-S6-O4
+        text: >-
+          Apply Change Data Feed (CDF) to address specific limitations of
+          streaming tables and enhance latency.
+      - id: PRO-S6-O5
+        text: >-
+          Use the query profile to analyze the query and identify bottlenecks, such
+          as bad data skipping, inefficient types of joins, and data shuffling.
+
+  - id: PRO-S7
+    number: 7
+    title: Ensuring Data Security and Compliance
+    weighting_pct: 10
+    groups:
+      - Applying Data Security mechanisms
+      - Ensuring Compliance
+    objectives:
+      - id: PRO-S7-O1
+        group: security_mechanisms
+        text: >-
+          Use ACLs to secure workspace objects, enforcing the principle of least
+          privilege, including enforcing principles like least privilege and
+          policy enforcement.
+      - id: PRO-S7-O2
+        group: security_mechanisms
+        text: Use row filters and column masks to filter and mask sensitive table data.
+      - id: PRO-S7-O3
+        group: security_mechanisms
+        text: >-
+          Apply anonymization and pseudonymization methods, such as hashing,
+          tokenization, suppression, and generalization, to confidential data.
+      - id: PRO-S7-O4
+        group: compliance
+        text: >-
+          Implement a compliant batch and streaming pipeline that detects and
+          applies masking of PII to ensure data privacy.
+      - id: PRO-S7-O5
+        group: compliance
+        text: >-
+          Develop a data purging solution ensuring compliance with data retention
+          policies.
+
+  - id: PRO-S8
+    number: 8
+    title: Data Governance
+    weighting_pct: 7
+    objectives:
+      - id: PRO-S8-O1
+        text: >-
+          Create and add descriptions/metadata about enterprise data to make it
+          more discoverable.
+      - id: PRO-S8-O2
+        text: Demonstrate understanding of the Unity Catalog permission inheritance model.
+
+  - id: PRO-S9
+    number: 9
+    title: Debugging and Deploying
+    weighting_pct: 10
+    groups:
+      - Debugging and Troubleshooting
+      - Deploying CI/CD
+    objectives:
+      - id: PRO-S9-O1
+        group: debugging
+        free_edition_lab: partial
+        optional_classic_lab: true
+        note: >-
+          Query profiles are available; cluster log delivery is not, since there
+          are no clusters. The classic lab covers root-causing a failure from
+          delivered cluster logs.
+        text: >-
+          Identify pertinent diagnostic information using Spark UI, cluster logs,
+          system tables, and query profiles to troubleshoot errors.
+      - id: PRO-S9-O2
+        group: debugging
+        text: >-
+          Analyze the errors and remediate the failed job runs with job repairs
+          and parameter overrides.
+      - id: PRO-S9-O3
+        group: debugging
+        text: >-
+          Use Lakeflow Spark Declarative Pipelines event logs and the Spark UI to
+          debug Lakeflow Spark Declarative Pipelines and Spark pipelines.
+      - id: PRO-S9-O4
+        group: cicd
+        text: >-
+          Build and deploy Databricks resources using Declarative Automation
+          Bundles (formerly Databricks Asset Bundles).
+      - id: PRO-S9-O5
+        group: cicd
+        text: >-
+          Configure and integrate with Git-based CI/CD workflows and Databricks
+          Git folders (formerly Repos) for notebook and code deployment.
+
+  - id: PRO-S10
+    number: 10
+    title: Data Modeling
+    weighting_pct: 6
+    objectives:
+      - id: PRO-S10-O1
+        text: >-
+          Design and implement scalable data models using Delta Lake to manage
+          large datasets.
+      - id: PRO-S10-O2
+        text: >-
+          Simplify data layout decisions and optimize query performance using
+          Liquid Clustering.
+      - id: PRO-S10-O3
+        text: >-
+          Identify the benefits of using Liquid Clustering over partitioning and
+          ZORDER.
+      - id: PRO-S10-O4
+        text: >-
+          Design dimensional models for analytical workloads, ensuring efficient
+          querying and aggregation.

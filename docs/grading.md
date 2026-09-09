@@ -1,0 +1,129 @@
+# How assignments are graded
+
+Assignments in this repo are graded in two tiers. Only one of them counts.
+
+| | Tier 1 — unit tests | Tier 2 — AI review |
+| --- | --- | --- |
+| Verdict | **Authoritative** | Advisory |
+| Determinism | Same input, same result, always | Varies between runs |
+| Needs credentials | No | Yes — yours |
+| Judges | Did you produce the required output? | Did you use the intended technique? |
+
+**Every assignment is fully gradeable by tier 1 alone.** If you never attach a
+model, you still get a real pass or fail. Tier 2 is there to catch what tests
+structurally cannot.
+
+---
+
+## Tier 1: unit tests
+
+Each assignment declares an **output contract** in its README — produce a table at
+a given name, with a given schema and given semantics. A pytest suite asserts
+against that contract:
+
+- `assertSchemaEqual` on the required output schema
+- row counts, and that deduplication actually happened
+- **known-answer probes** — precomputed expected values for specific keys, so the
+  tests never need the reference solution to be present
+- **edge-case assertions** targeting hazards that exist in the assignment's dataset
+  but not in the lesson's
+
+That last category is the important one. It's what makes pasting the lesson's code
+into the assignment *fail* rather than merely score badly.
+
+Run them in-workspace, which needs no local setup:
+
+```bash
+databricks bundle run grade_<section> -t free --profile FREE
+```
+
+### This tier is also exam content
+
+The harness is built from `assertDataFrameEqual`, `assertSchemaEqual` and
+`DataFrame.transform` — which is exactly what `PRO-S1-O11` examines. Read the test
+suites. They're a worked example of an objective you'll be tested on.
+
+---
+
+## Tier 2: AI review (bring your own model)
+
+Unit tests can't tell whether you solved the problem the intended way. A `for`
+loop over `read.json` might satisfy every assertion while completely missing Auto
+Loader and schema evolution — passing the test and failing the lesson. They also
+can't grade written justifications.
+
+That's what this tier is for.
+
+### Attaching a model
+
+The repo ships **no credentials**. You provide the model; copy
+`grading/.env.example` to `grading/.env` (gitignored) and fill in one provider.
+
+**Databricks Foundation Model APIs — recommended.** No extra signup, no extra
+bill, and it uses the workspace you already have:
+
+```bash
+DATABRICKS_PROFILE=FREE
+GRADER_PROVIDER=databricks
+GRADER_MODEL=databricks-claude-sonnet-4-5
+```
+
+Anthropic or OpenAI work too:
+
+```bash
+GRADER_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+GRADER_MODEL=claude-sonnet-4-5
+```
+
+Then:
+
+```bash
+python3 grading/ai_grader.py --assignment ASSOC-S2
+python3 grading/ai_grader.py --assignment ASSOC-S2 --dry-run   # no model needed
+```
+
+`--dry-run` prints the assembled prompt and exits, so you can see exactly what
+would be sent before sending anything.
+
+### What it returns
+
+Structured JSON, not prose:
+
+```json
+{
+  "verdict": "fail",
+  "missed_requirements": [
+    "Schema evolution was not enabled; a new column would silently break this."
+  ],
+  "issues": [
+    {"severity": "major", "location": "cell 4", "note": "Reads with spark.read.json in a loop rather than Auto Loader, so there is no checkpointing and reprocessing is not incremental."}
+  ],
+  "summary": "Output is correct for the current data but will not survive the next schema change."
+}
+```
+
+### The rules that keep this honest
+
+- **An AI verdict never overrides a unit test.** Where the two disagree, both are
+  shown and the test wins. LLM graders are non-deterministic, and a grader that
+  can fail you on a whim is worse than no grader.
+- **It sees your code and the rubric, not the reference solution.** It's reviewing
+  your approach, not diffing you against one right answer.
+- **Treat its output as a second opinion.** If it flags something you believe is
+  correct, you're probably right — go and confirm why, which is the useful part.
+
+---
+
+## Writing assignments (for contributors)
+
+See [authoring-guide.md](authoring-guide.md) for the full contract spec. The
+non-negotiables:
+
+1. **Tier 1 must be sufficient.** If an assignment can only be graded by an LLM,
+   it isn't specified tightly enough yet.
+2. **Prove the anti-transplant property.** Paste the lesson's solution into the
+   assignment and confirm the suite fails. If it passes, the dataset pairing is
+   broken — fix the datasets, not the tests.
+3. **Fixtures are committed**, generated from the reference solution, so the tests
+   stand alone.

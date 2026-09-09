@@ -1,0 +1,61 @@
+name: Deploy to Databricks
+
+# Runs only after a merge to main. The PR gate is what decides whether code gets
+# here; this job's only job is to ship what is already on main.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never let two deploys race for the same bundle path.
+concurrency:
+  group: deploy-free
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy bundle (Free Edition)
+    runs-on: ubuntu-latest
+    environment: databricks-free
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      # Re-verify on main. The PR gate should have caught anything, but a merge
+      # can combine two individually-valid PRs into a broken main.
+      - name: Install tooling
+        run: pip install -r tools/requirements.txt -r tools/requirements-dev.txt
+      - name: Validate content
+        run: python tools/validate_content.py
+      - name: Run tests
+        run: python -m pytest tools/tests -q
+
+      - uses: databricks/setup-cli@main
+
+      - name: Validate bundle
+        working-directory: bundle
+        run: databricks bundle validate --strict -t free
+
+      - name: Deploy bundle
+        working-directory: bundle
+        run: databricks bundle deploy -t free
+
+      - name: Summarise what was deployed
+        working-directory: bundle
+        run: |
+          databricks bundle summary -t free >> "$GITHUB_STEP_SUMMARY" 2>&1 || \
+            echo "No resources in the bundle yet." >> "$GITHUB_STEP_SUMMARY"
+
+    env:
+      # OAuth machine-to-machine as a service principal. No PAT, no user identity.
+      # Set these as repository secrets - see docs/ci-cd.md.
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}

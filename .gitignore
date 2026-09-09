@@ -1,0 +1,61 @@
+# ---- macOS ----
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# ---- Editors / IDEs ----
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# ---- Node / web app ----
+node_modules/
+.next/
+.nuxt/
+.svelte-kit/
+.turbo/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- Databricks / DABs ----
+.databricks/
+.databricks-login.json
+**/.bundle/
+
+# ---- Personal, never-committed docs ----
+# Real workspace URLs, service principal IDs and other identifiers that are fine
+# on your own machine but do not belong in a public repo. See docs/ci-cd.md.
+docs/local/
+
+# ---- Secrets & local config ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.*
+
+# ---- Scratch / generated ----
+scratch/
+tmp/
+*.log
