@@ -49,6 +49,14 @@ jobs:
         working-directory: bundle
         run: databricks bundle deploy -t free
 
+      # `bundle deploy` uploads the app's source and creates the app resource,
+      # but with no compute - it stays STOPPED with no deployment (confirmed on
+      # the first deploy after PR #21). `bundle run` on an app resource deploys
+      # the uploaded source and starts it; on a running app it redeploys.
+      - name: Deploy and start the study app
+        working-directory: bundle
+        run: databricks bundle run study_app -t free
+
       - name: Summarise what was deployed
         working-directory: bundle
         run: |

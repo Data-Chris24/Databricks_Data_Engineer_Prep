@@ -80,13 +80,20 @@ Two rules that come from how Lakebase and Databricks Apps hand out ownership:
 - **Never `bundle deploy` from a laptop.** Development mode prefixes resource
   names, so it would create a second app and use one of the three slots.
 
-Verified before the first deploy: the bundle interpolates
-`${workspace.file_path}` into the app's environment (`DE_PREP_FILES_ROOT`), and
-`bundle validate --strict -t free` accepts the app resource. Still to confirm on
-the first CI deploy, and to record here: whether the app starts on its own after
-`bundle deploy` (else add `bundle run study_app` to the workflow), that the CI
-service principal may attach the Lakebase resource, and that a user can open
-notebooks under the service principal's bundle folder from the app's links.
+Confirmed on the first deploys (2026-09-10):
+
+- The bundle interpolates `${workspace.file_path}` into the app's environment
+  (`DE_PREP_FILES_ROOT`), and `bundle validate --strict -t free` accepts the app.
+- The CI service principal needs **CAN_MANAGE on the Lakebase project** to attach
+  it to the app; without it `bundle deploy` fails with `403 PERMISSION_DENIED`
+  (`docs/ci-cd.md`, step 2b).
+- `bundle deploy` alone creates the app with no compute: it sat `STOPPED` with no
+  deployment. `deploy.yml` therefore runs `bundle run study_app` afterwards, which
+  deploys the uploaded source and starts the app.
+
+Still to confirm from inside the running app: that a user can open notebooks under
+the service principal's bundle folder from the app's links, and that the relative
+links in the notebooks' closing cell resolve.
 
 ---
 
