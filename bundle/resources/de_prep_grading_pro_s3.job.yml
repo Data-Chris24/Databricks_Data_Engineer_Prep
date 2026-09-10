@@ -1,0 +1,19 @@
+resources:
+  jobs:
+    grade_pro_s3:
+      name: "[DE prep] Grade PRO-S3"
+      tasks:
+        - task_key: grade
+          notebook_task:
+            notebook_path: ../../notebooks/assignments/PRO-S3/grade.py
+      queue:
+        enabled: true
+
+    transplant_check_pro_s3:
+      name: "[DE prep] Anti-transplant check PRO-S3"
+      tasks:
+        - task_key: check
+          notebook_task:
+            notebook_path: ../../solutions/PRO-S3/transplant_check.py
+      queue:
+        enabled: true

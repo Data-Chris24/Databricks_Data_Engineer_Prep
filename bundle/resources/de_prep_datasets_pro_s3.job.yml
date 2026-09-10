@@ -1,0 +1,10 @@
+resources:
+  jobs:
+    generate_datasets_pro_s3:
+      name: "[DE prep] Generate PRO-S3 datasets"
+      tasks:
+        - task_key: generate
+          notebook_task:
+            notebook_path: ../../notebooks/datasets/generate_PRO-S3.py
+      queue:
+        enabled: true

@@ -1,0 +1,10 @@
+resources:
+  jobs:
+    run_lessons_pro_s3:
+      name: "[DE prep] Run PRO-S3 lessons"
+      tasks:
+        - task_key: windows_and_quarantine
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/professional/S3/01_windows_and_quarantine.py
+      queue:
+        enabled: true
