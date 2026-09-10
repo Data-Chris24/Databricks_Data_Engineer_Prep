@@ -26,6 +26,7 @@ import type {
   ProgressPatch,
   ProgressRow,
   Quality,
+  ResetAllResult,
   ReviewRow,
   ScoreResult,
   TrainingState,
@@ -107,6 +108,8 @@ export interface StudyStore {
   provisionAssignment(sectionId: string): Promise<AssignmentState>;
   /** Overwrite the learner's copy with the starter again. */
   resetAssignment(sectionId: string): Promise<AssignmentState>;
+  /** Reset every assignment of the exam: starters, output tables and grades. */
+  resetAllAssignments(exam: ExamId): Promise<ResetAllResult>;
 }
 
 // ------------------------------------------------------------------ api
@@ -190,6 +193,9 @@ export class ApiStore implements StudyStore {
   }
   resetAssignment(sectionId: string) {
     return request<AssignmentState>('POST', `/api/assignment/${sectionId}/reset`);
+  }
+  resetAllAssignments(exam: ExamId) {
+    return request<ResetAllResult>('POST', `/api/assignment/reset-all/${exam}`);
   }
 }
 
@@ -314,6 +320,15 @@ export class MemoryStore implements StudyStore {
     else this.copies.set(sectionId, { folder: '', notebook: '', resetCount: 1 });
     this.gradingRuns.delete(sectionId);
     return this.assignment(sectionId);
+  }
+  async resetAllAssignments(exam: ExamId): Promise<ResetAllResult> {
+    const sections = examById(exam)?.sections.map((s) => s.id) ?? [];
+    for (const sid of sections) {
+      const copy = this.copies.get(sid);
+      if (copy) copy.resetCount += 1;
+      this.gradingRuns.delete(sid);
+    }
+    return { exam, sections, runId: null };
   }
 
   async practiceState(exam: ExamId) {

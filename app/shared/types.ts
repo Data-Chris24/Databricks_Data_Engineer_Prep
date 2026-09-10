@@ -261,3 +261,9 @@ export interface AssignmentState {
   resetting: boolean;
   gate: AssignmentGate;
 }
+
+export interface ResetAllResult {
+  exam: ExamId;
+  sections: string[];
+  runId: number | null;
+}

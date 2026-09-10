@@ -38,6 +38,9 @@ for; for PRO-S4 the share and recipient; never an assess input) through the
 `reset_assignment` job, and forgets the grades recorded for the section, so a
 fresh attempt cannot pass on old work. Sections whose starter has not been
 written yet link to the README instead, and can still reset their tables.
+*Start this exam over* on the Learn home offers the same for every section at
+once, in a single job run, or lets the learner keep their assignments and only
+clear reading progress.
 
 **From the study app** (the normal path): the section page's *Grade my
 assignment* button triggers the `grade_<section>` job as the app's service

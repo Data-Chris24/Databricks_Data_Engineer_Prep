@@ -54,3 +54,9 @@ def test_reset_notebook_refuses_assess_inputs():
     text = (REPO_ROOT / "grading" / "reset_assignment.py").read_text()
     assert "refusing to drop an assess input" in text
     assert "DROP TABLE IF EXISTS" in text
+
+
+def test_reset_notebook_accepts_a_list_of_sections():
+    text = (REPO_ROOT / "grading" / "reset_assignment.py").read_text()
+    assert 'split(",")' in text, "start-over resets every section in one run"
+    assert "for section in sections" in text

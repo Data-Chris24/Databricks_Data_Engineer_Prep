@@ -1,8 +1,8 @@
 import type { Application } from 'express';
 
-import { lessonPaths, sectionById, starters } from '../../shared/content';
+import { examById, lessonPaths, sectionById, starters } from '../../shared/content';
 import { assignmentGate } from '../../shared/gate';
-import type { AssignmentState } from '../../shared/types';
+import type { AssignmentState, ResetAllResult } from '../../shared/types';
 import type { AppKitLike, Db, JobHandle } from '../lib/appkit';
 import { isTerminal } from '../lib/grading';
 import { currentUser, num, param, wrap } from '../lib/http';
@@ -110,6 +110,53 @@ export function registerAssignmentRoutes(app: Application, db: Db, learners: Lea
     );
     return { status: 200, body: await state(userId, sectionId) };
   }
+
+  /**
+   * Start an exam over: every section's starter back in the learner's copy
+   * (where one exists), every output dropped in one job run, every grade
+   * forgotten. No gate check - this is a reset, not an unlock.
+   */
+  app.post(
+    '/api/assignment/reset-all/:exam',
+    wrap(async (req, res) => {
+      const exam = examById(param(req, 'exam'));
+      if (!exam) {
+        res.status(404).json({ error: 'unknown_exam' });
+        return;
+      }
+      const user = currentUser(res);
+      const job = resetJob();
+      if (!job) {
+        res.status(503).json({ error: 'reset_job_not_configured' });
+        return;
+      }
+      const sectionIds = exam.sections.map((s) => s.id);
+      for (const sid of sectionIds) {
+        const s = await state(user.userId, sid);
+        if (s.provisioned && s.hasStarters && learners.root()) {
+          await learners.provision(user.userId, sid, starters[sid] ?? [], true);
+        }
+      }
+      const started = await job.runNow({ job_parameters: { section: sectionIds.join(',') } });
+      if (!started.ok) {
+        const msg = typeof started.error === 'string' ? started.error : (started.error as { message?: string }).message ?? 'could not start the reset job';
+        res.status(502).json({ error: 'reset_start_failed', message: msg.slice(0, 500) });
+        return;
+      }
+      await db.query('DELETE FROM study.grading_runs WHERE user_id = $1 AND section_id = ANY($2::text[])', [user.userId, sectionIds]);
+      for (const sid of sectionIds) {
+        await db.query(
+          `INSERT INTO study.assignment_copies (user_id, section_id, folder, notebook, reset_count, last_reset_at, reset_run_id)
+             VALUES ($1, $2, '', '', 1, now(), $3)
+           ON CONFLICT (user_id, section_id) DO UPDATE SET
+             reset_count = study.assignment_copies.reset_count + 1, last_reset_at = now(), reset_run_id = EXCLUDED.reset_run_id`,
+          [user.userId, sid, started.data.run_id],
+        );
+      }
+      const body: ResetAllResult = { exam: exam.id, sections: sectionIds, runId: started.data.run_id };
+      res.json(body);
+    }),
+  );
 
   app.post(
     '/api/assignment/:sectionId/provision',
