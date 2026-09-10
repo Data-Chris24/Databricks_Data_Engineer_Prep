@@ -2098,6 +2098,461 @@
   "family": "ASSOC-S5-Q001"
  },
  {
+  "id": "ASSOC-S1-Q004",
+  "exam": "associate",
+  "section": "ASSOC-S1",
+  "objectives": [
+   "ASSOC-S1-O1"
+  ],
+  "stem": "A reader queries a Delta table while a writer is halfway through committing 400 new files. What does the reader see, and what guarantees it?",
+  "code": null,
+  "options": {
+   "A": "The table as of the last completed commit; readers resolve the transaction log, and files without a log entry are invisible.",
+   "B": "A mix of old and new files, because object storage lists whatever exists.",
+   "C": "An error, because Delta locks the table during a write.",
+   "D": "The new files, because a writer's files become visible as they land."
+  },
+  "correct": "A",
+  "explanation": "The log, not the directory listing, defines the table. A commit is one atomic entry; until it lands, none of the writer's files exist as far as readers are concerned. That is the isolation plain Parquet cannot give.",
+  "why": {
+   "B": "That is exactly what a Parquet directory without a log suffers from.",
+   "C": "Delta uses optimistic concurrency, not locks; readers are never blocked.",
+   "D": "Files are inert until the commit that references them is written."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "delta",
+   "transaction-log",
+   "concurrency"
+  ],
+  "variant_of": "ASSOC-S1-Q002",
+  "family": "ASSOC-S1-Q002"
+ },
+ {
+  "id": "ASSOC-S1-Q005",
+  "exam": "associate",
+  "section": "ASSOC-S1",
+  "objectives": [
+   "ASSOC-S1-O2"
+  ],
+  "stem": "A 12-minute nightly job runs on an all-purpose cluster that stays up all day for analysts. Moving the job to job compute changes which of the following?",
+  "code": null,
+  "options": {
+   "A": "The job's compute is created for the run and terminated after, so the job pays for 12 minutes rather than sharing a cluster billed all day.",
+   "B": "Nothing; both compute types bill per DBU at the same rate.",
+   "C": "The job runs faster, because job compute uses larger nodes.",
+   "D": "The analysts lose their cluster, because job compute replaces it."
+  },
+  "correct": "A",
+  "explanation": "Job compute exists for the run. All-purpose compute is for interactive work and is billed while it is up; running scheduled work on it means paying for idle time and interfering with the people using it.",
+  "why": {
+   "B": "The DBU rates differ by compute type, and the billed duration differs far more.",
+   "C": "Node size is a configuration choice, not a property of job compute.",
+   "D": "The analysts' cluster is untouched; the job simply stops using it."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "compute",
+   "job-compute",
+   "all-purpose",
+   "cost"
+  ],
+  "variant_of": "ASSOC-S1-Q003",
+  "family": "ASSOC-S1-Q003"
+ },
+ {
+  "id": "ASSOC-S2-Q013",
+  "exam": "associate",
+  "section": "ASSOC-S2",
+  "objectives": [
+   "ASSOC-S2-O3"
+  ],
+  "stem": "An Auto Loader stream's schemaLocation is deleted but its checkpointLocation is kept, then the stream restarts. What happens?",
+  "code": null,
+  "options": {
+   "A": "The schema is re-inferred from a sample of files, but no file is reprocessed, because consumption progress lives in the checkpoint.",
+   "B": "Every file is reprocessed, because the schema location tracks consumed files.",
+   "C": "The stream fails until the schema location is restored.",
+   "D": "Nothing changes; both locations hold the same information."
+  },
+  "correct": "A",
+  "explanation": "The two locations do different jobs. The checkpoint remembers which files were consumed; the schema location remembers the inferred schema and its evolution. Losing the schema costs an inference pass, not a reload.",
+  "why": {
+   "B": "Reprocessing happens when the checkpoint is lost, not the schema.",
+   "C": "Auto Loader re-infers and continues.",
+   "D": "They are separate for a reason; deleting one has a different effect from deleting the other."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "auto-loader",
+   "checkpoint",
+   "schema-location"
+  ],
+  "variant_of": "ASSOC-S2-Q004",
+  "family": "ASSOC-S2-Q004"
+ },
+ {
+  "id": "ASSOC-S2-Q014",
+  "exam": "associate",
+  "section": "ASSOC-S2",
+  "objectives": [
+   "ASSOC-S2-O2"
+  ],
+  "stem": "COPY INTO from CSV into a table declared with numeric columns fails with DELTA_FAILED_TO_MERGE_FIELDS. Which fix is correct?",
+  "code": null,
+  "options": {
+   "A": "Cast in the SELECT of COPY INTO (or land as strings and cast in silver); CSV fields arrive as text and are not coerced silently.",
+   "B": "Add mergeSchema, which converts the strings to the declared types.",
+   "C": "Set inferSchema, which makes COPY INTO detect the numeric types.",
+   "D": "Re-create the table with all STRING columns; numeric types cannot be loaded from CSV."
+  },
+  "correct": "A",
+  "explanation": "The load refuses to merge a STRING field into a numeric column, which is the safe behaviour. Casting explicitly in the COPY INTO SELECT, or landing bronze as strings and typing in silver, records the decision instead of hoping.",
+  "why": {
+   "B": "mergeSchema adds columns; it does not change a type mismatch into a cast.",
+   "C": "inferSchema affects a plain read; COPY INTO still delivers CSV fields as text to the target's schema check.",
+   "D": "Numeric targets are fine once the values are cast; all-string tables push the problem downstream."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "copy-into",
+   "csv",
+   "types",
+   "mergeSchema"
+  ],
+  "variant_of": "ASSOC-S2-Q003",
+  "family": "ASSOC-S2-Q003"
+ },
+ {
+  "id": "ASSOC-S3-Q024",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O2"
+  ],
+  "stem": "A join meant only to add a column returns 12% more rows than its left input. Which single fact about the right side explains it?",
+  "code": null,
+  "options": {
+   "A": "Some join keys appear more than once on the right side.",
+   "B": "Some join keys are missing from the right side.",
+   "C": "The right side has more columns than expected.",
+   "D": "The join was an inner join instead of a left join."
+  },
+  "correct": "A",
+  "explanation": "A join returns one row per matching pair. Duplicate keys on the enriching side multiply the left rows that hit them; missing keys reduce or null rows, never add them.",
+  "why": {
+   "B": "Missing keys lose rows in an inner join and null them in a left join; they cannot add rows.",
+   "C": "Column width never changes row count.",
+   "D": "An inner join can only return fewer rows than a left join, not more than the input."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "join",
+   "fan-out",
+   "cardinality"
+  ],
+  "variant_of": "ASSOC-S3-Q004",
+  "family": "ASSOC-S3-Q004"
+ },
+ {
+  "id": "ASSOC-S3-Q025",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O4"
+  ],
+  "stem": "Redelivered events arrive with the same event_id and a newer received_at. Which call keeps exactly one row per event, and which row does it keep?",
+  "code": null,
+  "options": {
+   "A": "A window over event_id ordered by received_at descending, keeping row_number 1; it keeps the newest delivery.",
+   "B": "dropDuplicates([\"event_id\"]); it keeps the newest delivery.",
+   "C": "dropDuplicates(); it keeps one row per event because redeliveries are identical.",
+   "D": "distinct(); it keeps the first delivery."
+  },
+  "correct": "A",
+  "explanation": "dropDuplicates on the key gives one row per event but does not say which; the whole-row versions keep every distinct version. When \"which one\" matters, order explicitly with a window.",
+  "why": {
+   "B": "One row per event, but an arbitrary one; nothing orders by received_at.",
+   "C": "The deliveries differ in received_at, so whole-row deduplication keeps both.",
+   "D": "distinct is whole-row deduplication under another name."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "dropDuplicates",
+   "business-key",
+   "window"
+  ],
+  "variant_of": "ASSOC-S3-Q012",
+  "family": "ASSOC-S3-Q012"
+ },
+ {
+  "id": "ASSOC-S4-Q010",
+  "exam": "associate",
+  "section": "ASSOC-S4",
+  "objectives": [
+   "ASSOC-S4-O2"
+  ],
+  "stem": "Task D depends on B and C. C fails. The team wants D to run anyway and record the partial result. What must change?",
+  "code": null,
+  "options": {
+   "A": "D's run_if condition, to ALL_DONE (or AT_LEAST_ONE_SUCCESS), since the default ALL_SUCCESS skips D.",
+   "B": "C's retries, so it eventually succeeds.",
+   "C": "The dependency, removing C so D no longer waits for it.",
+   "D": "Nothing; a dependant runs once its upstream tasks have finished in any state."
+  },
+  "correct": "A",
+  "explanation": "A dependant's run condition is explicit. The default requires every upstream task to succeed, which is why D was skipped; ALL_DONE runs it once B and C have finished, whatever their state.",
+  "why": {
+   "B": "Retries reduce failures; the requirement is to run D even when C fails.",
+   "C": "Removing the dependency lets D start before C finishes, which is a different behaviour.",
+   "D": "The default is ALL_SUCCESS, which skips D on any upstream failure."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "jobs",
+   "dependencies",
+   "run_if",
+   "skipped"
+  ],
+  "variant_of": "ASSOC-S4-Q004",
+  "family": "ASSOC-S4-Q004"
+ },
+ {
+  "id": "ASSOC-S4-Q011",
+  "exam": "associate",
+  "section": "ASSOC-S4",
+  "objectives": [
+   "ASSOC-S4-O3"
+  ],
+  "stem": "An hourly job occasionally overruns. The team wants overrunning cases to run as soon as the previous run finishes rather than be skipped. Which setting?",
+  "code": null,
+  "options": {
+   "A": "Enable queueing (or raise max concurrent runs if overlapping is acceptable); by default a scheduled run is skipped while one is active.",
+   "B": "Shorten the schedule to every 30 minutes so a skipped slot is caught sooner.",
+   "C": "Add a retry, which re-runs the skipped slot.",
+   "D": "Nothing; skipped runs are queued automatically."
+  },
+  "correct": "A",
+  "explanation": "With one allowed concurrent run and no queue, a schedule that fires during an active run is skipped. Queueing holds it until the active run finishes; a higher concurrency limit lets them overlap, which is only right when the job is safe to run concurrently.",
+  "why": {
+   "B": "More frequent triggers produce more skips, not fewer.",
+   "C": "Retries apply to failed runs; a skipped slot never ran.",
+   "D": "Queueing is a setting, not the default behaviour."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "jobs",
+   "schedule",
+   "concurrency",
+   "queue"
+  ],
+  "variant_of": "ASSOC-S4-Q009",
+  "family": "ASSOC-S4-Q009"
+ },
+ {
+  "id": "ASSOC-S5-Q005",
+  "exam": "associate",
+  "section": "ASSOC-S5",
+  "objectives": [
+   "ASSOC-S5-O2"
+  ],
+  "stem": "A notebook must write to a different schema per environment. The bundle has a schema variable that each target overrides. How does the notebook learn the value at run time?",
+  "code": null,
+  "options": {
+   "A": "The job task passes ${var.schema} as a base parameter, which the notebook reads with dbutils.widgets.get().",
+   "B": "The notebook reads the bundle's databricks.yml from the workspace path.",
+   "C": "The variable is exported as an environment variable on the job cluster.",
+   "D": "The notebook checks its own workspace path for the target name and branches on it."
+  },
+  "correct": "A",
+  "explanation": "Variables resolve at deploy time into the job definition. The notebook stays environment-agnostic and receives the value as a parameter; it should fail loudly if the parameter is missing rather than default silently.",
+  "why": {
+   "B": "The YAML is not a runtime artefact and the notebook should not parse it.",
+   "C": "Bundle variables are not exported into the cluster environment.",
+   "D": "Sniffing the path couples the notebook to a deployment layout and defeats the parameterisation."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "dabs",
+   "variables",
+   "targets",
+   "notebook-parameters"
+  ],
+  "variant_of": "ASSOC-S5-Q002",
+  "family": "ASSOC-S5-Q002"
+ },
+ {
+  "id": "ASSOC-S5-Q006",
+  "exam": "associate",
+  "section": "ASSOC-S5",
+  "objectives": [
+   "ASSOC-S5-O4"
+  ],
+  "stem": "A pull-request workflow on a public repository runs databricks bundle validate. It fails for external contributors with an authentication error although the YAML is valid. Why?",
+  "code": null,
+  "options": {
+   "A": "validate resolves the current user over the workspace API, so it needs credentials that pull requests from forks do not receive; an offline schema check is the PR-time alternative.",
+   "B": "validate always needs a running cluster to test the jobs.",
+   "C": "External contributors' YAML is validated against a stricter schema.",
+   "D": "validate deploys to a temporary target, which forks cannot do."
+  },
+  "correct": "A",
+  "explanation": "validate is a configuration check, but it still authenticates to resolve the deploying identity. On a public repository, forks get no secrets, so the authoritative validate belongs in the deploy workflow and the PR gate uses an offline check against the CLI's schema.",
+  "why": {
+   "B": "validate runs no code and starts no compute.",
+   "C": "The schema is the same for everyone; the difference is credentials.",
+   "D": "validate creates nothing; it resolves configuration."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "dabs",
+   "validate",
+   "ci",
+   "credentials"
+  ],
+  "variant_of": "ASSOC-S5-Q003",
+  "family": "ASSOC-S5-Q003"
+ },
+ {
+  "id": "ASSOC-S6-Q006",
+  "exam": "associate",
+  "section": "ASSOC-S6",
+  "objectives": [
+   "ASSOC-S6-O3"
+  ],
+  "stem": "A stage spills to disk on every task evenly. A colleague proposes enabling skew-join handling. Why will that not help, and what will?",
+  "code": null,
+  "options": {
+   "A": "Even spill across tasks means partitions are uniformly too large, not skewed; more partitions or less data per task (or more memory) addresses it.",
+   "B": "Skew handling only applies to broadcast joins.",
+   "C": "Spill is always caused by skew, so the proposal is correct.",
+   "D": "Spill is a driver-side problem; add driver memory."
+  },
+  "correct": "A",
+  "explanation": "Skew is one straggler with disproportionate data; uniform spill is a sizing problem. Reading the distribution across tasks is what separates the two, and the fixes differ.",
+  "why": {
+   "B": "Skew handling applies to shuffle joins; the issue is that there is no skew here.",
+   "C": "Spill means working sets exceeded memory, which uniform oversizing causes without any skew.",
+   "D": "Executors spill; the driver is not involved in task working sets."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "spark-ui",
+   "spill",
+   "skew",
+   "partitions"
+  ],
+  "variant_of": "ASSOC-S6-Q005",
+  "family": "ASSOC-S6-Q005"
+ },
+ {
+  "id": "ASSOC-S6-Q007",
+  "exam": "associate",
+  "section": "ASSOC-S6",
+  "objectives": [
+   "ASSOC-S6-O1"
+  ],
+  "stem": "Which observation from the Jobs run history most directly localises a regression in a multi-task job that still succeeds?",
+  "code": null,
+  "options": {
+   "A": "One task's duration jumped while the others held steady across recent runs.",
+   "B": "The total run duration increased.",
+   "C": "The run's status is SUCCESS.",
+   "D": "The job's schedule fired on time."
+  },
+  "correct": "A",
+  "explanation": "Comparing per-task durations against previous runs points at the task that changed before any log is opened. Total duration says something happened; task-level comparison says where.",
+  "why": {
+   "B": "Confirms the regression without locating it.",
+   "C": "Success is what makes the regression silent.",
+   "D": "Scheduling is unrelated to execution time."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "run-history",
+   "monitoring",
+   "trend"
+  ],
+  "variant_of": "ASSOC-S6-Q004",
+  "family": "ASSOC-S6-Q004"
+ },
+ {
+  "id": "ASSOC-S7-Q010",
+  "exam": "associate",
+  "section": "ASSOC-S7",
+  "objectives": [
+   "ASSOC-S7-O2"
+  ],
+  "stem": "A group holds SELECT on schema sales and USE CATALOG on its catalog, but cannot query sales.orders. Which grant is missing?",
+  "code": null,
+  "options": {
+   "A": "USE SCHEMA on sales.",
+   "B": "SELECT on sales.orders, since schema grants do not inherit to tables.",
+   "C": "USE CATALOG on the metastore.",
+   "D": "Ownership of sales.orders."
+  },
+  "correct": "A",
+  "explanation": "SELECT on the schema inherits to every table in it, but exercising it needs traversal at both levels. USE CATALOG is present; USE SCHEMA is not.",
+  "why": {
+   "B": "Schema-level SELECT does inherit to the tables.",
+   "C": "USE CATALOG is granted on a catalog, not the metastore, and is already held.",
+   "D": "Ownership is not required to read."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "grants",
+   "traversal",
+   "use-schema"
+  ],
+  "variant_of": "ASSOC-S7-Q004",
+  "family": "ASSOC-S7-Q004"
+ },
+ {
+  "id": "ASSOC-S7-Q011",
+  "exam": "associate",
+  "section": "ASSOC-S7",
+  "objectives": [
+   "ASSOC-S7-O3"
+  ],
+  "stem": "Support sees full emails, everyone else sees a redacted value, from the same table name and without a second object. Which mechanism, and where is the group check written?",
+  "code": null,
+  "options": {
+   "A": "A column mask on the email column; the group check is inside the mask function, which returns the value for support and a redacted string otherwise.",
+   "B": "A row filter on the table; the group check decides which rows contain emails.",
+   "C": "Two views with different grants; the group check is the grant.",
+   "D": "A CHECK constraint that redacts on write."
+  },
+  "correct": "A",
+  "explanation": "The requirement is per-column, per-viewer, on one object: that is a column mask. The function carries the policy (is_account_group_member), the table carries the function.",
+  "why": {
+   "B": "Row filters choose rows, not what a column shows.",
+   "C": "Two views is a second object, which the requirement excludes.",
+   "D": "Constraints validate writes; they do not vary output by viewer."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "column-mask",
+   "row-filter",
+   "views"
+  ],
+  "variant_of": "ASSOC-S7-Q006",
+  "family": "ASSOC-S7-Q006"
+ },
+ {
   "id": "PRO-S1-Q004",
   "exam": "professional",
   "section": "PRO-S1",
@@ -5134,5 +5589,644 @@
   ],
   "variant_of": null,
   "family": "PRO-S1-Q003"
+ },
+ {
+  "id": "PRO-S1-Q023",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O7"
+  ],
+  "stem": "Under AUTO CDC with SEQUENCE BY seq_num and APPLY AS DELETE WHEN op = 'delete', key K receives: update seq 5, delete seq 7, update seq 6. What is in the target?",
+  "code": null,
+  "options": {
+   "A": "No row for K; the delete at seq 7 is the highest sequence, so the later-arriving update at seq 6 is ignored.",
+   "B": "A row for K from the seq 6 update, because it arrived last.",
+   "C": "A row for K from the seq 5 update, because the delete removed only the later state.",
+   "D": "An error, because a delete cannot be followed by an update."
+  },
+  "correct": "A",
+  "explanation": "Arrival order is irrelevant; sequence decides. The highest sequence for K is the delete, so K is absent. Had the update carried seq 8, K would be present again: deleted-then-resurrected keys are exactly what sequencing gets right.",
+  "why": {
+   "B": "Arrival order is what SEQUENCE BY exists to override.",
+   "C": "Deletes remove the key; there is no partial state to fall back to.",
+   "D": "Out-of-order and post-delete events are normal in a change feed."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "auto-cdc",
+   "sequence-by",
+   "resurrection"
+  ],
+  "variant_of": "PRO-S1-Q014",
+  "family": "PRO-S1-Q014"
+ },
+ {
+  "id": "PRO-S1-Q024",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O6"
+  ],
+  "stem": "In one sentence: what property of the source decides between a streaming table and a materialized view?",
+  "code": null,
+  "options": {
+   "A": "Whether rows already loaded can change; if they can, a streaming table will not see the change.",
+   "B": "Whether the source is large; large sources need streaming tables.",
+   "C": "Whether the source is a file location or a table.",
+   "D": "Whether the refresh is scheduled or continuous."
+  },
+  "correct": "A",
+  "explanation": "A streaming table consumes each row once; a materialized view recomputes. Append-only sources suit the first; sources whose old rows are updated or deleted need the second.",
+  "why": {
+   "B": "Size affects cost, not correctness; a large mutable source still needs the view.",
+   "C": "Both objects can read tables and files.",
+   "D": "Both can be scheduled or continuous."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "streaming-table",
+   "materialized-view",
+   "decision-rule"
+  ],
+  "variant_of": "PRO-S1-Q012",
+  "family": "PRO-S1-Q012"
+ },
+ {
+  "id": "PRO-S2-Q005",
+  "exam": "professional",
+  "section": "PRO-S2",
+  "objectives": [
+   "PRO-S2-O1"
+  ],
+  "stem": "After unionByName of five sources, the revision column is BIGINT although the contract says INT, and no source declared BIGINT. What happened?",
+  "code": null,
+  "options": {
+   "A": "One source's inference produced a wider type and the union kept the widest; the types must be cast explicitly before or after the union.",
+   "B": "unionByName always widens integer columns for safety.",
+   "C": "Delta stores every integer as BIGINT.",
+   "D": "The contract is wrong; INT cannot hold revision numbers."
+  },
+  "correct": "A",
+  "explanation": "A union takes the widest compatible type among its inputs. Inference is not declaration: one source inferring a long is enough to change the table's schema, which is why types are pinned rather than accepted.",
+  "why": {
+   "B": "The union widens only when an input is wider.",
+   "C": "Delta stores the type it is given.",
+   "D": "The contract is the specification; the pipeline must meet it."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "unionByName",
+   "types",
+   "schema-drift"
+  ],
+  "variant_of": "PRO-S2-Q002",
+  "family": "PRO-S2-Q002"
+ },
+ {
+  "id": "PRO-S2-Q006",
+  "exam": "professional",
+  "section": "PRO-S2",
+  "objectives": [
+   "PRO-S2-O2"
+  ],
+  "stem": "A bronze table has exactly twice the expected rows after a deploy, with no error in any run. Which change in the deploy is the most likely cause?",
+  "code": null,
+  "options": {
+   "A": "The stream's checkpoint path changed.",
+   "B": "The trigger changed from availableNow to a processing-time interval.",
+   "C": "The output mode changed from append to update.",
+   "D": "The source folder was renamed."
+  },
+  "correct": "A",
+  "explanation": "A new checkpoint has no memory of consumed files, so the stream re-ingests everything and an append sink faithfully appends it again. Nothing raises; the count is the only evidence.",
+  "why": {
+   "B": "Trigger cadence changes when data is processed, not whether it is reprocessed.",
+   "C": "Update mode on a file source would fail or change semantics loudly, not double rows.",
+   "D": "A renamed source is an empty source, which loads nothing."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "checkpoint",
+   "double-load",
+   "no-error"
+  ],
+  "variant_of": "PRO-S2-Q004",
+  "family": "PRO-S2-Q004"
+ },
+ {
+  "id": "PRO-S3-Q005",
+  "exam": "professional",
+  "section": "PRO-S3",
+  "objectives": [
+   "PRO-S3-O1"
+  ],
+  "stem": "A window frame must cover the previous 30 minutes of an irregular sensor series. Which frame is correct?",
+  "code": null,
+  "options": {
+   "A": "RANGE BETWEEN INTERVAL 30 MINUTES PRECEDING AND CURRENT ROW, ordered by the timestamp.",
+   "B": "ROWS BETWEEN 30 PRECEDING AND CURRENT ROW, ordered by the timestamp.",
+   "C": "ROWS BETWEEN 2 PRECEDING AND CURRENT ROW, assuming 15-minute cadence.",
+   "D": "RANGE BETWEEN 30 PRECEDING AND CURRENT ROW on the row number."
+  },
+  "correct": "A",
+  "explanation": "Time is a value of the ordering column, so the frame must be a range over it. Row counts assume a cadence the series does not keep; on an irregular series the difference is not subtle.",
+  "why": {
+   "B": "Thirty rows back is thirty readings, not thirty minutes.",
+   "C": "The cadence assumption is exactly what irregular data violates.",
+   "D": "A range over row numbers is a row frame in disguise."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "rowsBetween",
+   "rangeBetween",
+   "irregular-series"
+  ],
+  "variant_of": "PRO-S3-Q001",
+  "family": "PRO-S3-Q001"
+ },
+ {
+  "id": "PRO-S3-Q006",
+  "exam": "professional",
+  "section": "PRO-S3",
+  "objectives": [
+   "PRO-S3-O2"
+  ],
+  "stem": "Match each expectation action to its effect: EXPECT alone; ON VIOLATION DROP ROW; ON VIOLATION FAIL UPDATE.",
+  "code": null,
+  "options": {
+   "A": "Count and keep the row; remove the row and continue; stop the update.",
+   "B": "Remove the row; count and keep; stop the update.",
+   "C": "Stop the update; remove the row; count and keep.",
+   "D": "Count and keep; stop the update; remove the row."
+  },
+  "correct": "A",
+  "explanation": "A bare expectation records violations and lets the row through; DROP ROW removes it and continues; FAIL UPDATE halts the pipeline. Quarantine is the fourth option, built from DROP ROW plus a second table selecting the inverse.",
+  "why": {
+   "B": "Reversed for the first two.",
+   "C": "Every action mismatched.",
+   "D": "The last two are swapped."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "expectations",
+   "on-violation",
+   "semantics"
+  ],
+  "variant_of": "PRO-S3-Q003",
+  "family": "PRO-S3-Q003"
+ },
+ {
+  "id": "PRO-S4-Q007",
+  "exam": "professional",
+  "section": "PRO-S4",
+  "objectives": [
+   "PRO-S4-O1"
+  ],
+  "stem": "ALTER SHARE s ADD TABLE t WITHOUT HISTORY is refused. Which two statements, in order, make it succeed?",
+  "code": null,
+  "options": {
+   "A": "ALTER TABLE t SET TBLPROPERTIES (delta.enableDeletionVectors = false); then REORG TABLE t APPLY (PURGE).",
+   "B": "VACUUM t; then OPTIMIZE t.",
+   "C": "ALTER TABLE t SET TBLPROPERTIES (delta.enableChangeDataFeed = false); then ALTER SHARE s REMOVE TABLE t.",
+   "D": "DROP SHARE s; then CREATE SHARE s WITHOUT HISTORY."
+  },
+  "correct": "A",
+  "explanation": "Current-state sharing needs the data files alone to represent the table, which deletion vectors prevent. Turning the property off stops new vectors; the purge rewrites the files that still carry them.",
+  "why": {
+   "B": "Neither touches deletion vectors.",
+   "C": "Change data feed is unrelated, and removing the table undoes the goal.",
+   "D": "History is a per-object choice at ADD TABLE, not a share-level one."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "delta-sharing",
+   "without-history",
+   "reorg"
+  ],
+  "variant_of": "PRO-S4-Q002",
+  "family": "PRO-S4-Q002"
+ },
+ {
+  "id": "PRO-S4-Q008",
+  "exam": "professional",
+  "section": "PRO-S4",
+  "objectives": [
+   "PRO-S4-O2"
+  ],
+  "stem": "What is the only reliable proof that a newly configured foreign catalog works?",
+  "code": null,
+  "options": {
+   "A": "A query against a foreign table returning rows.",
+   "B": "CREATE FOREIGN CATALOG succeeding.",
+   "C": "The connection appearing in system.information_schema.connections.",
+   "D": "bundle validate passing on the resource definitions."
+  },
+  "correct": "A",
+  "explanation": "Federation DDL is lazy; every step up to the first data access is metadata. Only touching the source exercises the credential and the network path.",
+  "why": {
+   "B": "Succeeds against a host that does not exist.",
+   "C": "Lists the metadata that was accepted without validation.",
+   "D": "Validates configuration, never connectivity."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "federation",
+   "validation",
+   "query-path"
+  ],
+  "variant_of": "PRO-S4-Q003",
+  "family": "PRO-S4-Q003"
+ },
+ {
+  "id": "PRO-S5-Q013",
+  "exam": "professional",
+  "section": "PRO-S5",
+  "objectives": [
+   "PRO-S5-O5"
+  ],
+  "stem": "Weekend volume is a third of weekday volume. A degradation lowers weekday volume by 20%. Which comparison detects the degradation without firing on weekends?",
+  "code": null,
+  "options": {
+   "A": "Each day against a rolling baseline of the same day type, alerting on a sustained shortfall.",
+   "B": "Each day against the previous day.",
+   "C": "Each day against a fixed floor set just below the weekday minimum.",
+   "D": "Each day against the 7-day overall average."
+  },
+  "correct": "A",
+  "explanation": "Like with like. A same-day-type baseline compares Saturday to recent Saturdays, so weekends are normal and a 20% weekday shortfall stands out. Any comparison that mixes day types either fires on weekends or hides the weekday drop.",
+  "why": {
+   "B": "Every Saturday looks like a collapse against Friday.",
+   "C": "A floor below the weekday minimum is above the weekend maximum, so it fires every weekend.",
+   "D": "The overall average sits between the two regimes; weekdays 20% down can still clear it."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "sql-alerts",
+   "baseline",
+   "same-day-type"
+  ],
+  "variant_of": "PRO-S5-Q009",
+  "family": "PRO-S5-Q009"
+ },
+ {
+  "id": "PRO-S5-Q014",
+  "exam": "professional",
+  "section": "PRO-S5",
+  "objectives": [
+   "PRO-S5-O1"
+  ],
+  "stem": "Which system table answers \"how many DBUs did each job consume last week\"?",
+  "code": null,
+  "options": {
+   "A": "system.billing.usage",
+   "B": "system.access.audit",
+   "C": "system.access.table_lineage",
+   "D": "system.compute.clusters"
+  },
+  "correct": "A",
+  "explanation": "Usage is the billing table: consumption per SKU with the workload identifiers and tags to group by. Audit is actions, lineage is data flow, clusters is compute configuration.",
+  "why": {
+   "B": "Records who did what, not what it cost.",
+   "C": "Records which tables fed which.",
+   "D": "Describes compute resources, not their consumption."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "system-tables",
+   "which-table"
+  ],
+  "variant_of": "PRO-S5-Q001",
+  "family": "PRO-S5-Q001"
+ },
+ {
+  "id": "PRO-S6-Q012",
+  "exam": "professional",
+  "section": "PRO-S6",
+  "objectives": [
+   "PRO-S6-O3"
+  ],
+  "stem": "Data skipping needs two things. A table has one of them and still reads every file for a selective filter. Which is missing, and what supplies it?",
+  "code": null,
+  "options": {
+   "A": "Locality; statistics exist, but values are scattered across files. Clustering on the filter column supplies it.",
+   "B": "Statistics; clustering exists, but min/max were never collected. ANALYZE TABLE supplies them.",
+   "C": "A partition; skipping only works on partition columns.",
+   "D": "A ZORDER; statistics require a sort."
+  },
+  "correct": "A",
+  "explanation": "Delta collects min/max per file automatically; what it cannot do is make those ranges narrow. Locality comes from layout, and liquid clustering is how you give a column narrow per-file ranges without partitioning.",
+  "why": {
+   "B": "File statistics are collected on write, not by ANALYZE.",
+   "C": "Skipping uses file statistics on any column with locality.",
+   "D": "ZORDER is one way to get locality, and not the recommended one."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "data-skipping",
+   "statistics",
+   "locality"
+  ],
+  "variant_of": "PRO-S6-Q006",
+  "family": "PRO-S6-Q006"
+ },
+ {
+  "id": "PRO-S6-Q013",
+  "exam": "professional",
+  "section": "PRO-S6",
+  "objectives": [
+   "PRO-S6-O5"
+  ],
+  "stem": "A 40 MB dimension is shuffled in a join. Which single setting explains why the optimiser did not broadcast it, and what is its default?",
+  "code": null,
+  "options": {
+   "A": "spark.sql.autoBroadcastJoinThreshold, default 10 MB.",
+   "B": "spark.sql.shuffle.partitions, default 200.",
+   "C": "spark.sql.adaptive.enabled, default true.",
+   "D": "spark.databricks.io.cache.enabled, default false."
+  },
+  "correct": "A",
+  "explanation": "Tables under the threshold are broadcast automatically; 40 MB is above the default, so the planner chose a shuffle join. Raise the threshold or broadcast explicitly.",
+  "why": {
+   "B": "Controls shuffle parallelism, not the join strategy.",
+   "C": "Adaptive execution can convert to broadcast at runtime, but the threshold still gates it.",
+   "D": "The disk cache is unrelated to join planning."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "query-profile",
+   "broadcast-threshold"
+  ],
+  "variant_of": "PRO-S6-Q010",
+  "family": "PRO-S6-Q010"
+ },
+ {
+  "id": "PRO-S7-Q012",
+  "exam": "professional",
+  "section": "PRO-S7",
+  "objectives": [
+   "PRO-S7-O5"
+  ],
+  "stem": "After DELETE, which two settings or commands make an erasure final, and what do they cost?",
+  "code": null,
+  "options": {
+   "A": "Shorten delta.deletedFileRetentionDuration and run VACUUM; time travel over that window is gone and concurrent readers may be disrupted.",
+   "B": "OPTIMIZE and REORG; nothing, they are routine maintenance.",
+   "C": "DROP TABLE and recreate it; the whole history is lost.",
+   "D": "Disable change data feed and OPTIMIZE; the feed stops."
+  },
+  "correct": "A",
+  "explanation": "Deleted rows live on in earlier versions until the files are unreferenced and vacuumed. Retaining zero hours is right for an erasure request and wrong as a default; the cost is the loss of time travel for that window.",
+  "why": {
+   "B": "Neither removes files still referenced by retained history.",
+   "C": "Destroys every row, not just the erased subject's.",
+   "D": "CDF is unrelated to file retention."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "erasure",
+   "vacuum",
+   "retention"
+  ],
+  "variant_of": "PRO-S7-Q010",
+  "family": "PRO-S7-Q010"
+ },
+ {
+  "id": "PRO-S7-Q013",
+  "exam": "professional",
+  "section": "PRO-S7",
+  "objectives": [
+   "PRO-S7-O3"
+  ],
+  "stem": "Which of these values needs a salt before hashing, and why?",
+  "code": null,
+  "options": {
+   "A": "A postcode; the input space is small enough to enumerate and match.",
+   "B": "A UUID; hashes of random values are weak.",
+   "C": "An email address; hashing strips the domain.",
+   "D": "None; SHA-256 is irreversible for any input."
+  },
+  "correct": "A",
+  "explanation": "Irreversible is not the same as unguessable. A few thousand postcodes can all be hashed and compared; a salt kept out of the dataset makes that table useless. High-entropy values like UUIDs or emails do not need it.",
+  "why": {
+   "B": "Random 128-bit values cannot be enumerated.",
+   "C": "Hashing does nothing to the domain; and email space is too large to enumerate.",
+   "D": "Irreversibility does not protect a small input space."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "salt",
+   "hashing",
+   "entropy"
+  ],
+  "variant_of": "PRO-S7-Q006",
+  "family": "PRO-S7-Q006"
+ },
+ {
+  "id": "PRO-S8-Q006",
+  "exam": "professional",
+  "section": "PRO-S8",
+  "objectives": [
+   "PRO-S8-O2"
+  ],
+  "stem": "Which column tells an auditor where a SELECT on a table was actually granted, and what value means \"on this table\"?",
+  "code": null,
+  "options": {
+   "A": "information_schema.table_privileges.inherited_from; NONE.",
+   "B": "information_schema.table_privileges.grantor; the table owner.",
+   "C": "SHOW GRANTS' Principal column; the table name.",
+   "D": "information_schema.tables.table_owner; NONE."
+  },
+  "correct": "A",
+  "explanation": "inherited_from records SCHEMA or CATALOG for an inherited privilege and NONE for one granted directly. The obvious three-column query omits it, and the result looks complete without it.",
+  "why": {
+   "B": "The grantor is who granted it, not at which level.",
+   "C": "SHOW GRANTS carries the level in ObjectType, not Principal.",
+   "D": "Ownership is a different fact, and the column has no NONE value."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "inherited_from",
+   "revoke",
+   "audit"
+  ],
+  "variant_of": "PRO-S8-Q004",
+  "family": "PRO-S8-Q004"
+ },
+ {
+  "id": "PRO-S8-Q007",
+  "exam": "professional",
+  "section": "PRO-S8",
+  "objectives": [
+   "PRO-S8-O1"
+  ],
+  "stem": "Complete the query that lists PII columns across a catalog: SELECT table_name, column_name FROM cat.information_schema.___ WHERE tag_name = 'pii'.",
+  "code": null,
+  "options": {
+   "A": "column_tags",
+   "B": "columns",
+   "C": "table_tags",
+   "D": "column_masks"
+  },
+  "correct": "A",
+  "explanation": "Column tags live in their own view. columns has comments and types, table_tags is table-level, and column_masks records mask functions rather than classifications.",
+  "why": {
+   "B": "No tag columns there; only comments, which are prose.",
+   "C": "Table-level tags cannot name a column.",
+   "D": "Records which mask applies, not why."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "tags",
+   "column_tags",
+   "pii"
+  ],
+  "variant_of": "PRO-S8-Q002",
+  "family": "PRO-S8-Q002"
+ },
+ {
+  "id": "PRO-S9-Q011",
+  "exam": "professional",
+  "section": "PRO-S9",
+  "objectives": [
+   "PRO-S9-O2"
+  ],
+  "stem": "During a repair, which tasks execute, and from where?",
+  "code": null,
+  "options": {
+   "A": "The failed tasks and their dependants, each from its own start; earlier successful tasks are not re-run.",
+   "B": "Every task in the job, from the start.",
+   "C": "Only the failed tasks, resuming from the failing statement.",
+   "D": "The failed tasks and every task that ran before them."
+  },
+  "correct": "A",
+  "explanation": "Repair is selective and tasks are atomic units: a repaired task starts over, which is why it must be idempotent, and successful upstream commits are left standing.",
+  "why": {
+   "B": "That is a fresh run, not a repair.",
+   "C": "Tasks have no resumable statements.",
+   "D": "Upstream successes are precisely what repair skips."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "repair",
+   "idempotence",
+   "re-execution"
+  ],
+  "variant_of": "PRO-S9-Q003",
+  "family": "PRO-S9-Q003"
+ },
+ {
+  "id": "PRO-S9-Q012",
+  "exam": "professional",
+  "section": "PRO-S9",
+  "objectives": [
+   "PRO-S9-O4"
+  ],
+  "stem": "Which bundle command uploads files and creates or updates resources without running anything?",
+  "code": null,
+  "options": {
+   "A": "databricks bundle deploy",
+   "B": "databricks bundle validate",
+   "C": "databricks bundle run",
+   "D": "databricks bundle sync --dry-run"
+  },
+  "correct": "A",
+  "explanation": "validate checks configuration; deploy makes the workspace match it; run triggers a job or starts an app; a dry-run sync lists what would upload and changes nothing.",
+  "why": {
+   "B": "Creates nothing.",
+   "C": "Executes a resource that deploy created.",
+   "D": "Reports; does not upload."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "dabs",
+   "validate",
+   "deploy",
+   "run"
+  ],
+  "variant_of": "PRO-S9-Q007",
+  "family": "PRO-S9-Q007"
+ },
+ {
+  "id": "PRO-S10-Q009",
+  "exam": "professional",
+  "section": "PRO-S10",
+  "objectives": [
+   "PRO-S10-O4"
+  ],
+  "stem": "A point-in-time join uses valid_from <= d AND d <= valid_to. On changeover dates the fact count rises. Which single character fixes it?",
+  "code": null,
+  "options": {
+   "A": "Change the second <= to <, so a date matches exactly one version.",
+   "B": "Change the first <= to <, so the first version is excluded.",
+   "C": "Change AND to OR, so any version matches.",
+   "D": "Change <= to = on both sides."
+  },
+  "correct": "A",
+  "explanation": "Validity windows are half-open: a version ends the instant the next begins. With inclusive bounds on both ends, an order on the changeover date matches the old and the new version.",
+  "why": {
+   "B": "Excludes the version that starts on the date, leaving those orders unmatched.",
+   "C": "Matches every version of every customer, a far worse fan-out.",
+   "D": "Matches only orders exactly on a boundary, dropping almost everything."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "scd2",
+   "boundary",
+   "asymmetric"
+  ],
+  "variant_of": "PRO-S10-Q005",
+  "family": "PRO-S10-Q005"
+ },
+ {
+  "id": "PRO-S10-Q010",
+  "exam": "professional",
+  "section": "PRO-S10",
+  "objectives": [
+   "PRO-S10-O3"
+  ],
+  "stem": "Name the one operation that keeps partitioning preferable to liquid clustering for a table that overwrites whole date slices nightly.",
+  "code": null,
+  "options": {
+   "A": "REPLACE WHERE on the partition column, a metadata-level slice swap with no clustering equivalent.",
+   "B": "OPTIMIZE, which is only incremental on partitioned tables.",
+   "C": "VACUUM, which cannot run on clustered tables.",
+   "D": "MERGE, which requires partition pruning."
+  },
+  "correct": "A",
+  "explanation": "Clustering wins on almost everything except cheap slice replacement. When the workload is \"drop this month and write it again\" and the slices are large, partitioning is still the honest choice.",
+  "why": {
+   "B": "The opposite; OPTIMIZE is incremental on clustered tables.",
+   "C": "VACUUM runs on any Delta table.",
+   "D": "MERGE works on clustered tables and benefits from file skipping."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "partitioning",
+   "replace-where",
+   "clustering-limits"
+  ],
+  "variant_of": "PRO-S10-Q008",
+  "family": "PRO-S10-Q008"
  }
 ]
