@@ -327,7 +327,7 @@ def test_every_section_has_a_concise_variant():
     wording per family; a section with none would always show the same phrasing."""
     sections_with_variant = set()
     all_sections = set()
-    for q in all_questions():
+    for _path, q in all_questions():
         section = "-".join(q["id"].split("-")[:2])
         all_sections.add(section)
         if q.get("variant_of"):
