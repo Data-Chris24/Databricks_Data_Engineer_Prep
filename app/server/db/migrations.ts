@@ -127,4 +127,11 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    version: 4,
+    name: 'assignment_reset_runs',
+    sql: `
+      ALTER TABLE study.assignment_copies ADD COLUMN IF NOT EXISTS reset_run_id BIGINT;
+    `,
+  },
 ];

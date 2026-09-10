@@ -279,9 +279,10 @@ What replaced it, and why each choice:
   assignment step is gated behind opening every hands-on notebook of the section
   (tracked per user), then *Set up my assignment notebook* imports the embedded
   starter into `/Users/<app principal>/learners/<email>/<SECTION>/` and grants
-  the learner CAN_MANAGE on their folder. *Reset to starter* re-imports it.
-  Grades are recorded against the tables the learner produced, not the
-  notebook, so a reset keeps the grade history.
+  the learner CAN_MANAGE on their folder. *Reset* re-imports the starter, drops
+  the objects the section's `outputs.json` names via the `reset_assignment` job
+  (never an assess input), and forgets the section's grades, so a fresh attempt
+  starts from nothing and cannot pass on old tables.
 
 Verified against the live workspace before merge: `${workspace.file_path}` does
 interpolate into the app resource's `config.env` (so notebook links get their

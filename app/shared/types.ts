@@ -257,5 +257,7 @@ export interface AssignmentState {
   /** Workspace path of the main notebook to open. */
   notebook: string | null;
   resetCount: number;
+  /** A reset job is still dropping the section's output tables. */
+  resetting: boolean;
   gate: AssignmentGate;
 }

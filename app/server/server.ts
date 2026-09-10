@@ -33,7 +33,7 @@ createApp({
       registerPracticeRoutes(app, appkit.lakebase);
       registerTestRoutes(app, appkit.lakebase);
       registerGradingRoutes(app, appkit.lakebase, appkit);
-      registerAssignmentRoutes(app, appkit.lakebase, createLearnerWorkspace());
+      registerAssignmentRoutes(app, appkit.lakebase, createLearnerWorkspace(), appkit);
     });
   },
 }).catch(console.error);

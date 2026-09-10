@@ -53,9 +53,20 @@ export function AssignmentBand({
   };
 
   const reset = () => {
-    if (!window.confirm('Reset your assignment notebook to the starter? Your edits in it will be lost. Grades already recorded are kept.')) return;
+    const what = state?.hasStarters
+      ? 'This puts the starter back in your assignment notebook (your edits in it are lost), drops the tables this assignment produces, and forgets the grades recorded for it.'
+      : 'This drops the tables this assignment produces and forgets the grades recorded for it.';
+    if (!window.confirm(`Reset this assignment? ${what}`)) return;
     run(() => store.resetAssignment(sectionId));
   };
+
+  // While the reset job drops tables, keep the state fresh.
+  const resetting = state?.resetting ?? false;
+  useEffect(() => {
+    if (!resetting) return;
+    const id = window.setInterval(load, 8000);
+    return () => window.clearInterval(id);
+  }, [resetting, load]);
 
   const lessons = notebooks.lessons.map((l) => l.path);
   const done = lessons.filter((p) => visited.has(p)).length;
@@ -82,8 +93,8 @@ export function AssignmentBand({
         ) : (
           <span className="sub">{state.notebook}</span>
         )}
-        <button type="button" className="btn ghost sm band-ghost" onClick={reset} disabled={busy}>
-          Reset to starter{state.resetCount ? ` (${state.resetCount})` : ''}
+        <button type="button" className="btn ghost sm band-ghost" onClick={reset} disabled={busy || resetting}>
+          {resetting ? 'Resetting…' : `Reset to starter${state.resetCount ? ` (${state.resetCount})` : ''}`}
         </button>
       </div>
     ) : (
@@ -93,9 +104,14 @@ export function AssignmentBand({
     );
   } else if (readmeUrl) {
     action = (
-      <a className="btn" href={readmeUrl} target="_blank" rel="noopener noreferrer">
-        Read the task <Icon name="external" size={14} stroke={2.2} />
-      </a>
+      <div className="band-actions">
+        <a className="btn" href={readmeUrl} target="_blank" rel="noopener noreferrer">
+          Read the task <Icon name="external" size={14} stroke={2.2} />
+        </a>
+        <button type="button" className="btn ghost sm band-ghost" onClick={reset} disabled={busy || resetting}>
+          {resetting ? 'Resetting…' : `Reset my work${state?.resetCount ? ` (${state.resetCount})` : ''}`}
+        </button>
+      </div>
     );
   } else {
     action = <span className="sub">No assignment yet</span>;
@@ -122,6 +138,7 @@ export function AssignmentBand({
             </>
           ) : null}
         </div>
+        {resetting ? <div className="sub" style={{ marginTop: 6 }}>Dropping the tables this assignment produced… about a minute.</div> : null}
         {error ? <div className="sub" style={{ color: 'var(--code-kw)', marginTop: 6 }}>{error}</div> : null}
       </div>
       {action}

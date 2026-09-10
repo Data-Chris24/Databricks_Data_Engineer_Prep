@@ -232,10 +232,17 @@ checks would fail to read the learner's tables. One schema-level grant fixes it
 for every current and future table in the schema:
 
 ```bash
-databricks grants update schema workspace.de_prep --profile FREE \
-  --json '{"changes":[{"principal":"<DATABRICKS_CLIENT_ID>","add":["USE_SCHEMA","SELECT"]}]}'
-databricks grants get schema workspace.de_prep --profile FREE      # confirm SELECT, USE_SCHEMA
+for schema in de_prep de_prep_staging; do
+  databricks grants update schema workspace.$schema --profile FREE \
+    --json '{"changes":[{"principal":"<DATABRICKS_CLIENT_ID>","add":["USE_SCHEMA","SELECT","MANAGE"]}]}'
+done
+databricks grants get schema workspace.de_prep --profile FREE      # confirm MANAGE, SELECT, USE_SCHEMA
 ```
+
+`SELECT` is for grading; `MANAGE` is for *Reset*, which runs the
+`reset_assignment` job to drop the tables the section's `grading/<SECTION>/outputs.json`
+names (MANAGE on the schema inherits to every table in it). `de_prep_staging`
+matters for ASSOC-S5, whose contract publishes to both schemas.
 
 Run it once as the schema owner (this is the Unity Catalog grants API, so no
 warehouse or notebook is needed). Confirmed 2026-09-10: before the grant a grade

@@ -28,6 +28,8 @@ resources:
           # even when every job is named (the app crashed at startup without it:
           # "Missing required resources: job:Job [jobs] (set DATABRICKS_JOB_ID)").
           # Point it at one of the bound jobs; the named ones below add the rest.
+          - name: DATABRICKS_JOB_RESET_ASSIGNMENT
+            value: ${resources.jobs.reset_assignment.id}
           - name: DATABRICKS_JOB_ID
             value: ${resources.jobs.grade_assoc_s1.id}
           # One grading job per section. The app's jobs plugin discovers these
@@ -73,6 +75,10 @@ resources:
             database: ${var.lakebase_database}
             permission: CAN_CONNECT_AND_CREATE
         # CAN_MANAGE_RUN on each grading job, so the app can trigger and read runs.
+        - name: job_reset_assignment
+          job:
+            id: ${resources.jobs.reset_assignment.id}
+            permission: CAN_MANAGE_RUN
         - name: job_grade_assoc_s1
           job:
             id: ${resources.jobs.grade_assoc_s1.id}
