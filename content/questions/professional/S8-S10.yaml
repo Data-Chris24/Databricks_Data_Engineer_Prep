@@ -269,7 +269,7 @@ questions:
       layout is the better fit, and why?
     options:
       A: >-
-        Partitioning by month: REPLACE WHERE on a partition column swaps the slice as a metadata operation, and the partitions are large enough to be worth it.
+        Partitioning by month: REPLACE WHERE on the partition column drops the old slice's files by metadata alone and writes only the new month, and the partitions are large enough to be worth it.
       B: >-
         Liquid clustering by month, because clustering is always preferred.
       C: >-

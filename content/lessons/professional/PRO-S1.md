@@ -69,7 +69,7 @@ and picks up new ones incrementally. Together they are the production shape for
 
 | | Streaming table | Materialized view |
 |---|---|---|
-| Processes | each input row **once**, incrementally | the whole query, on refresh |
+| Processes | each input row **once**, incrementally | the query, on refresh (incrementally where the query allows, else a full recompute) |
 | Suits | append-only, ever-growing sources | aggregates over data that changes |
 | Handles updates to old rows | no: a consumed row is not revisited | yes, recomputed |
 | Cost profile | proportional to new data | proportional to the query |
@@ -97,18 +97,26 @@ and the three things it handles are the three things people get wrong by hand:
 1. **Sequencing.** `SEQUENCE BY` decides which event wins, not arrival order.
 2. **Deletes.** `APPLY AS DELETE WHEN` removes the key rather than keeping a row
    that says "deleted".
-3. **Out-of-order arrival.** A late event with a lower sequence is ignored.
+3. **Out-of-order arrival.** A late event with a lower sequence is ignored under
+   SCD type 1; under SCD type 2 it becomes a historical version instead.
 
 ```sql
 CREATE OR REFRESH STREAMING TABLE customers;
 
-APPLY CHANGES INTO live.customers
-FROM STREAM(live.customer_changes)
+CREATE FLOW customers_cdc AS AUTO CDC INTO customers
+FROM STREAM(customer_changes)
 KEYS (customer_id)
 APPLY AS DELETE WHEN op = 'delete'
 SEQUENCE BY seq_num
-COLUMNS * EXCEPT (op, seq_num);
+COLUMNS * EXCEPT (op, seq_num)
+STORED AS SCD TYPE 1;
 ```
+
+The older spelling, `APPLY CHANGES INTO live.customers ...`, still appears in
+distractors; the `live.` prefix is deprecated in Unity Catalog pipelines. With
+`STORED AS SCD TYPE 2` the target keeps every version with `__START_AT` and
+`__END_AT` columns, and a late event re-cuts those intervals rather than being
+dropped.
 
 The same by hand is a window over the key ordered by the sequence, keep the latest
 event, drop keys whose latest event is a delete. A key that was deleted and then
@@ -154,9 +162,9 @@ upstream one fails.
 makes it testable in isolation. Then:
 
 - `assertDataFrameEqual(actual, expected)` compares content and reports the
-  differing rows.
+  differing rows; row order is ignored unless `checkRowOrder=True`.
 - `assertSchemaEqual(actual.schema, expected.schema)` compares structure,
-  including column order.
+  including column order; nullability is ignored by default.
 
 Test against a **tiny hand-built DataFrame**, not against production data: a test
 whose expected values come from the same pipeline it is testing proves nothing.
@@ -164,3 +172,27 @@ Run the suite with pytest; on Databricks that means in-process (a subprocess
 cannot reach the Spark session), which is exactly how this repo's graders work.
 The notebook debugger and `breakpoint()` are for stepping through the Python
 half; the Spark half is diagnosed from the query plan and the Spark UI.
+
+## Further reading
+
+Official documentation for what this section tests, one link per topic:
+
+- [Bundle configuration](https://docs.databricks.com/aws/en/dev-tools/bundles/settings) — `include`, `variables`, `artifacts`, `targets`.
+- [Libraries](https://docs.databricks.com/aws/en/libraries/) — `%pip`, environments and init scripts.
+- [pandas user-defined functions](https://docs.databricks.com/aws/en/udf/pandas) — vectorised UDFs and when they pay off.
+- [Lakeflow Spark Declarative Pipelines concepts](https://docs.databricks.com/aws/en/ldp/concepts) — flows, streaming tables, materialized views.
+- [AUTO CDC](https://docs.databricks.com/aws/en/ldp/cdc) — SCD type 1 and 2, sequencing, `APPLY AS DELETE WHEN`.
+- [Structured Streaming](https://docs.databricks.com/aws/en/structured-streaming/) — the streaming documentation home.
+- [Triggers](https://docs.databricks.com/aws/en/structured-streaming/triggers) — `availableNow`, `processingTime`, continuous.
+- [Watermarks](https://docs.databricks.com/aws/en/structured-streaming/watermarks) — late data and state cleanup.
+- [Checkpoints](https://docs.databricks.com/aws/en/structured-streaming/checkpoints) — what is stored and when it must be reset.
+- [foreachBatch](https://docs.databricks.com/aws/en/structured-streaming/foreach) — MERGE and multi-sink writes with idempotence.
+- [Control the flow of tasks](https://docs.databricks.com/aws/en/jobs/control-flow) — `run_if`, conditions, loops.
+- [Unit testing for notebooks](https://docs.databricks.com/aws/en/notebooks/testing) — `pyspark.testing` and pytest in notebooks.
+- [Exam page](https://www.databricks.com/learn/certification/data-engineer-professional) — official guide, section weights and policies.
+
+Videos for another angle on the hard parts (channel, length):
+
+- [Dive into Streaming Checkpoints and Best Practices](https://www.youtube.com/watch?v=v-GHBmL3KmI) — Databricks Skill Builder, 66 min. Long, but it is the checkpoint talk.
+- [Late data processing, watermarks, tumbling and sliding windows](https://www.youtube.com/watch?v=4DT528dAjtU) — Ease With Data, 10 min. Watermark arithmetic with a picture.
+- [Data Quality as Code: Spark Declarative Pipelines expectations](https://www.youtube.com/watch?v=CjS6ILJZP7k) — DataMindAI with Ahmed, 46 min. Expectations end to end.

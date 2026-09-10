@@ -4945,7 +4945,7 @@
   "stem": "A team reloads one calendar month of a very large table every night by deleting and rewriting that month. Partitions are several gigabytes each. Which layout is the better fit, and why?",
   "code": null,
   "options": {
-   "A": "Partitioning by month: REPLACE WHERE on a partition column swaps the slice as a metadata operation, and the partitions are large enough to be worth it.",
+   "A": "Partitioning by month: REPLACE WHERE on the partition column drops the old slice's files by metadata alone and writes only the new month, and the partitions are large enough to be worth it.",
    "B": "Liquid clustering by month, because clustering is always preferred.",
    "C": "No layout; deletes and rewrites are cheap regardless.",
    "D": "ZORDER by month, run after each nightly load."
@@ -6207,7 +6207,7 @@
   "stem": "Name the one operation that keeps partitioning preferable to liquid clustering for a table that overwrites whole date slices nightly.",
   "code": null,
   "options": {
-   "A": "REPLACE WHERE on the partition column, a metadata-level slice swap with no clustering equivalent.",
+   "A": "REPLACE WHERE on the partition column; the old slice's files are dropped by metadata alone and only the new slice is written, where a clustered table must read and rewrite to do the same.",
    "B": "OPTIMIZE, which is only incremental on partitioned tables.",
    "C": "VACUUM, which cannot run on clustered tables.",
    "D": "MERGE, which requires partition pruning."

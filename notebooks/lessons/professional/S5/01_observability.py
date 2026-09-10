@@ -39,9 +39,9 @@ for t in ["system.information_schema.tables",
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC > On Free Edition most `system.*` schemas are absent. The queries below are the
-# MAGIC > shape you would write; the exam asks which table answers which question, not
-# MAGIC > whether your workspace exposes it.
+# MAGIC > Free Edition exposes `system.*` too (`billing`, `access`, `lakeflow`, `compute`),
+# MAGIC > so the queries below can be run here; the exam asks which table answers which
+# MAGIC > question.
 # MAGIC
 # MAGIC ```sql
 # MAGIC -- what is this costing, by SKU, this month

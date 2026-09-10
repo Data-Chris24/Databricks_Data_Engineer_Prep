@@ -25,9 +25,12 @@ FORMAT_OPTIONS ('header' = 'true', 'nullValue' = '')
 ```
 
 **It is idempotent per file.** Run it twice and the second run is a no-op — which is
-what makes it safe to schedule and safe to retry.
+what makes it safe to schedule and safe to retry. To load a file again on purpose,
+pass `COPY_OPTIONS ('force' = 'true')`.
 
-It will **not** coerce CSV text into declared numeric types. Declare
+It will **not** coerce CSV text into declared numeric types unless asked
+(`FORMAT_OPTIONS ('inferSchema' = 'true')` infers them from the file;
+`COPY_OPTIONS ('mergeSchema' = 'true')` admits new columns). Declare
 `unit_price DOUBLE` against a CSV source and the load fails with
 `DELTA_FAILED_TO_MERGE_FIELDS`. Make bronze all `STRING` and cast into silver.
 
@@ -64,8 +67,9 @@ cell, in a job the retry policy does it. Catching the exception inside one noteb
 run does not work.
 
 **`rescuedDataColumn`** captures anything that would not fit the schema, so a
-malformed batch costs you a column to inspect rather than lost records. Enable it as
-routine.
+malformed batch costs you a column to inspect rather than lost records. It is on by
+default when Auto Loader infers the schema; when you supply a schema, set
+`rescuedDataColumn` yourself so bad values are kept rather than dropped.
 
 ## Choosing an approach — `ASSOC-S2-O6`
 
@@ -95,3 +99,22 @@ credentials escaping into exported HTML, logs and screen-shares.
 Land nested JSON in bronze **with its nesting intact**, then reshape on the way to
 silver. Bronze faithful to the source means you can always reprocess when a
 transformation turns out to be wrong.
+
+## Further reading
+
+Official documentation for what this section tests, one link per topic:
+
+- [Ingest data into Databricks](https://docs.databricks.com/aws/en/ingestion/) — the whole menu of ingestion paths in one place.
+- [COPY INTO](https://docs.databricks.com/aws/en/sql/language-manual/delta-copy-into) — syntax, `FORMAT_OPTIONS`, `COPY_OPTIONS`, `force`.
+- [Auto Loader](https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/) — the `cloudFiles` source and when to prefer it.
+- [Auto Loader schema inference and evolution](https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/schema) — `schemaEvolutionMode`, `schemaHints`, `_rescued_data`.
+- [File notification mode](https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/file-notification-mode) — directory listing vs notifications, and why scale flips the choice.
+- [Auto Loader options](https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/options) — every `cloudFiles.*` option with its default.
+- [Lakeflow Connect](https://docs.databricks.com/aws/en/ingestion/lakeflow-connect/) — managed connectors for SaaS and databases.
+- [Query databases using JDBC](https://docs.databricks.com/aws/en/connect/external-systems/jdbc) — partitioned reads and pushdown.
+- [Semi-structured data](https://docs.databricks.com/aws/en/semi-structured/) — `:` paths, `from_json`, `VARIANT`.
+
+Videos for another angle on the hard parts (channel, length):
+
+- [Auto Loader in Databricks: schema evolution modes and file detection modes](https://www.youtube.com/watch?v=g7d1U2_dWS8) — Ease With Data, 23 min. The two topics this section's objective names, demonstrated.
+- [Stop Building Batch Jobs! Use Databricks Auto Loader Instead](https://www.youtube.com/watch?v=YHJQ5HmlclA) — Data Analytics Talks, 12 min. Why incremental ingestion beats a rerun-everything batch.

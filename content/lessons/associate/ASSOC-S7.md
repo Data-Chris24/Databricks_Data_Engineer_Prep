@@ -16,7 +16,7 @@ Prefer managed unless something outside Databricks also needs to own the files.
 Predictive optimization can only maintain a table whose layout Unity Catalog controls,
 which is exactly the operational work teams otherwise carry.
 
-A dropped managed table can be recovered with `UNDROP` within the retention window —
+A dropped managed table can be recovered with `UNDROP` within seven days of the drop —
 a safety net, not a licence to be casual.
 
 ## Privileges — `ASSOC-S7-O2`
@@ -36,6 +36,12 @@ privilege.
 objects created *later* are covered too. A broad grant at catalog level silently
 covers everything anyone adds afterwards — which is why least privilege usually means
 granting at schema or table level.
+
+**There is no `DENY` in Unity Catalog.** The objective lists GRANT, REVOKE and DENY,
+and the trap is that DENY belongs to the legacy Hive metastore table ACLs. In Unity
+Catalog you narrow access by granting less, by revoking, or with a row filter or
+column mask. And a `REVOKE` on a table does nothing against a privilege inherited
+from the schema: revoke where it was granted.
 
 **Use service principals for pipelines.** The pipeline survives the person leaving,
 its access is scoped to what the job needs rather than everything its author had, and
@@ -69,3 +75,21 @@ unprotected because someone forgot a step. Per-object masks scale linearly with 
 and depend on human diligence every time. The governance question shifts from "did
 someone protect this table" to "is the data classified correctly", which is far easier
 to audit.
+
+## Further reading
+
+Official documentation for what this section tests, one link per topic:
+
+- [What is Unity Catalog?](https://docs.databricks.com/aws/en/data-governance/unity-catalog/) — the object model and the metastore.
+- [Managed tables](https://docs.databricks.com/aws/en/tables/managed) — lifecycle, `UNDROP`, and why they are the default.
+- [External tables](https://docs.databricks.com/aws/en/tables/external) — when the files outlive the table.
+- [Manage privileges](https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/) — `GRANT`, `REVOKE`, `SHOW GRANTS`.
+- [Privilege types and inheritance](https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/privileges) — the full privilege list and the traversal rule.
+- [Ownership](https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/ownership) — what an owner can do that nobody else can.
+- [Row filters and column masks](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks) — syntax, evaluation and limits.
+- [Attribute-based access control](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/) — tag-driven policies at catalog and schema level.
+- [Service principals](https://docs.databricks.com/aws/en/admin/users-groups/service-principals) — identities for pipelines.
+
+Videos for another angle on the hard parts (channel, length):
+
+- [Unity Catalog, Delta Sharing and Data Mesh on Databricks Lakehouse](https://www.youtube.com/watch?v=75QGOtqBj2k) — Databricks, 36 min. Governance at scale from the people who built it.

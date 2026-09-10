@@ -42,9 +42,10 @@ The things that go wrong silently:
   breaking theirs. Set it when you add the object: `REMOVE TABLE` takes the
   *shared* name, so it cannot be fixed later from the source path.
 - **Change data feed follows the table.** `cdf_shared` reflects the table's own
-  `delta.enableChangeDataFeed`; turn it on at the table and share normally. The
-  explicit `WITH CHANGE DATA FEED` clause is refused on tables encrypted with
-  Databricks-managed keys.
+  `delta.enableChangeDataFeed`; turn it on at the table and share normally. On the
+  Free Edition workspace this repository was built against, the explicit
+  `WITH CHANGE DATA FEED` clause was refused with a message about
+  Databricks-managed keys; treat that as a measured quirk, not exam material.
 - **Adding to a share checks traversal.** `ALTER SHARE ... ADD TABLE` needs
   `USE CATALOG` and `USE SCHEMA`; a `PERMISSION_DENIED` there is almost never
   about the share.
@@ -114,3 +115,22 @@ incident review.
 > Free Edition runs the provider side of sharing and all federation DDL, but has
 > no second metastore, no open-protocol sharing and no outbound JDBC path, so the
 > consumer side and the federated query path are theory here.
+
+## Further reading
+
+Official documentation for what this section tests, one link per topic:
+
+- [Delta Sharing](https://docs.databricks.com/aws/en/delta-sharing/) — the sharing documentation home.
+- [Create and manage shares](https://docs.databricks.com/aws/en/delta-sharing/create-share) — `ADD TABLE`, `WITHOUT HISTORY`, partitions.
+- [Create and manage recipients](https://docs.databricks.com/aws/en/delta-sharing/create-recipient) — Databricks-to-Databricks vs open sharing.
+- [Share data with Databricks recipients](https://docs.databricks.com/aws/en/delta-sharing/share-data-databricks) — what D2D adds.
+- [Read shared data as a recipient](https://docs.databricks.com/aws/en/delta-sharing/recipient) — the recipient's side of the flow.
+- [ALTER SHARE](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-syntax-ddl-alter-share) — every clause.
+- [Lakehouse Federation](https://docs.databricks.com/aws/en/query-federation/) — connections, foreign catalogs and pushdown.
+- [Foreign catalogs](https://docs.databricks.com/aws/en/query-federation/foreign-catalogs) — creating and querying them.
+- [Deletion vectors](https://docs.databricks.com/aws/en/delta/deletion-vectors) — why `WITHOUT HISTORY` needs them off.
+
+Videos for another angle on the hard parts (channel, length):
+
+- [Databricks Lakehouse Federation explained](https://www.youtube.com/watch?v=wr3jXDBRwRY) — Praveen Reddy Learnings, 7 min. A foreign catalog set up and queried.
+- [Unity Catalog, Delta Sharing and Data Mesh on Databricks Lakehouse](https://www.youtube.com/watch?v=75QGOtqBj2k) — Databricks, 36 min. Sharing in context.

@@ -28,8 +28,10 @@ into "here are the three rows responsible".
 ## Repairing runs and overriding parameters — `PRO-S9-O2`
 
 A multi-task job that fails partway does **not** roll back what earlier tasks
-committed. **Repair** re-executes only the failed tasks and their dependants,
-which is why idempotent tasks matter: a repaired task runs again from the start.
+committed. **Repair** re-executes only the failed tasks and the dependants that
+were skipped because of them (a dependant that had already succeeded is re-run
+only if you ask, with `rerun_dependent_tasks`), which is why idempotent tasks
+matter: a repaired task runs again from the start.
 
 ```bash
 databricks jobs list-runs --job-id <id>
@@ -106,3 +108,25 @@ holds the operation metrics of every version; for a job, the run history holds
 durations. A version that wrote noticeably fewer rows than the one before, with
 no error anywhere, is the shape of a silent regression. That comparison is the
 whole technique, and it is this section's assignment.
+
+## Further reading
+
+Official documentation for what this section tests, one link per topic:
+
+- [Troubleshoot and repair job failures](https://docs.databricks.com/aws/en/jobs/repair-job-failures) — what a repair re-runs.
+- [Monitor jobs](https://docs.databricks.com/aws/en/jobs/monitor) — run history and task-level durations.
+- [Diagnose with the Spark UI](https://docs.databricks.com/aws/en/optimizations/spark-ui-guide/) — the failure fingerprints.
+- [Pipeline observability](https://docs.databricks.com/aws/en/ldp/observability) — the event log and its error payloads.
+- [Error classes](https://docs.databricks.com/aws/en/error-messages/) — the `SQLSTATE` and error-class reference.
+- [Declarative Automation Bundles](https://docs.databricks.com/aws/en/dev-tools/bundles/) — the bundles home.
+- [Deployment modes](https://docs.databricks.com/aws/en/dev-tools/bundles/deployment-modes) — development vs production.
+- [Bundle variables](https://docs.databricks.com/aws/en/dev-tools/bundles/variables) — per-target values.
+- [CI/CD on Databricks](https://docs.databricks.com/aws/en/dev-tools/ci-cd/) — the recommended pipeline.
+- [GitHub Actions](https://docs.databricks.com/aws/en/dev-tools/ci-cd/github) — authenticating and deploying from CI.
+- [Git folders](https://docs.databricks.com/aws/en/repos/) — pull-based deployment.
+
+Videos for another angle on the hard parts (channel, length):
+
+- [CI/CD for Databricks: Advanced Asset Bundles and GitHub Actions](https://www.youtube.com/watch?v=XumUXF1e6RI) — Databricks, 41 min. The conference talk on the pattern this repo uses.
+- [Automate Databricks deployments with Asset Bundles and GitHub Actions](https://www.youtube.com/watch?v=kStRXqCznHA) — Data & AI Espresso, 30 min. A full pipeline with OIDC.
+- [Deploy Faster: Databricks Asset Bundles + Git Explained](https://www.youtube.com/watch?v=FZpgwclX88Q) — Databricks Skill Builder, 23 min. Bundles and Git folders compared.

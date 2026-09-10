@@ -83,7 +83,29 @@ can be changed later; a partition column cannot without rewriting the table, and
 on a fact table that grows for years that difference compounds.
 
 Partitioning still wins when partitions are large, when you need to **drop or
-overwrite whole slices cheaply** (`REPLACE WHERE` on a partition column is a
-metadata operation with no clustering equivalent), or when an external consumer
+overwrite whole slices cheaply** (`REPLACE WHERE` on a partition column drops the
+old slice's files by metadata alone and writes only the new slice; on a clustered
+table the same statement has to read files to find the matching rows and rewrite
+the survivors), or when an external consumer
 depends on the directory layout. "Always cluster" is not the lesson; "cluster
 unless you can name the reason to partition" is.
+
+## Further reading
+
+Official documentation for what this section tests, one link per topic:
+
+- [Delta Lake best practices](https://docs.databricks.com/aws/en/delta/best-practices) — layout, compaction and MERGE advice.
+- [Liquid clustering](https://docs.databricks.com/aws/en/delta/clustering) — choosing keys and changing them.
+- [Upsert with MERGE](https://docs.databricks.com/aws/en/delta/merge) — the SCD patterns and `WHEN NOT MATCHED BY SOURCE`.
+- [MERGE INTO](https://docs.databricks.com/aws/en/sql/language-manual/delta-merge-into) — the full syntax.
+- [AUTO CDC](https://docs.databricks.com/aws/en/ldp/cdc) — SCD type 2 without writing the MERGE.
+- [Generated columns](https://docs.databricks.com/aws/en/delta/generated-columns) — derived keys for clustering and partitioning.
+- [Constraints](https://docs.databricks.com/aws/en/tables/constraints) — informational primary keys with `RELY`.
+- [Selective overwrite](https://docs.databricks.com/aws/en/delta/selective-overwrite) — `replaceWhere` and dynamic partition overwrite.
+- [Medallion architecture](https://docs.databricks.com/aws/en/lakehouse/medallion) — where the model lives.
+
+Videos for another angle on the hard parts (channel, length):
+
+- [Slowly Changing Dimension Type 2 in Databricks (PySpark)](https://www.youtube.com/watch?v=WVVa1BuR0tY) — Apostolos Athanasiou, 18 min. An SCD2 MERGE built step by step.
+- [Slowly Changing Dimensions: types 0 to 4 explained](https://www.youtube.com/watch?v=1JswR_4XUdU) — SleekData, 7 min. The vocabulary.
+- [Databricks Liquid Clustering Introduction](https://www.youtube.com/watch?v=na3Wp-j855g) — Apostolos Athanasiou, 13 min. Clustering versus partitioning and Z-order.
