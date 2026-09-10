@@ -231,13 +231,17 @@ and Unity Catalog grants it nothing on `workspace.de_prep` by default, so the
 checks would fail to read the learner's tables. One schema-level grant fixes it
 for every current and future table in the schema:
 
-```sql
-GRANT USE SCHEMA, SELECT ON SCHEMA workspace.de_prep TO `<DATABRICKS_CLIENT_ID>`;
+```bash
+databricks grants update schema workspace.de_prep --profile FREE \
+  --json '{"changes":[{"principal":"<DATABRICKS_CLIENT_ID>","add":["USE_SCHEMA","SELECT"]}]}'
+databricks grants get schema workspace.de_prep --profile FREE      # confirm SELECT, USE_SCHEMA
 ```
 
-Run it once as the schema owner, from a notebook or the SQL editor. In a fork
-you deploy as yourself this is unnecessary: the jobs run as you and you own the
-tables.
+Run it once as the schema owner (this is the Unity Catalog grants API, so no
+warehouse or notebook is needed). Confirmed 2026-09-10: before the grant a grade
+run failed all ten ASSOC-S3 checks with `INSUFFICIENT_PERMISSIONS`; after it,
+the same run passed. In a fork you deploy as yourself this is unnecessary: the
+jobs run as you and you own the tables.
 
 ### 3. Allow auto-merge
 
