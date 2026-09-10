@@ -88,8 +88,10 @@ Open the **study app** in your workspace (it deploys with the bundle) and pick
 2. **Run the lesson notebooks** on the `teach` dataset. The last cell of each
    points at the next one, and then at the assignment.
 3. **Do the assignment**, on the `assess` dataset. It won't accept the lesson's
-   code — that's the point. Unit tests are authoritative; an [optional AI
-   reviewer](docs/grading.md) adds feedback on your *approach* if you attach a model.
+   code — that's the point. Back in the app, **Grade my assignment** runs the
+   section's checks and shows you what passed and what didn't. Unit tests are
+   authoritative; an [optional AI reviewer](docs/grading.md) adds feedback on
+   your *approach* if you attach a model.
 4. **Practice.** Instant feedback, why each wrong option is wrong, and spaced
    repetition on what you missed. The readiness bars are sized by exam weight.
 5. **Sit a timed test** at the real length and time limit. Nothing is revealed

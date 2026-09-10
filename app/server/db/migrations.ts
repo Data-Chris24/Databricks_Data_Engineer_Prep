@@ -84,4 +84,23 @@ export const migrations: Migration[] = [
         ON study.test_attempts (user_id, exam) WHERE submitted_at IS NULL;
     `,
   },
+  {
+    version: 2,
+    name: 'grading_runs',
+    sql: `
+      CREATE TABLE IF NOT EXISTS study.grading_runs (
+        id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id      TEXT NOT NULL REFERENCES study.users(user_id),
+        section_id   TEXT NOT NULL,
+        run_id       BIGINT,
+        status       TEXT NOT NULL CHECK (status IN ('queued', 'running', 'passed', 'failed', 'error')),
+        started_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+        finished_at  TIMESTAMPTZ,
+        result       JSONB,
+        error        TEXT
+      );
+      CREATE INDEX IF NOT EXISTS ix_grading_user_section
+        ON study.grading_runs (user_id, section_id, started_at DESC);
+    `,
+  },
 ];

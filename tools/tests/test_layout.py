@@ -84,3 +84,23 @@ def test_each_section_has_a_grade_job_and_a_transplant_check(sid):
     assert f"grading/{sid}/grade.py" in free, f"{sid}: no grade job in a learner target"
     assert f"transplant_check_{key}:" in verify, f"{sid}: no transplant check in the verify target"
     assert f"transplant_check_{key}:" not in free
+
+
+def test_graders_return_a_structured_result_to_the_app():
+    for grade in (REPO_ROOT / "grading").glob("*/grade.py"):
+        text = grade.read_text()
+        sid = grade.parent.name
+        assert "dbutils.notebook.exit(json.dumps(result))" in text, f"{grade}: no exit value"
+        assert f'"section": "{sid}"' in text, f"{grade}: result names the wrong section"
+        assert "/Volumes/" not in text, f"{grade}: still writes to a volume"
+
+
+def test_app_binds_every_grading_job():
+    doc = yaml.safe_load((RESOURCES / "de_prep_study_app.app.yml").read_text())
+    app = doc["resources"]["apps"]["study_app"]
+    env = {e["name"]: e.get("value") for e in app["config"]["env"]}
+    jobs = {r["name"]: r["job"] for r in app["resources"] if "job" in r}
+    for sid in SECTIONS:
+        key = f"grade_{sid.lower().replace('-', '_')}"
+        assert env.get(f"DATABRICKS_JOB_{key.upper()}") == f"${{resources.jobs.{key}.id}}", sid
+        assert jobs.get(f"job_{key}", {}).get("permission") == "CAN_MANAGE_RUN", sid

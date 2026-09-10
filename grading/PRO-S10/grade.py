@@ -28,25 +28,50 @@ print("running from:", tests_dir)
 
 # COMMAND ----------
 
-import io, contextlib
+import io, contextlib, json
 import pytest
 
+
+class _Collect:
+    """Per-test outcomes, so the result can be returned as data and not only as text."""
+
+    def __init__(self):
+        self.results = []
+
+    def pytest_runtest_logreport(self, report):
+        if report.when == "call" or (report.when == "setup" and report.outcome != "passed"):
+            message = str(report.longrepr)[-600:] if report.failed else ""
+            self.results.append({
+                "test": report.nodeid.split("::")[-1],
+                "outcome": report.outcome,
+                "message": message,
+            })
+
+
+collector = _Collect()
 buf = io.StringIO()
 with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
-    exit_code = pytest.main([tests_dir, "-v", "--tb=short", "-p", "no:cacheprovider"])
+    exit_code = pytest.main([tests_dir, "-v", "--tb=short", "-p", "no:cacheprovider"], plugins=[collector])
 report = buf.getvalue()
 print(report)
 print(f"\npytest exit code: {exit_code}")
 
-dbutils.fs.mkdirs("/Volumes/workspace/de_prep/raw/_grading")
-dbutils.fs.put("/Volumes/workspace/de_prep/raw/_grading/PRO-S10-report.txt",
-               report[-30000:] + f"\n\nexit={exit_code}\n", overwrite=True)
-
 # COMMAND ----------
 
-if exit_code != 0:
-    raise RuntimeError(
-        f"Assignment not yet passing (pytest exit {exit_code}). "
-        "Read the failures above - each says what the checker expected and why."
-    )
-print("PASS - all graded checks satisfied.")
+# The study app triggers this job and reads the value below from the run's
+# output, so the grade comes back inside the app. Run by hand, the report above
+# says the same thing in prose.
+result = {
+    "section": "PRO-S10",
+    "passed": exit_code == 0,
+    "total": len(collector.results),
+    "failed": [r for r in collector.results if r["outcome"] != "passed"],
+    "tests": [{"test": r["test"], "outcome": r["outcome"]} for r in collector.results],
+    "report_tail": report[-4000:],
+}
+if result["passed"]:
+    print("PASS - all graded checks satisfied.")
+else:
+    print(f"Assignment not yet passing: {len(result['failed'])} of {result['total']} checks failed. "
+          "Each failure above says what the checker expected and why.")
+dbutils.notebook.exit(json.dumps(result))
