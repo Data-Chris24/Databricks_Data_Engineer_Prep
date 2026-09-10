@@ -1,0 +1,62 @@
+# Advisory AI review for PRO-S7. Never overturns the unit tests.
+assignment: PRO-S7
+objective_ids: [PRO-S7-O3, PRO-S7-O4, PRO-S7-O5]
+
+context: >-
+  The learner published a compliant version of a records table: purging subjects who
+  requested erasure, applying retention that differs by record type, scrubbing PII
+  out of a free-text field, and hashing the subject identifier.
+
+criteria:
+  - id: purge_vs_mask
+    weight: critical
+    asks: Were erasure subjects removed, or merely de-identified?
+    good: >-
+      Rows deleted, with the reasoning that a masked row is still a retained row and a
+      mask can be dropped.
+    poor: >-
+      Hashed or nulled the erasure subjects and treated that as compliance. It is the
+      single most consequential mistake in this section.
+
+  - id: free_text_pii
+    weight: critical
+    asks: Did they look for PII where they were not told it was?
+    good: >-
+      Pattern-matched the note column and verified none survives, rather than assuming
+      the pattern worked.
+    poor: >-
+      Only handled the columns named in the schema, leaving email addresses sitting in
+      prose - which is what a column-by-column habit produces.
+
+  - id: retention_by_type
+    weight: high
+    asks: Is retention applied per category?
+    good: A join to a policy, so adding a record type is a data change.
+    poor: >-
+      A single cutoff. It either over-deletes transaction logs that must be kept or
+      under-deletes marketing data - wrong in both directions at once.
+
+  - id: preserved_utility
+    weight: medium
+    asks: Is the data still useful?
+    good: >-
+      A deterministic hash so records remain groupable by subject, and notes redacted
+      in place rather than emptied.
+    poor: >-
+      Dropped the subject entirely or blanked the note column - compliant and useless.
+
+  - id: ordering
+    weight: medium
+    asks: Was the order of operations thought about?
+    good: Purge first, then retention, then scrubbing - no wasted work on doomed rows.
+    poor: Scrubbing rows that are then deleted, which suggests the steps were not reasoned about.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues: [{severity: high | medium | low, location: string, note: string}]
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail.
+  - Judge the approach, not formatting or naming.
