@@ -355,21 +355,24 @@ Runs on push to `main` (and manual dispatch). Because it declares
 Actions tab before any step runs — including before it can read the environment's
 secrets.
 
-**Making it hands-off.** Two settings stand between a merge and a deploy today:
-the environment's *Required reviewers* (you approve each run in the Actions tab)
-and the auto-merge token (a merge performed under the default `GITHUB_TOKEN` does
-not trigger `deploy.yml`). To go fully automatic:
+**It is hands-off, and here is what makes it so.** A merge performed under the
+default `GITHUB_TOKEN` does not trigger other workflows, which is why bot-merged
+PRs #5–#20 never deployed. Two settings fix that, both in place and confirmed on
+PR #23 (2026-09-10), whose auto-merge produced a `push`-event deploy run with no
+manual dispatch:
 
-1. Create a fine-grained personal access token scoped to this repo with
-   *Contents* and *Pull requests* read & write, and store it as the repository
-   secret **`AUTOMERGE_TOKEN`**. `auto-merge.yml` uses it when present, so a
-   bot-merged PR pushes to `main` as you and the deploy triggers.
-2. On the `databricks-free` environment, untick *Required reviewers*. The branch
-   ruleset already decides what reaches `main`; the deploy then follows every
-   merge without a click. Keep *Deployment branches* set to `main`.
+1. A fine-grained personal access token scoped to this repo with *Contents* and
+   *Pull requests* read & write, stored as the repository secret
+   **`AUTOMERGE_TOKEN`**. `auto-merge.yml` uses it when present, so the merge is
+   attributed to a user and the push to `main` triggers the deploy. When the
+   token expires, the symptom is a merged PR with no deploy run - rotate the
+   secret.
+2. The `databricks-free` environment has no *Required reviewers*; the branch
+   ruleset already decides what reaches `main`. *Deployment branches* stays
+   restricted to `main`.
 
-Both are console changes; verify with the next merged PR showing a deploy run
-that it did not need dispatching.
+A quick check that a merge really deployed:
+`gh run list --workflow=deploy.yml --limit 1` should show `event: push`.
 
 Once approved it re-runs validation and tests before deploying, since two
 individually-valid PRs can merge into a broken `main`. Then
