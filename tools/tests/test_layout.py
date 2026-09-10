@@ -100,6 +100,8 @@ def test_app_binds_every_grading_job():
     app = doc["resources"]["apps"]["study_app"]
     env = {e["name"]: e.get("value") for e in app["config"]["env"]}
     jobs = {r["name"]: r["job"] for r in app["resources"] if "job" in r}
+    # The plugin's registry requires the single-job variable even in multi-job mode.
+    assert env.get("DATABRICKS_JOB_ID", "").startswith("${resources.jobs.grade_")
     for sid in SECTIONS:
         key = f"grade_{sid.lower().replace('-', '_')}"
         assert env.get(f"DATABRICKS_JOB_{key.upper()}") == f"${{resources.jobs.{key}.id}}", sid

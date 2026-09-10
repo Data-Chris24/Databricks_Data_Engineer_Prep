@@ -24,6 +24,12 @@ resources:
           # turns repo-relative notebook paths into deep links with it.
           - name: DE_PREP_FILES_ROOT
             value: ${workspace.file_path}
+          # The jobs plugin's resource registry insists on its single-job variable
+          # even when every job is named (the app crashed at startup without it:
+          # "Missing required resources: job:Job [jobs] (set DATABRICKS_JOB_ID)").
+          # Point it at one of the bound jobs; the named ones below add the rest.
+          - name: DATABRICKS_JOB_ID
+            value: ${resources.jobs.grade_assoc_s1.id}
           # One grading job per section. The app's jobs plugin discovers these
           # by name (DATABRICKS_JOB_<KEY>) and runs them on the learner's behalf.
           - name: DATABRICKS_JOB_GRADE_ASSOC_S1
