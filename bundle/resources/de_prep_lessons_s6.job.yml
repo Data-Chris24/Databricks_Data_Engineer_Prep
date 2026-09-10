@@ -1,0 +1,14 @@
+resources:
+  jobs:
+    run_lessons_assoc_s6:
+      name: "[DE prep] Run ASSOC-S6 lessons"
+      tasks:
+        - task_key: diagnosing_skew
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/associate/S6/01_diagnosing_skew.py
+        - task_key: health_and_layout
+          depends_on: [{task_key: diagnosing_skew}]
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/associate/S6/02_health_and_layout.py
+      queue:
+        enabled: true
