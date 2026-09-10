@@ -23,6 +23,14 @@ jobs:
       - name: Turn on auto-merge
         uses: actions/github-script@v9
         with:
+          # A merge performed under the default GITHUB_TOKEN does not trigger
+          # other workflows (GitHub's recursion guard), so deploy.yml never ran
+          # for a bot-merged PR. Enabling auto-merge with a repo-scoped token
+          # attributes the merge to that token's owner instead, and the push to
+          # main then triggers the deploy like a hand merge does. Falls back to
+          # GITHUB_TOKEN if the secret is absent - auto-merge still works, the
+          # deploy just has to be dispatched by hand (docs/ci-cd.md).
+          github-token: ${{ secrets.AUTOMERGE_TOKEN || github.token }}
           script: |
             const pr = context.payload.pull_request;
             try {

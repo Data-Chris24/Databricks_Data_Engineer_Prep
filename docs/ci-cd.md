@@ -202,6 +202,27 @@ To find the numeric ID again later:
 databricks service-principals list --profile FREE
 ```
 
+### 2b. Lakebase access for the service principal
+
+The study app attaches the Lakebase project as an app resource, and the Apps API
+requires whoever creates the app to hold **CAN_MANAGE on that project**. The
+project is owned by you, so the CI service principal has nothing on it until you
+grant it. Without this, `bundle deploy` fails with
+`User does not have permission to add resource postgres to app de-prep-study.
+User needs MANAGE permission on the resource. (403 PERMISSION_DENIED)` — the first
+deploy after PR #21 did exactly that.
+
+One-time, as the project owner (the permissions object type for a Lakebase
+project is `database-projects`; `update` adds to the list, `set` would replace it):
+
+```bash
+databricks permissions update database-projects de-prep --profile FREE \
+  --json '{"access_control_list":[{"service_principal_name":"<DATABRICKS_CLIENT_ID>","permission_level":"CAN_MANAGE"}]}'
+databricks permissions get database-projects de-prep --profile FREE      # confirm CAN_MANAGE is listed
+```
+
+Then re-run the deploy: `gh workflow run deploy.yml --ref main`.
+
 ### 3. Allow auto-merge
 
 `Settings → General → Pull Requests` → tick **Allow auto-merge**.
@@ -333,6 +354,22 @@ Runs on push to `main` (and manual dispatch). Because it declares
 `environment: databricks-free`, it **pauses and waits for your approval** in the
 Actions tab before any step runs — including before it can read the environment's
 secrets.
+
+**Making it hands-off.** Two settings stand between a merge and a deploy today:
+the environment's *Required reviewers* (you approve each run in the Actions tab)
+and the auto-merge token (a merge performed under the default `GITHUB_TOKEN` does
+not trigger `deploy.yml`). To go fully automatic:
+
+1. Create a fine-grained personal access token scoped to this repo with
+   *Contents* and *Pull requests* read & write, and store it as the repository
+   secret **`AUTOMERGE_TOKEN`**. `auto-merge.yml` uses it when present, so a
+   bot-merged PR pushes to `main` as you and the deploy triggers.
+2. On the `databricks-free` environment, untick *Required reviewers*. The branch
+   ruleset already decides what reaches `main`; the deploy then follows every
+   merge without a click. Keep *Deployment branches* set to `main`.
+
+Both are console changes; verify with the next merged PR showing a deploy run
+that it did not need dispatching.
 
 Once approved it re-runs validation and tests before deploying, since two
 individually-valid PRs can merge into a broken `main`. Then
