@@ -9,141 +9,146 @@
 # `bundle destroy` would delete every learner's progress, and the account
 # allows exactly one project. It is created once by hand (docs/architecture.md,
 # Decision 9) and referenced here by name.
-resources:
-  apps:
-    study_app:
-      name: de-prep-study
-      description: "[DE prep] Study app: Learn and Test"
-      source_code_path: ../../app
-      config:
-        command: ["npm", "run", "start"]
-        env:
-          - name: LAKEBASE_ENDPOINT
-            value_from: postgres
-          # Where the bundle put this repo's files in the workspace. The app
-          # turns repo-relative notebook paths into deep links with it.
-          - name: DE_PREP_FILES_ROOT
-            value: ${workspace.file_path}
-          # The jobs plugin's resource registry insists on its single-job variable
-          # even when every job is named (the app crashed at startup without it:
-          # "Missing required resources: job:Job [jobs] (set DATABRICKS_JOB_ID)").
-          # Point it at one of the bound jobs; the named ones below add the rest.
-          - name: DATABRICKS_JOB_RESET_ASSIGNMENT
-            value: ${resources.jobs.reset_assignment.id}
-          - name: DATABRICKS_JOB_ID
-            value: ${resources.jobs.grade_assoc_s1.id}
-          # One grading job per section. The app's jobs plugin discovers these
-          # by name (DATABRICKS_JOB_<KEY>) and runs them on the learner's behalf.
-          - name: DATABRICKS_JOB_GRADE_ASSOC_S1
-            value: ${resources.jobs.grade_assoc_s1.id}
-          - name: DATABRICKS_JOB_GRADE_ASSOC_S2
-            value: ${resources.jobs.grade_assoc_s2.id}
-          - name: DATABRICKS_JOB_GRADE_ASSOC_S3
-            value: ${resources.jobs.grade_assoc_s3.id}
-          - name: DATABRICKS_JOB_GRADE_ASSOC_S4
-            value: ${resources.jobs.grade_assoc_s4.id}
-          - name: DATABRICKS_JOB_GRADE_ASSOC_S5
-            value: ${resources.jobs.grade_assoc_s5.id}
-          - name: DATABRICKS_JOB_GRADE_ASSOC_S6
-            value: ${resources.jobs.grade_assoc_s6.id}
-          - name: DATABRICKS_JOB_GRADE_ASSOC_S7
-            value: ${resources.jobs.grade_assoc_s7.id}
-          - name: DATABRICKS_JOB_GRADE_PRO_S1
-            value: ${resources.jobs.grade_pro_s1.id}
-          - name: DATABRICKS_JOB_GRADE_PRO_S10
-            value: ${resources.jobs.grade_pro_s10.id}
-          - name: DATABRICKS_JOB_GRADE_PRO_S2
-            value: ${resources.jobs.grade_pro_s2.id}
-          - name: DATABRICKS_JOB_GRADE_PRO_S3
-            value: ${resources.jobs.grade_pro_s3.id}
-          - name: DATABRICKS_JOB_GRADE_PRO_S4
-            value: ${resources.jobs.grade_pro_s4.id}
-          - name: DATABRICKS_JOB_GRADE_PRO_S5
-            value: ${resources.jobs.grade_pro_s5.id}
-          - name: DATABRICKS_JOB_GRADE_PRO_S6
-            value: ${resources.jobs.grade_pro_s6.id}
-          - name: DATABRICKS_JOB_GRADE_PRO_S7
-            value: ${resources.jobs.grade_pro_s7.id}
-          - name: DATABRICKS_JOB_GRADE_PRO_S8
-            value: ${resources.jobs.grade_pro_s8.id}
-          - name: DATABRICKS_JOB_GRADE_PRO_S9
-            value: ${resources.jobs.grade_pro_s9.id}
-      resources:
-        - name: postgres
-          postgres:
-            branch: ${var.lakebase_branch}
-            database: ${var.lakebase_database}
-            permission: CAN_CONNECT_AND_CREATE
-        # CAN_MANAGE_RUN on each grading job, so the app can trigger and read runs.
-        - name: job_reset_assignment
-          job:
-            id: ${resources.jobs.reset_assignment.id}
-            permission: CAN_MANAGE_RUN
-        - name: job_grade_assoc_s1
-          job:
-            id: ${resources.jobs.grade_assoc_s1.id}
-            permission: CAN_MANAGE_RUN
-        - name: job_grade_assoc_s2
-          job:
-            id: ${resources.jobs.grade_assoc_s2.id}
-            permission: CAN_MANAGE_RUN
-        - name: job_grade_assoc_s3
-          job:
-            id: ${resources.jobs.grade_assoc_s3.id}
-            permission: CAN_MANAGE_RUN
-        - name: job_grade_assoc_s4
-          job:
-            id: ${resources.jobs.grade_assoc_s4.id}
-            permission: CAN_MANAGE_RUN
-        - name: job_grade_assoc_s5
-          job:
-            id: ${resources.jobs.grade_assoc_s5.id}
-            permission: CAN_MANAGE_RUN
-        - name: job_grade_assoc_s6
-          job:
-            id: ${resources.jobs.grade_assoc_s6.id}
-            permission: CAN_MANAGE_RUN
-        - name: job_grade_assoc_s7
-          job:
-            id: ${resources.jobs.grade_assoc_s7.id}
-            permission: CAN_MANAGE_RUN
-        - name: job_grade_pro_s1
-          job:
-            id: ${resources.jobs.grade_pro_s1.id}
-            permission: CAN_MANAGE_RUN
-        - name: job_grade_pro_s10
-          job:
-            id: ${resources.jobs.grade_pro_s10.id}
-            permission: CAN_MANAGE_RUN
-        - name: job_grade_pro_s2
-          job:
-            id: ${resources.jobs.grade_pro_s2.id}
-            permission: CAN_MANAGE_RUN
-        - name: job_grade_pro_s3
-          job:
-            id: ${resources.jobs.grade_pro_s3.id}
-            permission: CAN_MANAGE_RUN
-        - name: job_grade_pro_s4
-          job:
-            id: ${resources.jobs.grade_pro_s4.id}
-            permission: CAN_MANAGE_RUN
-        - name: job_grade_pro_s5
-          job:
-            id: ${resources.jobs.grade_pro_s5.id}
-            permission: CAN_MANAGE_RUN
-        - name: job_grade_pro_s6
-          job:
-            id: ${resources.jobs.grade_pro_s6.id}
-            permission: CAN_MANAGE_RUN
-        - name: job_grade_pro_s7
-          job:
-            id: ${resources.jobs.grade_pro_s7.id}
-            permission: CAN_MANAGE_RUN
-        - name: job_grade_pro_s8
-          job:
-            id: ${resources.jobs.grade_pro_s8.id}
-            permission: CAN_MANAGE_RUN
-        - name: job_grade_pro_s9
-          job:
-            id: ${resources.jobs.grade_pro_s9.id}
-            permission: CAN_MANAGE_RUN
+# Scoped to the `free` target: a development-mode deploy of any other target
+# (verify, staging, classic) would otherwise create a second app and use one
+# of Free Edition's three slots.
+targets:
+  free:
+    resources:
+      apps:
+        study_app:
+          name: de-prep-study
+          description: "[DE prep] Study app: Learn and Test"
+          source_code_path: ../../app
+          config:
+            command: ["npm", "run", "start"]
+            env:
+              - name: LAKEBASE_ENDPOINT
+                value_from: postgres
+              # Where the bundle put this repo's files in the workspace. The app
+              # turns repo-relative notebook paths into deep links with it.
+              - name: DE_PREP_FILES_ROOT
+                value: ${workspace.file_path}
+              # The jobs plugin's resource registry insists on its single-job variable
+              # even when every job is named (the app crashed at startup without it:
+              # "Missing required resources: job:Job [jobs] (set DATABRICKS_JOB_ID)").
+              # Point it at one of the bound jobs; the named ones below add the rest.
+              - name: DATABRICKS_JOB_RESET_ASSIGNMENT
+                value: ${resources.jobs.reset_assignment.id}
+              - name: DATABRICKS_JOB_ID
+                value: ${resources.jobs.grade_assoc_s1.id}
+              # One grading job per section. The app's jobs plugin discovers these
+              # by name (DATABRICKS_JOB_<KEY>) and runs them on the learner's behalf.
+              - name: DATABRICKS_JOB_GRADE_ASSOC_S1
+                value: ${resources.jobs.grade_assoc_s1.id}
+              - name: DATABRICKS_JOB_GRADE_ASSOC_S2
+                value: ${resources.jobs.grade_assoc_s2.id}
+              - name: DATABRICKS_JOB_GRADE_ASSOC_S3
+                value: ${resources.jobs.grade_assoc_s3.id}
+              - name: DATABRICKS_JOB_GRADE_ASSOC_S4
+                value: ${resources.jobs.grade_assoc_s4.id}
+              - name: DATABRICKS_JOB_GRADE_ASSOC_S5
+                value: ${resources.jobs.grade_assoc_s5.id}
+              - name: DATABRICKS_JOB_GRADE_ASSOC_S6
+                value: ${resources.jobs.grade_assoc_s6.id}
+              - name: DATABRICKS_JOB_GRADE_ASSOC_S7
+                value: ${resources.jobs.grade_assoc_s7.id}
+              - name: DATABRICKS_JOB_GRADE_PRO_S1
+                value: ${resources.jobs.grade_pro_s1.id}
+              - name: DATABRICKS_JOB_GRADE_PRO_S10
+                value: ${resources.jobs.grade_pro_s10.id}
+              - name: DATABRICKS_JOB_GRADE_PRO_S2
+                value: ${resources.jobs.grade_pro_s2.id}
+              - name: DATABRICKS_JOB_GRADE_PRO_S3
+                value: ${resources.jobs.grade_pro_s3.id}
+              - name: DATABRICKS_JOB_GRADE_PRO_S4
+                value: ${resources.jobs.grade_pro_s4.id}
+              - name: DATABRICKS_JOB_GRADE_PRO_S5
+                value: ${resources.jobs.grade_pro_s5.id}
+              - name: DATABRICKS_JOB_GRADE_PRO_S6
+                value: ${resources.jobs.grade_pro_s6.id}
+              - name: DATABRICKS_JOB_GRADE_PRO_S7
+                value: ${resources.jobs.grade_pro_s7.id}
+              - name: DATABRICKS_JOB_GRADE_PRO_S8
+                value: ${resources.jobs.grade_pro_s8.id}
+              - name: DATABRICKS_JOB_GRADE_PRO_S9
+                value: ${resources.jobs.grade_pro_s9.id}
+          resources:
+            - name: postgres
+              postgres:
+                branch: ${var.lakebase_branch}
+                database: ${var.lakebase_database}
+                permission: CAN_CONNECT_AND_CREATE
+            # CAN_MANAGE_RUN on each grading job, so the app can trigger and read runs.
+            - name: job_reset_assignment
+              job:
+                id: ${resources.jobs.reset_assignment.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_grade_assoc_s1
+              job:
+                id: ${resources.jobs.grade_assoc_s1.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_grade_assoc_s2
+              job:
+                id: ${resources.jobs.grade_assoc_s2.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_grade_assoc_s3
+              job:
+                id: ${resources.jobs.grade_assoc_s3.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_grade_assoc_s4
+              job:
+                id: ${resources.jobs.grade_assoc_s4.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_grade_assoc_s5
+              job:
+                id: ${resources.jobs.grade_assoc_s5.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_grade_assoc_s6
+              job:
+                id: ${resources.jobs.grade_assoc_s6.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_grade_assoc_s7
+              job:
+                id: ${resources.jobs.grade_assoc_s7.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_grade_pro_s1
+              job:
+                id: ${resources.jobs.grade_pro_s1.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_grade_pro_s10
+              job:
+                id: ${resources.jobs.grade_pro_s10.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_grade_pro_s2
+              job:
+                id: ${resources.jobs.grade_pro_s2.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_grade_pro_s3
+              job:
+                id: ${resources.jobs.grade_pro_s3.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_grade_pro_s4
+              job:
+                id: ${resources.jobs.grade_pro_s4.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_grade_pro_s5
+              job:
+                id: ${resources.jobs.grade_pro_s5.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_grade_pro_s6
+              job:
+                id: ${resources.jobs.grade_pro_s6.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_grade_pro_s7
+              job:
+                id: ${resources.jobs.grade_pro_s7.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_grade_pro_s8
+              job:
+                id: ${resources.jobs.grade_pro_s8.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_grade_pro_s9
+              job:
+                id: ${resources.jobs.grade_pro_s9.id}
+                permission: CAN_MANAGE_RUN
