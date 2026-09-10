@@ -429,9 +429,11 @@ correct, and a good way to tell a CI deploy from one you ran by hand. The study
 app's notebook links point into that folder (`DE_PREP_FILES_ROOT`), so the app
 only links correctly to the deploy that shipped it.
 
-**Never `bundle deploy` the app from a laptop.** Development mode prefixes
-resource names, so it would create a second `de-prep-study` and use one of Free
-Edition's three app slots. Use `npm run dev` in `app/` instead.
+**One deployer per workspace.** Development mode prefixes resource names, so a
+laptop deploy next to CI would create a second `de-prep-study` and use one of
+Free Edition's three app slots. Here CI deploys; in a fork without CI, the
+laptop is the deployer (README, "Deploy your own copy"). Use `npm run dev` in
+`app/` for UI work.
 
 **The bundle hardcodes no workspace URL.** `bundle/databricks.yml` deliberately
 omits `workspace.host` on both targets — it does not belong in a public repo, and

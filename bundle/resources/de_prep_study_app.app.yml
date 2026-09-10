@@ -1,9 +1,10 @@
 # The study app: Learn (section notes, notebook links) and Test (practice, timed
 # exams). AppKit (TypeScript/React) with Lakebase for per-user progress.
 #
-# Deployed only by CI from main. A local `bundle deploy` in development mode
+# Deployed by whoever deploys the bundle: CI in the upstream repo, you in a
+# fork. Use one deployer per workspace - a second development-mode deploy
 # would create a second, dev-prefixed app and eat one of Free Edition's three
-# app slots - use `npm run dev` in app/ for local work instead.
+# app slots. For UI work use `npm run dev` in app/.
 #
 # The Lakebase project itself is NOT a bundle resource on purpose: a
 # `bundle destroy` would delete every learner's progress, and the account

@@ -60,3 +60,19 @@ def test_reset_notebook_accepts_a_list_of_sections():
     text = (REPO_ROOT / "grading" / "reset_assignment.py").read_text()
     assert 'split(",")' in text, "start-over resets every section in one run"
     assert "for section in sections" in text
+
+
+def test_reset_notebook_restores_deployed_starters_from_the_build():
+    text = (REPO_ROOT / "grading" / "reset_assignment.py").read_text()
+    assert 'os.path.join(files_root, "app", "shared", "content", "starters.json")' in text
+    assert "w.workspace.import_(" in text and "overwrite=True" in text
+
+
+def test_nothing_in_the_repo_names_the_maintainer():
+    """A fork must work for a stranger; no mechanism may key on one person."""
+    import subprocess
+    out = subprocess.run(
+        ["git", "grep", "-l", "-i", "data" + "chris24", "--", ":!docs/local", ":!README.md", ":!docs/ci-cd.md", ":!tools/tests/test_reset_outputs.py"],
+        cwd=REPO_ROOT, capture_output=True, text=True,
+    ).stdout.split()
+    assert out == [], f"maintainer identity appears in {out}"
