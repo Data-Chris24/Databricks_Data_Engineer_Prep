@@ -1,0 +1,13 @@
+{
+  "_comment": "Generated from running s5_publish_summary against both targets.",
+  "generated": "2026-09-09",
+  "environments": ["de_prep", "de_prep_staging"],
+  "channels": ["mobile", "store", "web"],
+  "rows_per_environment": 3,
+  "source_rows": 240,
+  "by_channel": {
+    "mobile": {"txns": 82, "revenue": 19850.37},
+    "store":  {"txns": 74, "revenue": 18298.81},
+    "web":    {"txns": 84, "revenue": 20800.65}
+  }
+}

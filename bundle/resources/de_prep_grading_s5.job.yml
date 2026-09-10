@@ -1,0 +1,19 @@
+resources:
+  jobs:
+    grade_assoc_s5:
+      name: "[DE prep] Grade ASSOC-S5"
+      tasks:
+        - task_key: grade
+          notebook_task:
+            notebook_path: ../../notebooks/assignments/ASSOC-S5/grade.py
+      queue:
+        enabled: true
+
+    transplant_check_assoc_s5:
+      name: "[DE prep] Anti-transplant check ASSOC-S5"
+      tasks:
+        - task_key: check
+          notebook_task:
+            notebook_path: ../../solutions/ASSOC-S5/transplant_check.py
+      queue:
+        enabled: true
