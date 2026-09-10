@@ -289,3 +289,25 @@ interpolate into the app resource's `config.env` (so notebook links get their
 root), and `bundle validate --strict` accepts the app resource on Free Edition.
 What still needs the first CI deploy to confirm is recorded in
 [free-edition-constraints.md](free-edition-constraints.md#the-study-app).
+
+---
+
+## Future: a team deployment (not started)
+
+Plausible, and marked here so the single-learner design does not paint it into a
+corner. A small company would deploy once to its own workspace and add learners.
+The app is already multi-user: every Lakebase row keys on the signed-in user, and
+each learner gets their own notebook copy and folder grant. What would change:
+
+- **Per-learner output schemas.** Assignment outputs are fixed names in
+  `workspace.de_prep` (`grading/<SECTION>/outputs.json`), so two learners would
+  collide. Graders, the reset job and the manifests would take a learner-scoped
+  schema as a parameter; assess inputs stay shared and read-only.
+- **Grants** for the grading principal on those schemas, and a `learners` group
+  with CAN_USE on the app.
+- The one case a single-user workspace cannot exercise today: a non-admin learner
+  opening the deep link into the app principal's `learners/<email>` folder.
+
+Free Edition's limits (three apps, the 24-hour auto-stop, five concurrent tasks,
+one Lakebase project) are what make this a paid-workspace feature rather than a
+fork-and-deploy one.
