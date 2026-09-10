@@ -247,7 +247,7 @@ def check_notebook_cells() -> None:
     prose as an empty code cell. Where the prose contains a character Python cannot
     parse, it fails at runtime instead, several cells from the real mistake.
     """
-    roots = [REPO_ROOT / "notebooks", REPO_ROOT / "solutions"]
+    roots = [REPO_ROOT / "notebooks", REPO_ROOT / "grading", REPO_ROOT / "solutions"]
     checked = 0
     for root in roots:
         if not root.exists():

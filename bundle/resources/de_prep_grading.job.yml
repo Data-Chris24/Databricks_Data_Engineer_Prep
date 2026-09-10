@@ -9,18 +9,6 @@ resources:
       tasks:
         - task_key: grade
           notebook_task:
-            notebook_path: ../../notebooks/assignments/ASSOC-S2/grade.py
-      queue:
-        enabled: true
-
-    transplant_check_assoc_s2:
-      name: "[DE prep] Anti-transplant check ASSOC-S2"
-      description: >-
-        Applies the lesson's own approach to the assessment data and asserts the
-        graded suite FAILS. Guards the property the assignment design depends on.
-      tasks:
-        - task_key: check
-          notebook_task:
-            notebook_path: ../../solutions/ASSOC-S2/transplant_check.py
+            notebook_path: ../../grading/ASSOC-S2/grade.py
       queue:
         enabled: true

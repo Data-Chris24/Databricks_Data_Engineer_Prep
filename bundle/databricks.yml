@@ -5,7 +5,7 @@
 # app). Right now the bundle is deliberately near-empty - it exists so the
 # deploy pipeline is real and testable before there is anything riding on it.
 #
-#   databricks bundle validate --strict -t free --profile FREE
+#   databricks bundle validate -t free --profile FREE
 #   databricks bundle deploy -t free --profile FREE
 
 bundle:
@@ -13,6 +13,9 @@ bundle:
 
 include:
   - resources/*.yml
+  # Maintainer-only jobs (reference solutions, anti-transplant proofs). These
+  # files define resources under `targets.verify`, so they exist in no other target.
+  - resources/verify/*.yml
 
 # The bundle lives in bundle/ but its notebooks live in notebooks/, above it.
 # By default a bundle can only sync files under its own root, so widen the sync
@@ -21,9 +24,12 @@ include:
 sync:
   paths:
     - ..
-  # No exclude list: bundle sync already honours .gitignore, which covers .venv,
-  # __pycache__ and the rest. Adding patterns for paths that do not exist yet
-  # fails `validate --strict`, which treats an unmatched pattern as a warning.
+  # No global exclude list: bundle sync already honours .gitignore, which covers
+  # .venv, __pycache__ and the rest. The learner targets below exclude
+  # ../solutions/** - note that `validate --strict` wrongly warns that the pattern
+  # matches nothing (it checks against the bundle folder, not the sync root), so
+  # deploy.yml validates without --strict. `bundle sync --dry-run --full` is the
+  # honest check: 0 solutions/ files for free, 35 for verify.
 
 variables:
   catalog:
@@ -47,14 +53,32 @@ targets:
   free:
     default: true
     mode: development
+    # Learners fork this repo and deploy it themselves, as admins of their own
+    # workspace, so nothing can be hidden by permission. Instead the reference
+    # solutions never reach the learner target at all; the graders they need
+    # live under grading/ and are run by the study app.
+    sync:
+      exclude:
+        - ../solutions/**
 
   # A second environment on the same workspace, standing in for staging. It changes
   # only the `schema` variable - the job definition is identical, which is the whole
   # point of promoting rather than duplicating.
   staging:
     mode: development
+    sync:
+      exclude:
+        - ../solutions/**
     variables:
       schema: de_prep_staging
+
+  # Maintainer target: the only one that deploys solutions/ and the jobs that
+  # run them. Used when authoring a section, to regenerate fixtures and to prove
+  # the lesson's code fails the graded suite (docs/authoring-guide.md).
+  verify:
+    mode: development
+    variables:
+      schema: de_prep_verify
 
   # Premium/trial workspace for the optional classic-compute labs.
   # See docs/optional-classic-track.md - this target bills real infrastructure.

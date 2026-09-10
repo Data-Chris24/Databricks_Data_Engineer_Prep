@@ -13,7 +13,7 @@ So this does the part that can be done offline:
     (`databricks bundle schema`, which needs no credentials)
   * checks the invariants this repo cares about
 
-The authoritative `databricks bundle validate --strict` still runs in deploy.yml,
+The authoritative `databricks bundle validate` still runs in deploy.yml,
 with real credentials, before anything is deployed. This is the early warning; that
 is the gate.
 
@@ -132,7 +132,7 @@ def main() -> int:
 
     n = sum(len(t or {}) for t in targets.values())
     print(f"\nBundle is structurally valid: {len(targets)} targets ({', '.join(sorted(targets))}).")
-    print("Authoritative `bundle validate --strict` runs in deploy.yml with real credentials.")
+    print("Authoritative `bundle validate` runs in deploy.yml with real credentials.")
     return 0
 
 

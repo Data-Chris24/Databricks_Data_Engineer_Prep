@@ -322,7 +322,7 @@ and giving a PR-triggered workflow real credentials is a bad idea in its own rig
 So the PR check validates `databricks.yml` against the schema the CLI emits
 (`databricks bundle schema` needs no credentials) plus this repo's own invariants —
 notably that no target hardcodes `workspace.host`. The authoritative
-`bundle validate --strict` runs in `deploy.yml` against the real workspace before
+`bundle validate` runs in `deploy.yml` against the real workspace before
 anything is deployed. Early warning on the PR; the real gate before deploy.
 
 ### The "every PR must ship tests" gate

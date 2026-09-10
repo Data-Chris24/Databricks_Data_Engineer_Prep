@@ -158,12 +158,34 @@ Each assignment ships:
 
 ```
 notebooks/assignments/<SECTION>/
-  README.md              task + explicit output contract
-  assignment.py          learner starter notebook
+  README.md                 task + explicit output contract   (learner-facing)
+  assignment.py             learner starter notebook          (learner-facing)
+grading/<SECTION>/
+  grade.py                  runs the suite; the study app triggers this job
   tests/test_<SECTION>.py   authoritative pytest suite
-solutions/<SECTION>/     reference solution + fixture generator
+  expected.json             fixtures the solution generated
 grading/rubrics/<SECTION>.yaml   rubric for the AI reviewer
+solutions/<SECTION>/
+  solution.py               reference solution + fixture generator
+  transplant_check.py       proves the lesson's code fails the suite
 ```
+
+**Why the split.** Learners fork the repo and deploy it as admins of their own
+workspace, so nothing can be hidden from them by permission. The layout does the
+work instead: the app links only into `notebooks/`, the graders sit in their own
+tree that the app runs on the learner's behalf, and `solutions/` is excluded from
+the learner targets' sync entirely. Only the maintainer `verify` target deploys
+solutions and the jobs that run them:
+
+```bash
+databricks bundle deploy -t verify --profile FREE
+databricks bundle run run_solution_assoc_s3 -t verify --profile FREE      # regenerate fixtures
+databricks bundle run transplant_check_assoc_s3 -t verify --profile FREE  # prove the property
+```
+
+A learner who wants to peek can still open `grading/<SECTION>/tests/` in their
+workspace and read what is checked and the expected numbers. That is friction,
+not secrecy, and it is the honest limit of a public repo.
 
 ### The output contract
 

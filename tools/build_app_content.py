@@ -284,7 +284,7 @@ def grade_jobs() -> dict[str, str]:
         for key, job in (doc.get("resources", {}).get("jobs", {}) or {}).items():
             for task in job.get("tasks", []) or []:
                 nb = (task.get("notebook_task") or {}).get("notebook_path", "")
-                m = re.search(r"assignments/((?:ASSOC|PRO)-S\d+)/grade\.py$", nb)
+                m = re.search(r"grading/((?:ASSOC|PRO)-S\d+)/grade\.py$", nb)
                 if m and key.startswith("grade"):
                     jobs[m.group(1)] = key
     return jobs

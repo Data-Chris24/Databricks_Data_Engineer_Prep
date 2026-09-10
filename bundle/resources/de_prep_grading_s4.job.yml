@@ -5,15 +5,6 @@ resources:
       tasks:
         - task_key: grade
           notebook_task:
-            notebook_path: ../../notebooks/assignments/ASSOC-S4/grade.py
-      queue:
-        enabled: true
-
-    transplant_check_assoc_s4:
-      name: "[DE prep] Anti-transplant check ASSOC-S4"
-      tasks:
-        - task_key: check
-          notebook_task:
-            notebook_path: ../../solutions/ASSOC-S4/transplant_check.py
+            notebook_path: ../../grading/ASSOC-S4/grade.py
       queue:
         enabled: true
