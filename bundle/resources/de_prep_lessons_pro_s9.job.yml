@@ -1,0 +1,14 @@
+resources:
+  jobs:
+    run_lessons_pro_s9:
+      name: "[DE prep] Run PRO-S9 lessons"
+      tasks:
+        - task_key: reading_failures
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/professional/S9/01_reading_failures.py
+        - task_key: deploying_and_silent_failure
+          depends_on: [{task_key: reading_failures}]
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/professional/S9/02_deploying_and_silent_failure.py
+      queue:
+        enabled: true
