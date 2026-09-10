@@ -1,0 +1,14 @@
+resources:
+  jobs:
+    run_lessons_pro_s6:
+      name: "[DE prep] Run PRO-S6 lessons"
+      tasks:
+        - task_key: layout_and_skipping
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/professional/S6/01_layout_and_skipping.py
+        - task_key: cost_and_profiling
+          depends_on: [{task_key: layout_and_skipping}]
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/professional/S6/02_cost_and_profiling.py
+      queue:
+        enabled: true
