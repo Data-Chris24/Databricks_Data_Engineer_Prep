@@ -1,0 +1,15 @@
+resources:
+  jobs:
+    run_lessons_pro_s10:
+      name: "[DE prep] Run PRO-S10 lessons"
+      tasks:
+        - task_key: star_schema
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/professional/S10/01_star_schema.py
+        - task_key: liquid_clustering
+          depends_on:
+            - task_key: star_schema
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/professional/S10/02_liquid_clustering.py
+      queue:
+        enabled: true
