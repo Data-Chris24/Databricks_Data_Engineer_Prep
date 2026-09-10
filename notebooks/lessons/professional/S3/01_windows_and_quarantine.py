@@ -110,3 +110,10 @@ for name, rule in rules.items():
 # MAGIC **Every rule above is a row-level rule.** The assignment's data passes all of
 # MAGIC them: every row is individually valid, and everything wrong with it exists only
 # MAGIC between rows.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S3 assignment notebook](../../../assignments/PRO-S3/assignment) · [the task](../../../assignments/PRO-S3/README.md).

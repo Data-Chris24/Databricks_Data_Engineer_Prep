@@ -118,3 +118,10 @@ print("all regions visible again")
 # MAGIC
 # MAGIC Now do the assignment. It has three kinds of sensitive column and three
 # MAGIC audiences, and a single mask will not satisfy them.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [ASSOC-S7 assignment notebook](../../../assignments/ASSOC-S7/assignment) · [the task](../../../assignments/ASSOC-S7/README.md).

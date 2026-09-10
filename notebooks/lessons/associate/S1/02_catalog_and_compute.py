@@ -95,3 +95,10 @@ print("See docs/optional-classic-track.md for the paid-tier lab that does.")
 # MAGIC Now do the assignment. Its table was corrupted by a bad load, and the correct
 # MAGIC answer exists only in an earlier version — a query against the current state
 # MAGIC cannot produce it.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [ASSOC-S1 assignment notebook](../../../assignments/ASSOC-S1/assignment) · [the task](../../../assignments/ASSOC-S1/README.md).

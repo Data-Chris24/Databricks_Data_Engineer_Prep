@@ -112,3 +112,12 @@ display(spark.table("pro_s7_teach_deidentified").limit(5))
 # MAGIC **All of this assumes you know which columns hold PII.** The assignment's source
 # MAGIC has email addresses and phone numbers inside a free-text field, where a
 # MAGIC column-by-column approach will not find them.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [02_retention_and_purging](./02_retention_and_purging).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S7 assignment notebook](../../../assignments/PRO-S7/assignment) · [the task](../../../assignments/PRO-S7/README.md).

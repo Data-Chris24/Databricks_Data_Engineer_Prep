@@ -128,3 +128,12 @@ print(f"published {spark.table('s5_channel_summary').count()} rows to {CATALOG}.
 # MAGIC   destination to come from a bundle variable overridden per target, so the same
 # MAGIC   job writes somewhere different in each environment. Copying this cell will not
 # MAGIC   get you there.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [02_git_and_ci](./02_git_and_ci).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [ASSOC-S5 assignment notebook](../../../assignments/ASSOC-S5/assignment) · [the task](../../../assignments/ASSOC-S5/README.md).

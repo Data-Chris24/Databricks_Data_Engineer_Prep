@@ -111,3 +111,12 @@ print(f"\nfiles before {before['numFiles']} -> after {after['numFiles']}: a dele
 # MAGIC
 # MAGIC The assignment's table is slow for **three** unrelated reasons, and clustering
 # MAGIC fixes one of them.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [02_cost_and_profiling](./02_cost_and_profiling).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S6 assignment notebook](../../../assignments/PRO-S6/assignment) · [the task](../../../assignments/PRO-S6/README.md).

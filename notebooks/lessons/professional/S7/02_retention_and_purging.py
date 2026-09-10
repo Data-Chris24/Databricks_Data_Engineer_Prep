@@ -100,3 +100,10 @@ display(policy.withColumn(
 # MAGIC
 # MAGIC The assignment combines all three: PII hidden in free text, subjects who have
 # MAGIC asked for erasure, and three record types with three retention periods.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S7 assignment notebook](../../../assignments/PRO-S7/assignment) · [the task](../../../assignments/PRO-S7/README.md).

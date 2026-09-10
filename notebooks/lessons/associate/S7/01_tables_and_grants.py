@@ -88,3 +88,12 @@ print("email and full_name are simply not reachable through this view")
 # MAGIC %md
 # MAGIC A view stops being enough when different users need **different slices of the
 # MAGIC same rows** — that is what masks and row filters are for. Next notebook.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [02_masking_and_filters](./02_masking_and_filters).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [ASSOC-S7 assignment notebook](../../../assignments/ASSOC-S7/assignment) · [the task](../../../assignments/ASSOC-S7/README.md).

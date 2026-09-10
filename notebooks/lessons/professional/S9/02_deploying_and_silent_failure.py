@@ -105,3 +105,10 @@ display(spark.sql("DESCRIBE HISTORY pro_s9_teach_raw").select(
 # MAGIC
 # MAGIC The assignment's pipeline succeeded every day for twelve days and has been wrong
 # MAGIC for six of them.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S9 assignment notebook](../../../assignments/PRO-S9/assignment) · [the task](../../../assignments/PRO-S9/README.md).

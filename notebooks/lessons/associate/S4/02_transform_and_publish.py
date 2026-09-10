@@ -88,3 +88,10 @@ print(f"set needs_review = {'true' if bad else 'false'}")
 # MAGIC
 # MAGIC Now do the assignment. Its source has a poisoned region, and this linear chain
 # MAGIC will not survive it.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [ASSOC-S4 assignment notebook](../../../assignments/ASSOC-S4/assignment) · [the task](../../../assignments/ASSOC-S4/README.md).

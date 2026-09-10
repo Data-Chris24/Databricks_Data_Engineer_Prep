@@ -113,3 +113,10 @@ display(spark.sql("DESCRIBE DETAIL s6_teach_events").select("clusteringColumns")
 # MAGIC
 # MAGIC Now do the assignment. Its table has **three** problems, and the `GROUP BY` from
 # MAGIC lesson 1 finds only one of them.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [ASSOC-S6 assignment notebook](../../../assignments/ASSOC-S6/assignment) · [the task](../../../assignments/ASSOC-S6/README.md).

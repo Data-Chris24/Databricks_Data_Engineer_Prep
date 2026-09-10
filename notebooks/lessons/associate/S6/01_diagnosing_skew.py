@@ -98,3 +98,12 @@ for marker in ["AdaptiveSparkPlan", "HashAggregate", "Exchange", "BroadcastHashJ
 # MAGIC - In the UI, the tell is max-vs-median, not absolute duration.
 # MAGIC - AQE fixes skew at runtime; salting is the fallback, not the first move.
 # MAGIC - Read plans with SQL `EXPLAIN`.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [02_health_and_layout](./02_health_and_layout).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [ASSOC-S6 assignment notebook](../../../assignments/ASSOC-S6/assignment) · [the task](../../../assignments/ASSOC-S6/README.md).
