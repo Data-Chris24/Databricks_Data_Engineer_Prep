@@ -32,10 +32,16 @@ describe('sampleTest', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('refuses the Professional bank while it is short', () => {
-    expect(() =>
-      sampleTest({ exam: professional, bank: questions, seen: new Map(), rng: mulberry32(1) }),
-    ).toThrow(BankTooSmallError);
+  it('draws a full Professional test now that the bank clears the gate', () => {
+    const ids = sampleTest({ exam: professional, bank: questions, seen: new Map(), rng: mulberry32(1) });
+    expect(ids).toHaveLength(professional.items);
+  });
+
+  it('refuses a bank with fewer families than the exam has items', () => {
+    const short = questions.filter((q) => q.exam === 'professional').slice(0, 20);
+    expect(() => sampleTest({ exam: professional, bank: short, seen: new Map(), rng: mulberry32(1) })).toThrow(
+      BankTooSmallError,
+    );
   });
 
   it('is deterministic for a seed and varies across seeds', () => {

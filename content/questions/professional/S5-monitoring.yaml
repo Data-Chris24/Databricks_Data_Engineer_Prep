@@ -1,0 +1,368 @@
+# PRO-S5 — Monitoring and Alerting (10%). Original questions.
+meta:
+  source: Original, written for this repository.
+  note: Covers PRO-S5-O1 through O6.
+
+questions:
+  - id: PRO-S5-Q001
+    objective_ids: [PRO-S5-O1]
+    difficulty: application
+    provenance: original
+    tags: [system-tables, billing, cost]
+    stem: >-
+      Finance asks which SQL warehouses and jobs consumed the most DBUs last month,
+      broken down by the cost-center tag on the compute. Which source answers this
+      with one query?
+    options:
+      A: system.billing.usage, filtered by usage_date and grouped by SKU and the custom tag.
+      B: system.access.audit, grouped by the workspace object that was accessed.
+      C: DESCRIBE HISTORY on each table the jobs wrote to.
+      D: The Jobs UI run list, exported to a spreadsheet.
+    correct: A
+    explanation: >-
+      The billing usage system table records consumption per SKU with the compute's
+      tags and identifiers, which is the governed, queryable source for cost by
+      workload and by tag.
+    distractor_rationale:
+      B: >-
+        The audit log records actions, not consumption; it cannot say how many DBUs a job used.
+      C: >-
+        Table history describes writes to a table, not compute cost.
+      D: >-
+        Run lists have durations, not DBUs or tags, and are not a joinable source.
+
+  - id: PRO-S5-Q002
+    objective_ids: [PRO-S5-O1]
+    difficulty: analysis
+    provenance: original
+    tags: [system-tables, audit, lineage]
+    stem: >-
+      A sensitive table was read by an unexpected principal last week, and a
+      downstream team wants to know which tables were derived from it since. Which
+      two system tables answer the two questions?
+    options:
+      A: system.access.audit for who read it, and system.access.table_lineage for what was derived from it.
+      B: system.billing.usage for who read it, and information_schema.tables for what was derived.
+      C: system.access.table_lineage for both, since lineage records readers.
+      D: DESCRIBE HISTORY for both, since it records every operation on the table.
+    correct: A
+    explanation: >-
+      Audit records actions with the acting identity (reads included); lineage
+      records which tables were produced from which. They are different questions
+      and different system tables.
+    distractor_rationale:
+      B: >-
+        Billing has no reader identity per table, and information_schema has no lineage.
+      C: >-
+        Lineage captures data flow between tables, not interactive reads by a principal.
+      D: >-
+        Table history records writes to that table; it does not know who read it or what was built from it.
+
+  - id: PRO-S5-Q003
+    objective_ids: [PRO-S5-O2]
+    difficulty: application
+    provenance: original
+    tags: [query-profile, spark-ui, which-tool]
+    stem: >-
+      A scheduled notebook job has become slow. An engineer wants to know which stage
+      of which Spark job in the run is responsible, and whether it spills. Which tool,
+      and why not the other?
+    options:
+      A: >-
+        The run's Spark UI, which shows stages and tasks with spill and shuffle metrics; the query profile is per SQL query in the SQL editor or warehouse, not per job run.
+      B: >-
+        The query profile, which shows every stage of the job; the Spark UI only lists jobs.
+      C: >-
+        DESCRIBE HISTORY on the output table, which records execution time per stage.
+      D: >-
+        system.compute tables, which record per-stage metrics for every run.
+    correct: A
+    explanation: >-
+      The Spark UI is the per-run, per-stage view with task-level metrics such as
+      spill and shuffle read. The query profile is the equivalent for a single SQL
+      query on a warehouse. Knowing which tool answers which question is the
+      objective.
+    distractor_rationale:
+      B: >-
+        Reversed: the profile is per query; the Spark UI is the stage-level view for job runs.
+      C: >-
+        Table history records write operations and their metrics, not Spark stages.
+      D: >-
+        Compute system tables describe clusters and warehouses, not stages within a run.
+
+  - id: PRO-S5-Q004
+    objective_ids: [PRO-S5-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [query-profile, files-pruned, layout]
+    stem: >-
+      A SQL query's profile shows files read equal to files in the table and bytes
+      read close to the table's size, although the query filters on a single
+      customer_id. What does the profile tell you, and what is the fix?
+    options:
+      A: >-
+        No file pruning happened for the filter; the table needs locality on the filtered column (cluster on it, or accept a full scan for a near-unique filter).
+      B: >-
+        The warehouse is undersized; scale it up so the scan is faster.
+      C: >-
+        The filter was applied after the scan because customer_id is a string; cast it to a number.
+      D: >-
+        The query cache was cold; the second run will read fewer files.
+    correct: A
+    explanation: >-
+      Files read versus files pruned is the profile's data-skipping metric. Reading
+      every file for a selective filter means the layout gives no locality on that
+      column. If the filter column is a reasonable clustering key, clustering fixes
+      it; if it is nearly unique, the scan is the honest cost.
+    distractor_rationale:
+      B: >-
+        A bigger warehouse scans the same bytes faster; it does not reduce what is read.
+      C: >-
+        Filters on strings prune fine when statistics and locality exist; the type is irrelevant.
+      D: >-
+        Caching may speed repeat reads, but the profile's pruning metric is about the first read's layout.
+
+  - id: PRO-S5-Q005
+    objective_ids: [PRO-S5-O3]
+    difficulty: application
+    provenance: original
+    tags: [jobs-api, cli, run-output, monitoring]
+    stem: >-
+      A monitoring script needs the exit value a notebook task returned with
+      dbutils.notebook.exit(), for the latest run of a job. Which sequence of API
+      calls or CLI commands gets it?
+    options:
+      A: >-
+        List the job's runs to get the latest run id, get the run to find the task's run id, then get-run-output on the task run id.
+      B: >-
+        Get the job definition; the last exit value is stored on the job.
+      C: >-
+        Call get-run on the job run id; the exit value is in the run's state message.
+      D: >-
+        Query system.lakeflow.job_run_timeline, which stores notebook exit values.
+    correct: A
+    explanation: >-
+      Notebook output belongs to the task run, not the job run. runs/list finds the
+      run, runs/get exposes each task's run id, and runs/get-output on that id returns
+      the notebook_output with the exit value. This is how the study app reads a grade.
+    distractor_rationale:
+      B: >-
+        Job definitions hold settings, not run results.
+      C: >-
+        The state message is a status string; outputs are a separate endpoint on the task run.
+      D: >-
+        The run timeline system table records timings and states, not notebook outputs.
+
+  - id: PRO-S5-Q006
+    objective_ids: [PRO-S5-O3]
+    difficulty: analysis
+    provenance: original
+    tags: [jobs-api, trends, automation]
+    stem: >-
+      A team notices that a job's runtime has doubled over three months, but nobody
+      saw it happen because every run succeeded. What monitoring change would have
+      surfaced it?
+    options:
+      A: >-
+        Pull run durations on a schedule through the Jobs API (or system tables) into a table and alert on the trend, since success state alone hides gradual slowdowns.
+      B: >-
+        Enable failure notifications on the job so the team is emailed when it fails.
+      C: >-
+        Add a retry to the job so slow runs are re-attempted.
+      D: >-
+        Increase the job's timeout so slow runs are marked failed sooner.
+    correct: A
+    explanation: >-
+      A green run is not evidence of health. Durations collected over time turn a
+      gradual regression into a visible trend; the API is how that collection outlives
+      a person watching a dashboard.
+    distractor_rationale:
+      B: >-
+        The runs never failed, so failure notifications never fire.
+      C: >-
+        Retries respond to failures; they do nothing about slow successes.
+      D: >-
+        A tighter timeout converts slow runs into failures, which is a blunt alert and loses the output.
+
+  - id: PRO-S5-Q007
+    objective_ids: [PRO-S5-O4]
+    difficulty: application
+    provenance: original
+    tags: [pipeline-event-log, expectations, data-quality]
+    stem: >-
+      A declarative pipeline has an expectation that drops rows failing a rule. Data
+      consumers ask how many rows have been dropped per day over the last month. Where
+      is that recorded?
+    options:
+      A: >-
+        In the pipeline's event log, which records expectation pass and fail counts for every update and can be queried as a table.
+      B: >-
+        In the target table's DESCRIBE HISTORY, which lists rows dropped per commit.
+      C: >-
+        Nowhere; dropped rows are discarded without a count.
+      D: >-
+        In system.access.audit under the pipeline's principal.
+    correct: A
+    explanation: >-
+      The event log is the pipeline's record: flows, updates, errors and per-expectation
+      counts of passed, failed and dropped rows. Querying it as a table is how quality
+      is trended rather than read off one run's page.
+    distractor_rationale:
+      B: >-
+        Table history records the write's operation metrics, not which expectation rejected what.
+      C: >-
+        Counts are kept precisely so quality can be monitored; only the rows themselves are dropped.
+      D: >-
+        The audit log records who did what, not data-quality outcomes.
+
+  - id: PRO-S5-Q008
+    objective_ids: [PRO-S5-O4]
+    difficulty: analysis
+    provenance: original
+    tags: [pipeline-event-log, failure, error-class]
+    stem: >-
+      A pipeline update failed overnight. The engineer wants the error class and the
+      flow that raised it, plus which expectations were violated before the failure.
+      Which single source has all of it?
+    options:
+      A: The pipeline event log, filtered to that update's id.
+      B: The Jobs run list, which shows the failing task's error.
+      C: The driver logs of the pipeline's cluster.
+      D: system.billing.usage, filtered to the pipeline's SKU.
+    correct: A
+    explanation: >-
+      Every pipeline update writes its flows, expectation results and errors (with
+      error class and message) to the event log. It is the one place that ties the
+      failure to the data-quality picture leading up to it.
+    distractor_rationale:
+      B: >-
+        A job that triggers the pipeline shows that the task failed, not the pipeline's internal flows or expectations.
+      C: >-
+        Driver logs are raw and unstructured, and not available on serverless pipelines.
+      D: >-
+        Billing has cost, not errors.
+
+  - id: PRO-S5-Q009
+    objective_ids: [PRO-S5-O5]
+    difficulty: analysis
+    provenance: original
+    tags: [sql-alerts, threshold, seasonality, baseline]
+    stem: >-
+      A SQL alert fires when a daily row count drops below a fixed floor. It fires
+      every Saturday and Sunday, when volume is legitimately lower, and never fired
+      during a slow month-long decline on weekdays. What is the design flaw?
+    options:
+      A: >-
+        A fixed threshold on a seasonal metric; compare each day with a baseline of the same day type and alert on sustained downward deviation from it.
+      B: >-
+        The floor is set too high; lower it until weekends stop firing.
+      C: >-
+        The alert should run hourly instead of daily.
+      D: >-
+        Alerts cannot detect gradual declines; only a dashboard can.
+    correct: A
+    explanation: >-
+      A fixed threshold is honest only when the metric is stationary. With a weekly
+      cycle, any floor above weekend volume fires every weekend and any floor below
+      it never catches a weekday decline. A same-day-type rolling baseline compares
+      like with like.
+    distractor_rationale:
+      B: >-
+        Lowering the floor stops the weekend noise and guarantees the weekday decline is never caught.
+      C: >-
+        Frequency does not fix a comparison that is wrong in kind.
+      D: >-
+        A baseline-relative condition detects gradual declines well; the alert just needs the right query.
+
+  - id: PRO-S5-Q010
+    objective_ids: [PRO-S5-O5]
+    difficulty: application
+    provenance: original
+    tags: [sql-alerts, persistence, false-positives, direction]
+    stem: >-
+      An alert on a pipeline metric fires on any day more than 15% below its
+      baseline. It also fired on the one day a marketing campaign doubled volume,
+      because the query used absolute deviation. Which two changes make the alert
+      trustworthy?
+    options:
+      A: >-
+        Alert only on the downward direction, and require the condition to hold for several consecutive days before firing.
+      B: >-
+        Raise the deviation to 50% and notify a second person.
+      C: >-
+        Switch the comparison to the previous day rather than a baseline.
+      D: >-
+        Disable the alert on days with campaigns.
+    correct: A
+    explanation: >-
+      Unusual is not a useful condition; the direction that means something is a
+      drop. Requiring persistence trades a day of latency for an alert people
+      believe. An alert that cries wolf is ignored, and then the real one is too.
+    distractor_rationale:
+      B: >-
+        A looser threshold delays detection and still fires on a big enough upward spike.
+      C: >-
+        Day-over-day comparisons amplify noise and still treat a spike as an anomaly.
+      D: >-
+        Manual exceptions do not scale and leave the alert firing on the next benign spike.
+
+  - id: PRO-S5-Q011
+    objective_ids: [PRO-S5-O6]
+    difficulty: application
+    provenance: original
+    tags: [job-notifications, duration-warning, health]
+    stem: >-
+      A job normally finishes in 20 minutes. The team wants to be told when a run
+      is still going after 60 minutes, even though it may still succeed, and when it
+      fails. Where is this configured?
+    options:
+      A: >-
+        On the job: a failure notification plus a health rule on run duration (RUN_DURATION_SECONDS) with a notification destination such as a Slack channel.
+      B: >-
+        In a SQL alert over system.lakeflow.job_run_timeline that runs every minute.
+      C: >-
+        In the notebook, with a timer thread that emails after 60 minutes.
+      D: >-
+        By setting the job timeout to 60 minutes, which sends a failure notification.
+    correct: A
+    explanation: >-
+      Jobs carry notification settings for start, success and failure, and health
+      rules for duration and streaming backlog that notify while the run is still in
+      progress. Destinations are configured once and reused across jobs.
+    distractor_rationale:
+      B: >-
+        Possible but indirect and laggy; the job's own health rule exists for exactly this.
+      C: >-
+        Code inside the task cannot observe the task from outside and dies with it.
+      D: >-
+        A timeout kills the run at 60 minutes; the requirement was to be warned while it continues.
+
+  - id: PRO-S5-Q012
+    objective_ids: [PRO-S5-O6]
+    difficulty: recall
+    provenance: original
+    tags: [job-notifications, destinations, channel]
+    stem: >-
+      Which is the recommended way to route job failure notifications so they keep
+      working when the engineer who set them up leaves the team?
+    options:
+      A: >-
+        A shared notification destination (a Slack channel, Teams channel, PagerDuty service or webhook) configured on the job, not an individual's email.
+      B: >-
+        The job owner's email, since ownership transfers automatically.
+      C: >-
+        No notifications; rely on the run list being checked each morning.
+      D: >-
+        A personal webhook on the engineer's laptop.
+    correct: A
+    explanation: >-
+      Notify a channel, not a person. Notification destinations are workspace-level
+      objects reused by many jobs, and a channel survives personnel changes and
+      holidays.
+    distractor_rationale:
+      B: >-
+        Ownership does not transfer on its own, and a personal inbox is a single point of failure.
+      C: >-
+        Manual checking is the failure mode notifications exist to replace.
+      D: >-
+        A laptop is offline more often than a service.
