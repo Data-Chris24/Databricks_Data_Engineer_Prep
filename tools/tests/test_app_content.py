@@ -210,4 +210,4 @@ def test_starters_embed_every_learner_notebook(bundle):
             for x in starters[s.id]:
                 assert x["source"].startswith("# Databricks notebook source"), f"{s.id}/{x['name']}"
     assert [x["name"] for x in starters["ASSOC-S3"]] == ["assignment"]
-    assert [x["name"] for x in starters["ASSOC-S5"]] == ["publish_summary"]
+    assert [x["name"] for x in starters["ASSOC-S5"]] == ["assignment", "publish_summary"]
