@@ -1,0 +1,53 @@
+# Advisory AI review for ASSOC-S5. Never overturns the unit tests.
+assignment: ASSOC-S5
+objective_ids: [ASSOC-S5-O1, ASSOC-S5-O2, ASSOC-S5-O3, ASSOC-S5-O4]
+
+context: >-
+  The learner promoted one job definition to two environments, with the destination
+  supplied by a bundle variable overridden per target rather than written in the
+  notebook.
+
+criteria:
+  - id: one_definition
+    weight: critical
+    asks: Is it genuinely one definition promoted, or two things kept in step by hand?
+    good: A single job resource, deployed to two targets that differ only in a variable.
+    poor: >-
+      Two job resources, two notebooks, or a notebook branching on an environment name
+      internally - all of which drift the moment one is edited.
+
+  - id: no_hardcoded_destination
+    weight: critical
+    asks: Does the notebook contain either schema name?
+    good: Destination arrives as a parameter and the notebook fails loudly without it.
+    poor: >-
+      A default value that silently picks one environment, which is worse than failing
+      because it looks like it worked.
+
+  - id: variable_override
+    weight: high
+    asks: Is the difference expressed as a per-target variable override?
+    good: One variable declared once, overridden in the staging target.
+    poor: Two separate variables, or the value repeated in both targets.
+
+  - id: environment_stamp
+    weight: medium
+    asks: Is the stamp derived from the parameter or written down?
+    good: Derived, so it cannot disagree with where the data actually went.
+    poor: A literal, which makes the two environments indistinguishable in the data.
+
+  - id: gaming
+    weight: critical
+    asks: Would this promote to a third environment without editing the notebook?
+    good: Yes - adding a target is a configuration change.
+    poor: Anything requiring a code edit per environment.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues: [{severity: high | medium | low, location: string, note: string}]
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail.
+  - Judge the approach, not formatting or naming.

@@ -40,6 +40,14 @@ targets:
     default: true
     mode: development
 
+  # A second environment on the same workspace, standing in for staging. It changes
+  # only the `schema` variable - the job definition is identical, which is the whole
+  # point of promoting rather than duplicating.
+  staging:
+    mode: development
+    variables:
+      schema: de_prep_staging
+
   # Premium/trial workspace for the optional classic-compute labs.
   # See docs/optional-classic-track.md - this target bills real infrastructure.
   classic:
