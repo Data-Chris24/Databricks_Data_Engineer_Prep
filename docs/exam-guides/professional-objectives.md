@@ -64,14 +64,14 @@ Guide groups these objectives under:
 ### Section 4: Data Sharing and Federation (5%)
 
 - **`PRO-S4-O1`** — Demonstrate Delta Sharing securely between Databricks deployments using Databricks-to-Databricks sharing (D2D) or to external platforms using the open sharing protocol (D2O).
-  - _Partly hands-on on Free Edition · feasibility unverified_
-  - D2D sharing needs a second Databricks account to share with; D2O needs an external consumer. A learner working alone can likely create the share and recipient and inspect the artifacts without completing a cross-account handshake. Confirm what Free Edition permits.
+  - _Partly hands-on on Free Edition_
+  - Settled by measurement 2026-09-09. The whole provider side is hands-on: CREATE SHARE, ALTER SHARE ADD TABLE/VOLUME with aliases and history options, CREATE RECIPIENT (DATABRICKS auth), GRANT SELECT ON SHARE, SHOW ALL IN SHARE and SHOW GRANTS ON SHARE. Open-protocol (TOKEN) recipients are refused - "External Delta Sharing is not enabled on the metastore", delta_sharing_scope is INTERNAL. The consumer side needs a second metastore: sharing to your own produces no provider, so CREATE CATALOG ... USING SHARE cannot be run.
 - **`PRO-S4-O2`** — Configure Lakehouse Federation with proper governance across the supported source systems.
-  - _Partly hands-on on Free Edition · feasibility unverified_
-  - Federation needs a reachable foreign source, and Free Edition egress is restricted. The account's own Lakebase Postgres project is the most promising federation target - verify a PostgreSQL connection can be created against it.
+  - _Partly hands-on on Free Edition_
+  - Settled by measurement 2026-09-09, for the two targets reachable here. All the DDL and governance is hands-on: CREATE CONNECTION, CREATE FOREIGN CATALOG, GRANT USE CONNECTION, grants on the foreign catalog, system.information_schema.connections, and the dependency rule that blocks dropping a connection a foreign catalog uses. None of it validates anything - a connection to a nonexistent host is accepted. The query path fails with FAILED_JDBC.CONNECTION, including for a databricks-type connection pointed at this workspace's own SQL warehouse. A Lakebase Postgres target is untested: the account gets one Lakebase project and it is reserved for the study app.
 - **`PRO-S4-O3`** — Use Delta Sharing to share live data from the Lakehouse to any computing platform.
-  - _Partly hands-on on Free Edition · feasibility unverified_
-  - See PRO-S4-O1 - needs an external consumer to complete end-to-end.
+  - _Theory only on Free Edition_
+  - Settled by measurement 2026-09-09. "Any computing platform" means the open sharing protocol, which needs a TOKEN recipient and a credential file. This metastore refuses to create one - delta_sharing_scope is INTERNAL, and enabling external sharing is a metastore-admin setting not available on Free Edition. Covered as theory, with the measured refusal shown in the lesson.
 
 ### Section 5: Monitoring and Alerting (10%)
 
@@ -80,8 +80,7 @@ Guide groups these objectives under:
 - Alerting
 
 - **`PRO-S5-O1`** — Use system tables for observability over resource utilization, cost, auditing and workload monitoring.
-  - _feasibility unverified_
-  - Which system table schemas are enabled on Free Edition is unconfirmed - billing and audit tables in particular. Enumerate system.* before writing queries against it.
+  - Settled by measurement 2026-09-09. Thirteen system schemas are present and readable: access, ai, ai_gateway, alert, billing, compute, information_schema, lakeflow, mlflow, query, serving, storage, tags. system.billing.usage and system.access.audit both return rows, so cost and audit observability are fully hands-on.
 - **`PRO-S5-O2`** — Use Query Profiler UI and Spark UI to monitor workloads.
   - _Partly hands-on on Free Edition · optional classic-compute lab_
   - Query Profiler works on the SQL warehouse. Spark UI depth is the gap - see ASSOC-S6-O3.

@@ -87,7 +87,7 @@ See [SOURCES.md](SOURCES.md) for the guide URL and the full exam facts.
 - **`ASSOC-S7-O3`** — Understand column-level masking and row-level security to restrict data visibility based on user groups.
 - **`ASSOC-S7-O4`** — Understand Unity Catalog ABAC policies to centrally control row-level filtering and column masking for sensitive data.
   - _feasibility unverified_
-  - ABAC policy availability on Free Edition is unconfirmed and the feature has been moving quickly. Check before writing a lab that depends on it.
+  - Narrowed by measurement 2026-09-09. The ABAC surface exists on Free Edition: SHOW POLICIES parses, and CREATE POLICY ... COLUMN MASK ... MATCH COLUMNS hasTagValue(...) is accepted as syntax. CREATE GOVERNED TAG also works. What blocks a lab is allowed values: a governed tag is created with an empty allowed-value list, no SQL form sets them (ALTER GOVERNED TAG ... ALLOWED VALUES does not parse), and without them every tag value is rejected - so tag-based ABAC cannot be completed from SQL alone. Remaining unknown: whether the tag-policy API or account console can set allowed values here. NOTE a governed tag with no allowed values BLOCKS ordinary SET TAGS on that key across the metastore - do not create one casually.
 
 ## Recommended training (from the guide)
 

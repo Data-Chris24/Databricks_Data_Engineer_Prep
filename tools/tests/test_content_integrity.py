@@ -184,3 +184,52 @@ def test_rendered_objective_docs_are_current():
         assert target.read_text() == render(exam), (
             f"{target.name} is stale - run: python3 tools/render_objectives.py"
         )
+
+
+def test_notebook_cell_magic_check_catches_a_missing_header(tmp_path, monkeypatch):
+    """The check must fail a cell whose `# MAGIC %md` header is missing.
+
+    This is the bug it exists for: prose without the magic deploys as a code cell,
+    and only fails later, on whichever character Python cannot parse.
+    """
+    import validate_content as vc
+
+    nb = tmp_path / "notebooks" / "lessons"
+    nb.mkdir(parents=True)
+    (nb / "broken.py").write_text(
+        "# Databricks notebook source\n"
+        "# MAGIC %md\n"
+        "# MAGIC # fine\n\n"
+        "# COMMAND ----------\n\n"
+        "# MAGIC ## no magic declared — an em dash Python cannot parse\n"
+    )
+    (tmp_path / "solutions").mkdir()
+
+    monkeypatch.setattr(vc, "REPO_ROOT", tmp_path)
+    vc.errors.clear()
+    vc.check_notebook_cells()
+    assert any("no magic declaration" in e for e in vc.errors), vc.errors
+    vc.errors.clear()
+
+
+def test_notebook_cell_magic_check_passes_a_correct_notebook(tmp_path, monkeypatch):
+    import validate_content as vc
+
+    nb = tmp_path / "notebooks"
+    nb.mkdir(parents=True)
+    (nb / "ok.py").write_text(
+        "# Databricks notebook source\n"
+        "# MAGIC %md\n"
+        "# MAGIC # heading\n\n"
+        "# COMMAND ----------\n\n"
+        "print('code')\n\n"
+        "# COMMAND ----------\n\n"
+        "# MAGIC %sql\n"
+        "# MAGIC SELECT 1\n"
+    )
+    (tmp_path / "solutions").mkdir()
+
+    monkeypatch.setattr(vc, "REPO_ROOT", tmp_path)
+    vc.errors.clear()
+    vc.check_notebook_cells()
+    assert vc.errors == []

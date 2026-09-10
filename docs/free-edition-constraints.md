@@ -95,6 +95,40 @@ Not practisable here at all. Both have an optional classic-compute lab.
 | `ASSOC-S2-O5` — JDBC ingestion | **full** — better than expected. `spark.read.format("jdbc")` works on serverless, and the workspace's own SQL warehouse serves as the JDBC source, so no external database and no Lakebase project is needed. Secret scopes work too, so `dbutils.secrets.get` is available. |
 | `PRO-S2-O1` — file formats | **full.** Every format the objective names round-trips on serverless: Parquet, ORC, Avro, JSON, CSV, XML (`format("xml")` with `rowTag`), `text` and Delta all write **and** read; `binaryFile` reads, returning `path`, `modificationTime`, `length`, `content`. No library installs needed. |
 | `PRO-S2-O2` — append-only batch + streaming | **full.** Auto Loader (`cloudFiles`) over a UC volume writing to a table with `trigger(availableNow=True)` works, checkpoints resume correctly, and a Delta table can be read as a stream. An `UPDATE` on the source makes the downstream stream fail with `DELTA_SOURCE_TABLE_IGNORE_CHANGES`; `skipChangeCommits` clears it. |
+| `PRO-S4-O1` — Delta Sharing | **partial.** The whole provider side works: `CREATE SHARE`, `ALTER SHARE ADD TABLE/VOLUME` with aliases and history options, `CREATE RECIPIENT` (DATABRICKS auth), `GRANT SELECT ON SHARE`, `SHOW ALL IN SHARE`, `SHOW GRANTS ON SHARE`. Open-protocol (`TOKEN`) recipients are refused — *External Delta Sharing is not enabled on the metastore*, `delta_sharing_scope = INTERNAL`. The consumer side needs a second metastore: sharing to your own produces no provider. |
+| `PRO-S4-O2` — Lakehouse Federation | **partial.** All DDL and governance works — `CREATE CONNECTION`, `CREATE FOREIGN CATALOG`, `GRANT USE CONNECTION`, `system.information_schema.connections`, and the rule that a connection cannot be dropped while a foreign catalog uses it. **None of it validates anything**: a connection to a nonexistent host is accepted. The query path fails with `FAILED_JDBC.CONNECTION`, including a `databricks`-type connection to this workspace's own SQL warehouse. A Lakebase Postgres target is untested — one project per account, reserved for the study app. |
+| `PRO-S4-O3` — share to any platform | **theory only.** Needs the open sharing protocol, which needs a `TOKEN` recipient. Refused here. |
+| `PRO-S5-O1` — system tables | **full.** Thirteen schemas readable: access, ai, ai_gateway, alert, billing, compute, information_schema, lakeflow, mlflow, query, serving, storage, tags. `system.billing.usage` and `system.access.audit` both return rows. |
+
+### Delta Sharing constraints worth knowing before you plan a lab
+
+Measured 2026-09-09, all of them silent or surprising:
+
+- **Sharing checks traversal explicitly.** `ALTER SHARE ... ADD TABLE` fails with
+  `PERMISSION_DENIED` unless you hold `USE CATALOG` and `USE SCHEMA` — owning the
+  table is not enough.
+- **A plain `ADD TABLE` shares the history.** `history_sharing` defaults to `ENABLED`.
+  Nothing warns you; `SHOW ALL IN SHARE` tells you only if you read the column.
+- **Deletion vectors block history-free sharing.** `WITHOUT HISTORY` is refused with
+  `DS_UNSUPPORTED_DELTA_TABLE_FEATURES`. The remedy is
+  `delta.enableDeletionVectors = false` **then** `REORG TABLE ... APPLY (PURGE)` —
+  turning the property off alone does not remove the vectors already written.
+- **`WITH CHANGE DATA FEED` is refused entirely**, because tables here are encrypted
+  with Databricks-managed keys. `cdf_shared` follows the table's own
+  `delta.enableChangeDataFeed` property instead, so CDF sharing *is* achievable —
+  just not through the documented clause.
+- **An alias is permanent.** `ALTER SHARE ... REMOVE TABLE` takes the *shared* name,
+  so an object added `AS partner.x` cannot be removed by its source path.
+- **A shared table cannot be dropped** — `DELTA_SHARING_SECURABLE_DELETE_BLOCKED.BY_SHARES`.
+- **`SHOW SHARES` names its first column `share`, not `name`.**
+
+### Governed tags: a footgun
+
+`CREATE GOVERNED TAG <key>` works, and creates the key with an **empty allowed-value
+list**. No SQL form was found to populate it (`ALTER GOVERNED TAG ... ALLOWED VALUES`
+does not parse). While it exists, ordinary `SET TAGS` on that key is rejected
+**everywhere in the metastore** — so creating one casually breaks unrelated tagging
+until you `DROP GOVERNED TAG` it.
 
 ### A cast that fails may never run
 
