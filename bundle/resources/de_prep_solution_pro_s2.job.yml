@@ -1,0 +1,10 @@
+resources:
+  jobs:
+    run_solution_pro_s2:
+      name: "[DE prep] Reference solution PRO-S2"
+      tasks:
+        - task_key: solution
+          notebook_task:
+            notebook_path: ../../solutions/PRO-S2/solution.py
+      queue:
+        enabled: true

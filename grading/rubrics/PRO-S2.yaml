@@ -1,0 +1,69 @@
+# Advisory AI review for PRO-S2. Never overturns the unit tests.
+assignment: PRO-S2
+objective_ids: [PRO-S2-O1, PRO-S2-O2]
+
+context: >-
+  The learner ingested five formats - JSON, Parquet, Avro, CSV and XML - into an
+  append-only bronze table and resolved re-deliveries into silver. The sources
+  disagree on column order, types, nesting and delivery count. The lesson taught the
+  same pipeline over three formats that agreed on all of it.
+
+criteria:
+  - id: read_each_format_on_its_terms
+    weight: critical
+    asks: Did each source get the reader it needs, or did one reader get reused?
+    good: >-
+      A declared schema for JSON, rowTag plus dotted paths for XML, an explicit
+      timestamp pattern for the CSV, and allowMissingColumns for Avro's extra column.
+    poor: >-
+      One schema applied to everything. It runs, and the sources that do not match it
+      come back silently mangled rather than raising.
+
+  - id: aligned_by_name
+    weight: critical
+    asks: Are columns matched by name, everywhere it matters?
+    good: >-
+      unionByName between sources, and the CSV read in a way that respects its header
+      rather than its column positions.
+    poor: >-
+      union, or a CSV read with header plus an explicit schema and no enforceSchema
+      change - both line columns up by position and both are accepted without error.
+
+  - id: bronze_is_append_only
+    weight: critical
+    asks: Does bronze keep what it was given?
+    good: >-
+      All 660 records, corrections and originals alike, with source_format recorded so
+      a later question about provenance is answerable.
+    poor: >-
+      De-duplicated in bronze. The pipeline now has no record of what arrived, which
+      is the one thing bronze exists to provide.
+
+  - id: types_were_pinned
+    weight: high
+    asks: Did the learner decide the output types, or accept what the union produced?
+    good: An explicit cast on the final projection, matching the declared contract.
+    poor: >-
+      Whatever the widest source implied. It happens to work until a source changes
+      and the table's schema changes with it.
+
+  - id: verified_rather_than_assumed
+    weight: medium
+    asks: Is there evidence they checked, rather than ran and hoped?
+    good: >-
+      A count of rows whose facility is not a facility, a null check on scanned_at, or
+      a bronze-versus-silver row count - any check that would have caught a silent
+      failure.
+    poor: >-
+      Wrote both tables and went straight to grading. Every failure mode in this
+      assignment produces output that looks plausible.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues: [{severity: high | medium | low, location: string, note: string}]
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail.
+  - Judge the reading and combining strategy, not naming or formatting.

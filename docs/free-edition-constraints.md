@@ -93,6 +93,23 @@ Not practisable here at all. Both have an optional classic-compute lab.
 | --- | --- |
 | `ASSOC-S2-O4` — Lakeflow Connect | **partial.** Standard connectors (Auto Loader / `read_files` over a UC volume) are fully hands-on. Managed connectors cannot be created: the database ones need an ingestion gateway on classic compute, which does not exist here. Cover them as a dry-run spec walkthrough. |
 | `ASSOC-S2-O5` — JDBC ingestion | **full** — better than expected. `spark.read.format("jdbc")` works on serverless, and the workspace's own SQL warehouse serves as the JDBC source, so no external database and no Lakebase project is needed. Secret scopes work too, so `dbutils.secrets.get` is available. |
+| `PRO-S2-O1` — file formats | **full.** Every format the objective names round-trips on serverless: Parquet, ORC, Avro, JSON, CSV, XML (`format("xml")` with `rowTag`), `text` and Delta all write **and** read; `binaryFile` reads, returning `path`, `modificationTime`, `length`, `content`. No library installs needed. |
+| `PRO-S2-O2` — append-only batch + streaming | **full.** Auto Loader (`cloudFiles`) over a UC volume writing to a table with `trigger(availableNow=True)` works, checkpoints resume correctly, and a Delta table can be read as a stream. An `UPDATE` on the source makes the downstream stream fail with `DELTA_SOURCE_TABLE_IGNORE_CHANGES`; `skipChangeCommits` clears it. |
+
+### A cast that fails may never run
+
+ANSI mode is on (`spark.sql.ansi.enabled = true`), so an invalid cast raises
+`CAST_INVALID_INPUT` — **when it executes.** Measured on serverless: `count()` over a
+projection nothing consumes returns a number with no error, because the projection is
+pruned before evaluation, and `filter(col.isNull())` over such a cast folds to a null
+check on the source column and returns 0. The same expression `collect()`ed raises.
+
+A small literal DataFrame behaves differently again: the cast is folded at plan time
+and raises immediately. So a file-backed read is what reproduces the pruning.
+
+**Consequence for content:** never treat "the query returned a number" as evidence a
+cast is valid. Validate by materialising values, or with `try_cast` and an explicit
+null count.
 
 ### Partly hands-on
 
