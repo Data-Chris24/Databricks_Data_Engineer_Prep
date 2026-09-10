@@ -156,3 +156,12 @@ except Exception as e:
 # MAGIC - `assertDataFrameEqual` compares content and reports the difference;
 # MAGIC   `assertSchemaEqual` compares structure including column order.
 # MAGIC - Expected values come from a fixture you wrote, never from the pipeline.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [02_pipelines_and_cdc](./02_pipelines_and_cdc).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S1 assignment notebook](../../../assignments/PRO-S1/assignment) · [the task](../../../assignments/PRO-S1/README.md).

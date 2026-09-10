@@ -81,3 +81,12 @@ print("restored          :", spark.table("s4_bronze_shipments").count())
 # MAGIC - A task's dependencies control **ordering**, not atomicity.
 # MAGIC - A retry reruns the whole task. Design for that, or do not enable retries.
 # MAGIC - Task values pass small results and are visible in the run history.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [02_transform_and_publish](./02_transform_and_publish).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [ASSOC-S4 assignment notebook](../../../assignments/ASSOC-S4/assignment) · [the task](../../../assignments/ASSOC-S4/README.md).

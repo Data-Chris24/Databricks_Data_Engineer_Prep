@@ -105,3 +105,10 @@ print("(none expected - the teach metric is stable)")
 # MAGIC
 # MAGIC The assignment applies all four to a metric where the naive threshold provably
 # MAGIC cannot work.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S5 assignment notebook](../../../assignments/PRO-S5/assignment) · [the task](../../../assignments/PRO-S5/README.md).

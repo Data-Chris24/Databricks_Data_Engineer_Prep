@@ -101,3 +101,12 @@ print(f"{before} -> {after}; the intermediate state was never visible to a reade
 # MAGIC When a question asks for reliable rollback, an audit trail, and one governed copy
 # MAGIC for AI and BI, the answer is Delta Lake for the guarantees and Unity Catalog for
 # MAGIC the governance.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [02_catalog_and_compute](./02_catalog_and_compute).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [ASSOC-S1 assignment notebook](../../../assignments/ASSOC-S1/assignment) · [the task](../../../assignments/ASSOC-S1/README.md).

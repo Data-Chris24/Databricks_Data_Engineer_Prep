@@ -12,7 +12,7 @@
   ],
   "assignment": {
    "readme": "notebooks/assignments/ASSOC-S1/README.md",
-   "notebook": null,
+   "notebook": "notebooks/assignments/ASSOC-S1/assignment",
    "grade_job": "grade_assoc_s1"
   }
  },
@@ -71,7 +71,7 @@
   ],
   "assignment": {
    "readme": "notebooks/assignments/ASSOC-S4/README.md",
-   "notebook": null,
+   "notebook": "notebooks/assignments/ASSOC-S4/assignment",
    "grade_job": "grade_assoc_s4"
   }
  },
@@ -88,7 +88,7 @@
   ],
   "assignment": {
    "readme": "notebooks/assignments/ASSOC-S5/README.md",
-   "notebook": null,
+   "notebook": "notebooks/assignments/ASSOC-S5/assignment",
    "grade_job": "grade_assoc_s5"
   }
  },
@@ -105,7 +105,7 @@
   ],
   "assignment": {
    "readme": "notebooks/assignments/ASSOC-S6/README.md",
-   "notebook": null,
+   "notebook": "notebooks/assignments/ASSOC-S6/assignment",
    "grade_job": "grade_assoc_s6"
   }
  },
@@ -122,7 +122,7 @@
   ],
   "assignment": {
    "readme": "notebooks/assignments/ASSOC-S7/README.md",
-   "notebook": null,
+   "notebook": "notebooks/assignments/ASSOC-S7/assignment",
    "grade_job": "grade_assoc_s7"
   }
  },
@@ -139,7 +139,7 @@
   ],
   "assignment": {
    "readme": "notebooks/assignments/PRO-S1/README.md",
-   "notebook": null,
+   "notebook": "notebooks/assignments/PRO-S1/assignment",
    "grade_job": "grade_pro_s1"
   }
  },
@@ -169,7 +169,7 @@
   ],
   "assignment": {
    "readme": "notebooks/assignments/PRO-S3/README.md",
-   "notebook": null,
+   "notebook": "notebooks/assignments/PRO-S3/assignment",
    "grade_job": "grade_pro_s3"
   }
  },
@@ -203,7 +203,7 @@
   ],
   "assignment": {
    "readme": "notebooks/assignments/PRO-S5/README.md",
-   "notebook": null,
+   "notebook": "notebooks/assignments/PRO-S5/assignment",
    "grade_job": "grade_pro_s5"
   }
  },
@@ -220,7 +220,7 @@
   ],
   "assignment": {
    "readme": "notebooks/assignments/PRO-S6/README.md",
-   "notebook": null,
+   "notebook": "notebooks/assignments/PRO-S6/assignment",
    "grade_job": "grade_pro_s6"
   }
  },
@@ -237,7 +237,7 @@
   ],
   "assignment": {
    "readme": "notebooks/assignments/PRO-S7/README.md",
-   "notebook": null,
+   "notebook": "notebooks/assignments/PRO-S7/assignment",
    "grade_job": "grade_pro_s7"
   }
  },
@@ -271,7 +271,7 @@
   ],
   "assignment": {
    "readme": "notebooks/assignments/PRO-S9/README.md",
-   "notebook": null,
+   "notebook": "notebooks/assignments/PRO-S9/assignment",
    "grade_job": "grade_pro_s9"
   }
  },

@@ -128,3 +128,12 @@ print("breaches:", m.filter(F.col("rows_processed") < THRESHOLD).count())
 # MAGIC The assignment's metric has a weekly cycle and a degradation that hides inside
 # MAGIC normal range. A fixed threshold there either fires every weekend or never fires
 # MAGIC at all.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [02_alert_design](./02_alert_design).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S5 assignment notebook](../../../assignments/PRO-S5/assignment) · [the task](../../../assignments/PRO-S5/README.md).

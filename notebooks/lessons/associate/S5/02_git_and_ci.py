@@ -87,3 +87,10 @@ print("A path under an email address means a human did.")
 # MAGIC
 # MAGIC Now do the assignment: promote one job definition to **two** environments with a
 # MAGIC per-target variable override.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [ASSOC-S5 assignment notebook](../../../assignments/ASSOC-S5/assignment) · [the task](../../../assignments/ASSOC-S5/README.md).

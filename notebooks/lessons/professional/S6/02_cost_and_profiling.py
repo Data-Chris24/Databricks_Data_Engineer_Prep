@@ -96,3 +96,10 @@ except Exception as e:
 # MAGIC answer comes from `DESCRIBE DETAIL` and the query profile rather than intuition.
 # MAGIC
 # MAGIC The assignment's table has three of these at once.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S6 assignment notebook](../../../assignments/PRO-S6/assignment) · [the task](../../../assignments/PRO-S6/README.md).

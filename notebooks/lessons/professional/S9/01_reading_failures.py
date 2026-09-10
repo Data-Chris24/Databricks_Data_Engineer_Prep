@@ -104,3 +104,12 @@ display(spark.sql("DESCRIBE HISTORY pro_s9_teach_raw").select(
 # MAGIC **All of this assumes something failed.** The assignment's pipeline reports
 # MAGIC SUCCESS every day and is wrong anyway — no exception, no error class, nothing in
 # MAGIC the run state. Section 2 is about that case.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [02_deploying_and_silent_failure](./02_deploying_and_silent_failure).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S9 assignment notebook](../../../assignments/PRO-S9/assignment) · [the task](../../../assignments/PRO-S9/README.md).

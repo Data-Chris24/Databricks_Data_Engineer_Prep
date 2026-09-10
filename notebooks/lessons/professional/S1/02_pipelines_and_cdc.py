@@ -112,3 +112,10 @@ display(spark.table("pro_s1_teach_silver").limit(5))
 # MAGIC
 # MAGIC The assignment's source is a change feed with out-of-order events, deletes, and
 # MAGIC keys that are deleted then resurrected. Section 3 above will not survive it.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S1 assignment notebook](../../../assignments/PRO-S1/assignment) · [the task](../../../assignments/PRO-S1/README.md).
