@@ -166,3 +166,12 @@ display(spark.sql("""
 # MAGIC | Reach for Auto Loader instead when | Files arrive continuously, or at a volume where tracking them file-by-file becomes the bottleneck, or the schema changes over time |
 # MAGIC
 # MAGIC That last row is the next lesson.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [02_auto_loader](./02_auto_loader).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [ASSOC-S2 assignment notebook](../../../assignments/ASSOC-S2/assignment) · [the task](../../../assignments/ASSOC-S2/README.md).

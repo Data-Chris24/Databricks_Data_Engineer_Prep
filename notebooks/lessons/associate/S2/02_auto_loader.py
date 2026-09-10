@@ -145,3 +145,12 @@ print("rows after re-running:", spark.table("bronze_orders_al").count())
 
 # The landing area persists for the next lesson. Nothing here touches s2_teach.
 print("done - continue with 03_schema_evolution.py")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [03_schema_evolution](./03_schema_evolution).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [ASSOC-S2 assignment notebook](../../../assignments/ASSOC-S2/assignment) · [the task](../../../assignments/ASSOC-S2/README.md).

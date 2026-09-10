@@ -1,0 +1,2400 @@
+[
+ {
+  "id": "ASSOC-S1-Q002",
+  "exam": "associate",
+  "section": "ASSOC-S1",
+  "objectives": [
+   "ASSOC-S1-O1"
+  ],
+  "stem": "What does the Delta transaction log make possible that plain Parquet files in object storage do not?",
+  "code": null,
+  "options": {
+   "A": "ACID transactions, time travel to earlier versions, and readers never seeing a half-finished write.",
+   "B": "Columnar storage and compression.",
+   "C": "Predicate pushdown when filtering.",
+   "D": "Storing data across multiple cloud providers."
+  },
+  "correct": "A",
+  "explanation": "Delta is Parquet plus an ordered transaction log. The log is what makes a write atomic, gives every version a number you can query with time travel, and lets concurrent readers see a consistent snapshot rather than a directory mid-update. The columnar benefits come from Parquet underneath; the guarantees come from the log.",
+  "why": {
+   "B": "Parquet already provides these; Delta inherits rather than adds them.",
+   "C": "Also a Parquet capability, though Delta's statistics improve the skipping.",
+   "D": "Unrelated to the format."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "delta-lake",
+   "transaction-log",
+   "time-travel"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S1-Q002"
+ },
+ {
+  "id": "ASSOC-S1-Q003",
+  "exam": "associate",
+  "section": "ASSOC-S1",
+  "objectives": [
+   "ASSOC-S1-O2"
+  ],
+  "stem": "A nightly ETL job runs for 12 minutes. Which compute choice is most cost-effective, and why?",
+  "code": null,
+  "options": {
+   "A": "Job compute, which is created for the run and terminated afterwards, so you pay for the work rather than the day.",
+   "B": "An all-purpose cluster left running, to avoid startup time each night.",
+   "C": "A SQL warehouse, since the transformations are expressible in SQL.",
+   "D": "A single-node cluster, because the dataset is small."
+  },
+  "correct": "A",
+  "explanation": "Job compute exists for exactly this shape of work: it spins up, runs, and stops, so a 12-minute job costs 12 minutes rather than 24 hours. It is also billed at a lower DBU rate than all-purpose compute. When a question pairs a scheduled workload with \"lowest cost\", this is nearly always the answer.",
+  "why": {
+   "B": "Paying for 24 hours to save a few minutes of startup, at the higher all-purpose rate.",
+   "C": "Warehouses are built for serving queries, not for orchestrated ETL, and one left warm costs more than a job cluster that terminates.",
+   "D": "Node count is a separate decision from compute *type* - a single-node all-purpose cluster still runs when nothing is happening."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "serverless",
+   "job-compute",
+   "cost"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S1-Q003"
+ },
+ {
+  "id": "ASSOC-S5-Q002",
+  "exam": "associate",
+  "section": "ASSOC-S5",
+  "objectives": [
+   "ASSOC-S5-O2"
+  ],
+  "stem": "A bundle must write to a dev catalog in development and a prod catalog in production, from one codebase. What is the intended mechanism?",
+  "code": null,
+  "options": {
+   "A": "A bundle variable for the catalog, overridden per target.",
+   "B": "Two copies of the bundle, one per environment.",
+   "C": "An if statement in each notebook checking an environment variable.",
+   "D": "Editing databricks.yml before each deployment."
+  },
+  "correct": "A",
+  "explanation": "Declare the variable once and override it in each target's block. One definition gets promoted across environments with only its configuration differing - which is the whole point of bundles, and the thing that makes a dev deployment genuinely representative of prod.",
+  "why": {
+   "B": "Two copies diverge. The moment they do, dev stops predicting prod.",
+   "C": "This scatters environment logic across every notebook instead of keeping it in one declarative place.",
+   "D": "Hand-editing before deploying is the manual step CI/CD exists to remove."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "dabs",
+   "targets",
+   "variables",
+   "promotion"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S5-Q002"
+ },
+ {
+  "id": "ASSOC-S5-Q003",
+  "exam": "associate",
+  "section": "ASSOC-S5",
+  "objectives": [
+   "ASSOC-S5-O4"
+  ],
+  "stem": "In a CI pipeline, what does `databricks bundle validate` check before a deployment is attempted?",
+  "code": null,
+  "options": {
+   "A": "That the bundle configuration parses and resolves - syntax, references, variables and target overrides.",
+   "B": "That the notebooks in the bundle run without error.",
+   "C": "That the target workspace has enough compute quota available.",
+   "D": "That the deployed resources match what is already in the workspace."
+  },
+  "correct": "A",
+  "explanation": "Validation is a configuration check: it catches a malformed YAML, an unresolved variable or a bad reference before anything is uploaded. It does not execute your code, so a bundle can validate cleanly and still fail at runtime - which is why a pipeline usually runs tests as well as validation.",
+  "why": {
+   "B": "Validation never runs notebooks.",
+   "C": "Quota problems surface at deploy or run time, not validation.",
+   "D": "That is closer to what deploy computes when it works out what to change."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "databricks-cli",
+   "bundle-validate",
+   "ci"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S5-Q003"
+ },
+ {
+  "id": "ASSOC-S5-Q004",
+  "exam": "associate",
+  "section": "ASSOC-S5",
+  "objectives": [
+   "ASSOC-S5-O1"
+  ],
+  "stem": "Two engineers are working on the same pipeline in Databricks Git folders. What is the recommended way to avoid overwriting each other's work?",
+  "code": null,
+  "options": {
+   "A": "Each works in their own branch and integrates through pull requests.",
+   "B": "They coordinate verbally so only one edits at a time.",
+   "C": "They share one Git folder and commit frequently to reduce conflicts.",
+   "D": "Each keeps a personal copy of the notebooks outside Git."
+  },
+  "correct": "A",
+  "explanation": "Branch-per-change with review is the standard workflow, and Git folders support it directly. Beyond avoiding collisions, it gives every change a review point and a revert path - the things you want on the day something breaks in production.",
+  "why": {
+   "B": "Verbal coordination is not a mechanism; it fails the first time someone forgets.",
+   "C": "Frequent commits to one branch make conflicts more likely, not less, and there is no review.",
+   "D": "Copies outside Git have no history and no way back."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "git-folders",
+   "branches",
+   "collaboration"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S5-Q004"
+ },
+ {
+  "id": "ASSOC-S6-Q003",
+  "exam": "associate",
+  "section": "ASSOC-S6",
+  "objectives": [
+   "ASSOC-S6-O4"
+  ],
+  "stem": "Why does Databricks now recommend liquid clustering over partitioning for most tables?",
+  "code": null,
+  "options": {
+   "A": "Clustering keys can be changed later without rewriting the table, and it avoids the skew and small-file problems a badly chosen partition column causes.",
+   "B": "Liquid clustering compresses data more effectively than partitioning.",
+   "C": "Partitioning is deprecated and will be removed.",
+   "D": "Liquid clustering removes the need for statistics on the table."
+  },
+  "correct": "A",
+  "explanation": "A partition column is a decision you are stuck with - changing it means rewriting the table - and choosing badly gives you either enormous skewed partitions or millions of tiny files. Liquid clustering lets you change keys with ALTER TABLE and adapts the layout incrementally, which removes the up-front bet.",
+  "why": {
+   "B": "Compression is a Parquet-level concern and unchanged by either.",
+   "C": "Partitioning still works and remains sensible for some tables.",
+   "D": "Statistics are still collected and still drive data skipping."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "liquid-clustering",
+   "partitioning",
+   "layout"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S6-Q003"
+ },
+ {
+  "id": "ASSOC-S6-Q004",
+  "exam": "associate",
+  "section": "ASSOC-S6",
+  "objectives": [
+   "ASSOC-S6-O1",
+   "ASSOC-S6-O2"
+  ],
+  "stem": "A nightly job that normally finishes in 20 minutes took 90 last night but reported success. Where should investigation start?",
+  "code": null,
+  "options": {
+   "A": "The Lakeflow Jobs run history, comparing this run's task durations against previous runs to find which task changed.",
+   "B": "The cluster event log, since a successful run cannot have a data problem.",
+   "C": "The table's history, to see whether anyone changed the schema.",
+   "D": "Nowhere - a successful run needs no investigation."
+  },
+  "correct": "A",
+  "explanation": "Run history gives you the comparison that localises the problem: if one task went from 2 minutes to 70 while the rest held steady, you know where to look before opening a single log. Starting from the narrowest signal is what stops an investigation sprawling.",
+  "why": {
+   "B": "A run can succeed and still be unhealthy - a data volume spike or growing skew will do it.",
+   "C": "Worth checking eventually, but only once you know which task slowed down.",
+   "D": "A 4.5x slowdown is a warning. Left alone it becomes a missed SLA or a quota breach."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "run-history",
+   "monitoring",
+   "baseline"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S6-Q004"
+ },
+ {
+  "id": "ASSOC-S6-Q005",
+  "exam": "associate",
+  "section": "ASSOC-S6",
+  "objectives": [
+   "ASSOC-S6-O3"
+  ],
+  "stem": "A Spark stage shows significant \"spill (disk)\" in the Spark UI. What does that indicate?",
+  "code": null,
+  "options": {
+   "A": "Task working sets exceeded available memory and were written to disk, which is correct but far slower than staying in memory.",
+   "B": "The job failed and Spark is writing an error dump.",
+   "C": "Data is being cached to disk deliberately for reuse.",
+   "D": "The shuffle files are being compacted."
+  },
+  "correct": "A",
+  "explanation": "Spill is Spark surviving rather than failing - it moves data to disk instead of raising an out-of-memory error. The result is correct and slow. The usual causes are partitions that are too large or a skewed key sending disproportionate data to one task, so the fixes are more partitions, less data per task, or addressing the skew.",
+  "why": {
+   "B": "Spill is a normal memory-management event, not a failure artifact.",
+   "C": "That is caching, which is deliberate and shown separately. Spill is involuntary.",
+   "D": "Compaction is a table maintenance operation, unrelated to stage-level spill."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "spill",
+   "spark-ui",
+   "memory"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S6-Q005"
+ },
+ {
+  "id": "ASSOC-S2-Q002",
+  "exam": "associate",
+  "section": "ASSOC-S2",
+  "objectives": [
+   "ASSOC-S2-O2"
+  ],
+  "stem": "A COPY INTO statement loading a directory of CSV files is run twice in a row, with no new files added between runs. What does the second run do?",
+  "code": null,
+  "options": {
+   "A": "Nothing - it skips files already recorded as loaded, so the row count is unchanged.",
+   "B": "It loads every file again, doubling the row count.",
+   "C": "It fails, because the target table already contains those records.",
+   "D": "It reloads only files whose modification time changed."
+  },
+  "correct": "A",
+  "explanation": "COPY INTO tracks which files it has ingested in the table's metadata, so re-running it is a no-op. That idempotence is what makes it safe to schedule and safe to retry after a failure - the property the exam keeps probing, because it is what separates an incremental load from a bulk insert.",
+  "why": {
+   "B": "That would be an INSERT INTO with a file read - COPY INTO exists to avoid it.",
+   "C": "Re-running is expected and supported, not an error.",
+   "D": "Tracking is by file identity, not modification time. A modified file that was already loaded is not reloaded by default."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "copy-into",
+   "idempotency",
+   "incremental"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S2-Q002"
+ },
+ {
+  "id": "ASSOC-S2-Q003",
+  "exam": "associate",
+  "section": "ASSOC-S2",
+  "objectives": [
+   "ASSOC-S2-O2"
+  ],
+  "stem": "An engineer creates a target table with unit_price DOUBLE, then runs COPY INTO from CSV files. The load fails with DELTA_FAILED_TO_MERGE_FIELDS. Why?",
+  "code": null,
+  "options": {
+   "A": "CSV delivers every field as text and COPY INTO will not silently coerce it into the declared numeric type.",
+   "B": "The CSV files contain a header row that conflicts with the schema.",
+   "C": "DOUBLE is not a supported column type for COPY INTO.",
+   "D": "The table must be empty before COPY INTO can run."
+  },
+  "correct": "A",
+  "explanation": "CSV has no type information - every field is a string until something interprets it. Rather than coerce silently, which is where numbers quietly change, COPY INTO refuses. The usual fix is also better medallion practice: make bronze all STRING, faithful to the source, and cast on the way to silver where a bad value becomes a countable null instead of a failed load.",
+  "why": {
+   "B": "A header is handled by FORMAT_OPTIONS ('header' = 'true') and causes a different error.",
+   "C": "DOUBLE is perfectly supported as a target type.",
+   "D": "COPY INTO appends to a table that already has data; that is its purpose."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "copy-into",
+   "schema",
+   "csv",
+   "types"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S2-Q003"
+ },
+ {
+  "id": "ASSOC-S2-Q004",
+  "exam": "associate",
+  "section": "ASSOC-S2",
+  "objectives": [
+   "ASSOC-S2-O3"
+  ],
+  "stem": "An Auto Loader stream uses both a checkpointLocation and a cloudFiles.schemaLocation. An engineer deletes the checkpoint directory and restarts the stream. What happens?",
+  "code": null,
+  "options": {
+   "A": "Every file in the source is processed again, because the record of what was consumed is gone.",
+   "B": "Only the schema is re-inferred; file tracking is unaffected.",
+   "C": "The stream fails to start until the checkpoint is restored.",
+   "D": "Nothing changes - the schema location also tracks processed files."
+  },
+  "correct": "A",
+  "explanation": "The two locations do different jobs and confusing them is a classic trap. The checkpoint records which files have been consumed - delete it and the stream has no memory, so it reprocesses everything and duplicates data unless the sink can absorb it. The schema location holds the inferred schema and its versions, which is what makes evolution possible.",
+  "why": {
+   "B": "Reversed - the schema location holds the schema; the checkpoint holds progress.",
+   "C": "The stream starts happily. It simply believes it has never seen any of the files.",
+   "D": "They are separate. Neither substitutes for the other."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "auto-loader",
+   "checkpoint",
+   "schema-location"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S2-Q004"
+ },
+ {
+  "id": "ASSOC-S2-Q005",
+  "exam": "associate",
+  "section": "ASSOC-S2",
+  "objectives": [
+   "ASSOC-S2-O3"
+  ],
+  "stem": "An Auto Loader stream with schemaEvolutionMode = addNewColumns fails when a new column appears, reporting \"which can be fixed by an automatic retry: true\". What is the correct response?",
+  "code": null,
+  "options": {
+   "A": "Restart the stream - the new schema has been recorded and the next run succeeds. Configure job retries so this is handled automatically.",
+   "B": "Change schemaEvolutionMode to none so the stream stops failing.",
+   "C": "Delete the schema location so the schema is re-inferred from scratch.",
+   "D": "Manually ALTER TABLE to add the column, then restart."
+  },
+  "correct": "A",
+  "explanation": "The failure is the mechanism, not a fault. Auto Loader records the wider schema, stops so a human learns the source changed, and succeeds on restart. In production a retry policy absorbs this and evolution looks seamless; with retries disabled, the pipeline simply stops the first time upstream adds a field. Remember the writer also needs mergeSchema, or the restart fails again with DELTA_METADATA_MISMATCH.",
+  "why": {
+   "B": "That silences the signal and drops the new data into _rescued_data or discards it - fixing the alarm rather than the fire.",
+   "C": "Destroys the recorded schema and any version history, and does not address the restart that was needed anyway.",
+   "D": "Unnecessary - the whole point of evolution is that Auto Loader handles the schema change for you."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "schema-evolution",
+   "addnewcolumns",
+   "retry"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S2-Q005"
+ },
+ {
+  "id": "ASSOC-S2-Q006",
+  "exam": "associate",
+  "section": "ASSOC-S2",
+  "objectives": [
+   "ASSOC-S2-O3",
+   "ASSOC-S2-O7"
+  ],
+  "stem": "What is the purpose of the _rescued_data column in Auto Loader?",
+  "code": null,
+  "options": {
+   "A": "It captures values that could not be parsed into the expected schema, so malformed input costs you a column to inspect rather than lost records.",
+   "B": "It stores rows rejected by table constraints for later reprocessing.",
+   "C": "It holds a copy of the raw file path each record came from.",
+   "D": "It records rows that failed to write due to transient storage errors."
+  },
+  "correct": "A",
+  "explanation": "Anything Auto Loader cannot fit into the schema - a type mismatch, an unexpected field - lands in _rescued_data instead of being dropped. That turns silent data loss into a visible column you can query, which is why it is worth enabling as a matter of routine rather than only when something goes wrong.",
+  "why": {
+   "B": "Constraint violations are a Delta write concern, unrelated to this column.",
+   "C": "That is _metadata.file_path, a different and also useful column.",
+   "D": "Write failures raise errors; they are not captured in a data column."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "rescued-data",
+   "malformed",
+   "auto-loader"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S2-Q006"
+ },
+ {
+  "id": "ASSOC-S2-Q007",
+  "exam": "associate",
+  "section": "ASSOC-S2",
+  "objectives": [
+   "ASSOC-S2-O6"
+  ],
+  "stem": "Which situation most clearly calls for Auto Loader rather than COPY INTO?",
+  "code": null,
+  "options": {
+   "A": "Millions of files arriving continuously into cloud storage, with a schema that occasionally gains columns.",
+   "B": "A single well-known CSV dropped once a day into a fixed location.",
+   "C": "A one-off backfill of a directory that will never receive new files.",
+   "D": "Loading a table from another Unity Catalog table."
+  },
+  "correct": "A",
+  "explanation": "Auto Loader is built for scale and for change: it tracks files efficiently at very high volume and can evolve the schema as sources drift. COPY INTO is simpler and entirely appropriate for predictable, bounded loads into a known schema. Choose by volume and volatility rather than by which is newer.",
+  "why": {
+   "B": "A predictable daily file into a known schema is exactly COPY INTO's case.",
+   "C": "A one-off load needs neither incremental tracking nor evolution.",
+   "D": "Table-to-table work is a plain INSERT or CTAS. Neither ingestion tool is involved."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "auto-loader",
+   "copy-into",
+   "choosing"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S2-Q007"
+ },
+ {
+  "id": "ASSOC-S2-Q008",
+  "exam": "associate",
+  "section": "ASSOC-S2",
+  "objectives": [
+   "ASSOC-S2-O1"
+  ],
+  "stem": "What distinguishes incremental ingestion from a full batch reload?",
+  "code": null,
+  "options": {
+   "A": "Incremental ingestion processes only data not yet consumed, tracking progress so reruns do not reprocess everything.",
+   "B": "Incremental ingestion always runs continuously, while batch runs on a schedule.",
+   "C": "Incremental ingestion writes only to streaming tables.",
+   "D": "Incremental ingestion requires the source to be a message bus."
+  },
+  "correct": "A",
+  "explanation": "The defining property is bookkeeping - a record of what has already been consumed, whether that is COPY INTO's file list or a streaming checkpoint. Note that incremental is not the same as continuous: Auto Loader with trigger availableNow is incremental and batch at the same time, processing what is there and stopping.",
+  "why": {
+   "B": "Conflates incremental with continuous. Scheduled incremental loads are extremely common.",
+   "C": "Incremental ingestion writes to ordinary tables perfectly well.",
+   "D": "Cloud storage is the most common incremental source of all."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "ingestion-patterns",
+   "batch",
+   "streaming",
+   "incremental"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S2-Q008"
+ },
+ {
+  "id": "ASSOC-S2-Q009",
+  "exam": "associate",
+  "section": "ASSOC-S2",
+  "objectives": [
+   "ASSOC-S2-O7"
+  ],
+  "stem": "JSON files are ingested where one field is an array of nested objects. The target table must have one row per nested object. Where should that reshaping happen?",
+  "code": null,
+  "options": {
+   "A": "Downstream of ingestion - land the nested structure in bronze, then explode it on the way to silver.",
+   "B": "During ingestion, by configuring Auto Loader to flatten arrays automatically.",
+   "C": "In the source system, before the files are written.",
+   "D": "It cannot be done; nested data must be queried in place."
+  },
+  "correct": "A",
+  "explanation": "Bronze should stay faithful to what arrived, nesting included, so you can always reprocess from the original if a transformation turns out to be wrong. Changing grain is a transformation concern, and explode() on the way to silver is where it belongs.",
+  "why": {
+   "B": "Auto Loader preserves the structure it reads; it has no automatic array flattening.",
+   "C": "Rarely available, and it discards the original shape - you cannot recover what the source never sent.",
+   "D": "Nested data is entirely queryable, and explode() is the standard way to change its grain."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "json",
+   "nested",
+   "schema"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S2-Q009"
+ },
+ {
+  "id": "ASSOC-S2-Q010",
+  "exam": "associate",
+  "section": "ASSOC-S2",
+  "objectives": [
+   "ASSOC-S2-O5"
+  ],
+  "stem": "A notebook reads from an external database over JDBC. How should the password be supplied?",
+  "code": null,
+  "options": {
+   "A": "From a secret scope via dbutils.secrets.get(), which Databricks redacts from notebook output.",
+   "B": "As a plain string variable at the top of the notebook, for easy rotation.",
+   "C": "In the JDBC URL, which is not displayed in query results.",
+   "D": "As a job parameter, which is stored encrypted at rest."
+  },
+  "correct": "A",
+  "explanation": "Secrets keep the credential out of the notebook source, out of version control, and out of any output - printing one shows \"REDACTED\". That redaction matters more than it first appears: it protects against the credential leaking into exported HTML, logs and screen-shares, which is how these usually escape.",
+  "why": {
+   "B": "A plaintext credential in a notebook is a credential in your git history the moment it is committed.",
+   "C": "Connection strings appear in logs, error messages and query plans. This is not concealment.",
+   "D": "Job parameters are visible in the run configuration and run history to anyone who can see the job."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "jdbc",
+   "secrets",
+   "credentials"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S2-Q010"
+ },
+ {
+  "id": "ASSOC-S2-Q011",
+  "exam": "associate",
+  "section": "ASSOC-S2",
+  "objectives": [
+   "ASSOC-S2-O4",
+   "ASSOC-S2-O6"
+  ],
+  "stem": "Lakeflow Connect offers standard and managed connectors. What distinguishes them?",
+  "code": null,
+  "options": {
+   "A": "Standard connectors read from sources you can reach directly, such as cloud storage or a message bus; managed connectors are fully governed pipelines for enterprise applications and databases, with Databricks handling extraction and scheduling.",
+   "B": "Standard connectors are open source; managed connectors are proprietary.",
+   "C": "Standard connectors write to Delta; managed connectors write to Parquet.",
+   "D": "Standard connectors are batch only; managed connectors are streaming only."
+  },
+  "correct": "A",
+  "explanation": "Standard connectors cover sources your workspace can read from itself - object storage via Auto Loader, Kafka, Kinesis. Managed connectors handle systems like Salesforce, Workday or SQL Server, where Databricks manages the connection, incremental extraction and scheduling for you. Choose by what the source is and how much of the pipeline you want to own.",
+  "why": {
+   "B": "Licensing is not the distinction.",
+   "C": "Both land data in Unity Catalog-governed Delta tables.",
+   "D": "Both support incremental ingestion; the split is about the source and who operates the pipeline."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "lakeflow-connect",
+   "connectors",
+   "managed",
+   "standard"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S2-Q011"
+ },
+ {
+  "id": "ASSOC-S2-Q012",
+  "exam": "associate",
+  "section": "ASSOC-S2",
+  "objectives": [
+   "ASSOC-S2-O4"
+  ],
+  "stem": "A managed connector ingesting change data from an operational database uses an ingestion gateway. What is the gateway's role?",
+  "code": null,
+  "options": {
+   "A": "It connects to the source database and captures changes, staging them for the ingestion pipeline to load into Unity Catalog.",
+   "B": "It authenticates users querying the resulting tables.",
+   "C": "It converts the source schema into Delta format on the client side.",
+   "D": "It rate-limits queries against the source to protect it from load."
+  },
+  "correct": "A",
+  "explanation": "Change-data-capture ingestion is two components: a gateway that talks to the source and captures its change stream into a staging area, and a pipeline that applies those changes to Unity Catalog tables. Splitting them means the source connection runs continuously while the loading pipeline can be scheduled and scaled independently.",
+  "why": {
+   "B": "Query authorisation is Unity Catalog's job, not the gateway's.",
+   "C": "Conversion happens in the ingestion pipeline, not on the source side.",
+   "D": "Reducing source load is a benefit of CDC generally, but it is not what the gateway component *is*."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "lakeflow-connect",
+   "ingestion-gateway",
+   "cdc"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S2-Q012"
+ },
+ {
+  "id": "ASSOC-S3-Q001",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O1"
+  ],
+  "stem": "A bronze table loaded from CSV stores every column as STRING. A data engineer creates a silver table with CAST(quantity AS INT). Three source rows contain the value \"12 units\" in that column. What happens to those three rows?",
+  "code": null,
+  "options": {
+   "A": "The CREATE TABLE fails with a cast error and no silver table is produced.",
+   "B": "The three rows appear in silver with quantity set to NULL.",
+   "C": "The three rows are dropped from silver.",
+   "D": "quantity is set to 12 for those rows, ignoring the trailing text."
+  },
+  "correct": "B",
+  "explanation": "Spark's CAST returns NULL when a value cannot be converted, rather than raising or dropping the row. This is why counting nulls after a cast is a real quality check - a silently growing null count is often the first sign that an upstream format changed. Use try_cast() when you want to make that intent explicit.",
+  "why": {
+   "A": "CAST does not fail the query on a bad value. That behaviour would arguably be safer, but it is not what Spark does.",
+   "C": "Rows are never dropped by a cast. The row survives with a null in that column, which is why an unnoticed cast failure quietly corrupts downstream aggregates.",
+   "D": "Spark does not parse a leading number out of arbitrary text. That is a regex/parsing job, not a cast."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "bronze",
+   "silver",
+   "casting",
+   "medallion"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q001"
+ },
+ {
+  "id": "ASSOC-S3-Q002",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O1"
+  ],
+  "stem": "A discount_pct column is NULL on 15% of order rows. The business confirms that a NULL there means the order had no discount. A colleague proposes COALESCE(discount_pct, 0.0). A second colleague objects that filling nulls destroys information. Who is right, and why?",
+  "code": null,
+  "options": {
+   "A": "The first colleague. The null has a known business meaning - no discount - so replacing it with 0.0 records that meaning rather than losing it.",
+   "B": "The second colleague. Filling any null loses the distinction between absent and zero, so nulls should always be preserved.",
+   "C": "The second colleague. COALESCE will also overwrite legitimate zero discounts.",
+   "D": "Neither. discount_pct should be dropped entirely because it is incomplete."
+  },
+  "correct": "A",
+  "explanation": "The question to ask about a null is always \"does this mean unknown, or does it mean a specific value?\". Here the business has answered it: absent means no discount, so 0.0 is the faithful representation and arithmetic downstream becomes correct. Filling an *unknown* with a default is the mistake - that invents data. Same operation, opposite verdict, decided by meaning rather than by rule.",
+  "why": {
+   "B": "A reasonable instinct applied too broadly. Preserving nulls matters when they mean unknown; here they do not.",
+   "C": "COALESCE only replaces NULL. An existing 0.0 is left untouched.",
+   "D": "The column is not incomplete - it is complete, with absence carrying meaning."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "nulls",
+   "coalesce",
+   "data-quality"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q002"
+ },
+ {
+  "id": "ASSOC-S3-Q003",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O1",
+   "ASSOC-S3-O7"
+  ],
+  "stem": "Which approach lets a pipeline continue processing good rows while keeping bad rows available for inspection, rather than failing the whole load?",
+  "code": null,
+  "options": {
+   "A": "Cast with try_cast() and write rows whose result is NULL to a quarantine table.",
+   "B": "Wrap the transformation in a try/except and skip the batch on any error.",
+   "C": "Use CAST and rely on the job's retry policy to reprocess failures.",
+   "D": "Filter out any row containing a NULL before writing to silver."
+  },
+  "correct": "A",
+  "explanation": "Quarantining is the standard pattern: good data flows on, bad data is retained somewhere a human can look at it, and neither blocks the other. The key property is that nothing is silently discarded - you can always count and inspect what did not make it, which is what makes the pipeline trustworthy.",
+  "why": {
+   "B": "Skipping the batch throws away good records with the bad, and reprocessing will hit the same bad row again.",
+   "C": "Retries help with transient failures. A malformed value is deterministic - it will fail identically every time.",
+   "D": "This drops the evidence. You would see a shrinking row count with no way to find out why."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "try-cast",
+   "quality",
+   "silver"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q003"
+ },
+ {
+  "id": "ASSOC-S3-Q004",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O2"
+  ],
+  "stem": "A fact table has 600 rows. It is joined to a dimension on plan_id with an inner join, and the result has 870 rows. The engineer expected 600. What is the most likely cause?",
+  "code": null,
+  "options": {
+   "A": "The dimension contains more than one row per plan_id.",
+   "B": "The join should have been a left join.",
+   "C": "Some fact rows have a NULL plan_id.",
+   "D": "The dimension contains plan_ids that do not appear in the fact table."
+  },
+  "correct": "A",
+  "explanation": "A join returns one row per matching pair. If a key appears twice in the dimension, every fact row with that key comes back twice - the row count goes *up*. This is fan-out, and it is dangerous precisely because it looks like success: no error, just quietly inflated aggregates. Slowly-changing dimensions cause it constantly, and the fix is to include the validity window in the join condition so only one version matches.",
+  "why": {
+   "B": "A left join can only preserve or increase row count relative to the inner join by keeping non-matching rows - it cannot explain rows already being too many.",
+   "C": "NULL keys do not match anything in an inner join, so they would reduce the count, not raise it.",
+   "D": "Unmatched dimension rows are simply excluded by an inner join. They have no effect on the count."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "join",
+   "fan-out",
+   "cardinality"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q004"
+ },
+ {
+  "id": "ASSOC-S3-Q005",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O2"
+  ],
+  "stem": "Billing events reference plan_id. Twenty events point at a plan that does not exist in the plans dimension. The requirement is that no billing event may be lost, and unmatched events must be identifiable. Which approach satisfies it?",
+  "code": null,
+  "options": {
+   "A": "LEFT JOIN from events to plans, then flag rows where the joined plan columns are NULL.",
+   "B": "INNER JOIN, then compare row counts before and after to detect losses.",
+   "C": "LEFT ANTI JOIN to select the events whose plan is missing.",
+   "D": "FULL OUTER JOIN so that both unmatched events and unused plans are kept."
+  },
+  "correct": "A",
+  "explanation": "A left join keeps every row from the left side and fills the right side with NULLs where nothing matched. That satisfies both halves of the requirement at once: nothing is lost, and the NULLs identify exactly which rows had no plan.",
+  "why": {
+   "B": "The count tells you how many vanished but not which ones, and the rows are gone from the output either way.",
+   "C": "A left anti join returns *only* the orphans and discards the matched events, so the main output would be lost.",
+   "D": "A full outer join also keeps unused plans, adding rows that are not billing events at all and corrupting the grain."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "left-join",
+   "referential-integrity",
+   "orphans"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q005"
+ },
+ {
+  "id": "ASSOC-S3-Q006",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O2"
+  ],
+  "stem": "A 500 GB fact table is joined to a 4 MB lookup table. What does a broadcast join do differently, and why is it faster here?",
+  "code": null,
+  "options": {
+   "A": "The small table is copied to every executor, so the large table is never shuffled across the network.",
+   "B": "Both tables are repartitioned on the join key so matching rows land on the same executor.",
+   "C": "The small table is cached in memory so repeated joins avoid re-reading it.",
+   "D": "The join runs on the driver, avoiding executor coordination entirely."
+  },
+  "correct": "A",
+  "explanation": "A normal join shuffles both sides so matching keys meet on the same executor - and shuffling 500 GB is expensive. Broadcasting sends the small side to every executor instead, letting each one join its local slice of the big table with no movement of the large dataset. Spark does this automatically below spark.sql.autoBroadcastJoinThreshold (10 MB by default), which this table is comfortably under.",
+  "why": {
+   "B": "That describes an ordinary shuffle hash / sort-merge join - the thing being avoided.",
+   "C": "Caching is a separate concern. Broadcasting is about avoiding the shuffle, not about re-reads.",
+   "D": "The join still runs distributed on the executors. Only the small table travels via the driver."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "broadcast-join",
+   "shuffle",
+   "performance"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q006"
+ },
+ {
+  "id": "ASSOC-S3-Q007",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O2"
+  ],
+  "stem": "In Spark SQL, what is the difference between UNION and UNION ALL?",
+  "code": null,
+  "options": {
+   "A": "UNION removes duplicate rows; UNION ALL keeps every row from both inputs.",
+   "B": "UNION requires identical column names; UNION ALL matches by position only.",
+   "C": "UNION ALL removes duplicates; UNION keeps them.",
+   "D": "They are identical in Spark; UNION ALL exists only for SQL compatibility."
+  },
+  "correct": "A",
+  "explanation": "UNION deduplicates, which means it must shuffle and compare every row - real cost on a large dataset. UNION ALL simply concatenates. Reach for UNION ALL by default and deduplicate deliberately when you actually need to, rather than paying for a distinct you did not ask for.",
+  "why": {
+   "B": "Both match by position in Spark, not by name. That trap belongs to unionByName().",
+   "C": "Reversed.",
+   "D": "The difference is real and has a significant performance cost."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "union",
+   "union-all",
+   "duplicates"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q007"
+ },
+ {
+  "id": "ASSOC-S3-Q008",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O2"
+  ],
+  "stem": "A plans dimension holds one row per plan version with valid_from and valid_to dates. Billing events must be priced using the plan version that was in effect on the event date. Which join condition is correct?",
+  "code": null,
+  "options": {
+   "A": "ON e.plan_id = p.plan_id AND e.event_date >= p.valid_from AND e.event_date < p.valid_to",
+   "B": "ON e.plan_id = p.plan_id, then take MAX(p.valid_from) per event",
+   "C": "ON e.plan_id = p.plan_id AND p.valid_to IS NULL",
+   "D": "ON e.plan_id = p.plan_id, then deduplicate the result on billing_id"
+  },
+  "correct": "A",
+  "explanation": "A point-in-time join puts the validity window in the join condition itself, so exactly one version matches each event and no fan-out ever occurs. Note the asymmetric bounds - >= on the lower and < on the upper - which is what stops an event on a boundary date matching two adjacent versions.",
+  "why": {
+   "B": "This fans out first and then repairs, which is both slower and wrong: MAX picks the latest version, not the one in effect at the time.",
+   "C": "This uses the *current* version for every event, so historical events are priced at today's price.",
+   "D": "Deduplicating after the fact keeps an arbitrary version. The row count is right and the values are wrong, which is the worst outcome."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "scd",
+   "point-in-time",
+   "join-condition"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q008"
+ },
+ {
+  "id": "ASSOC-S3-Q009",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O3"
+  ],
+  "stem": "A JSON source has one document per device, each containing an array of readings. An analyst needs one row per reading. Which operation produces that grain?",
+  "code": null,
+  "options": {
+   "A": "explode() on the array column",
+   "B": "flatten() on the DataFrame",
+   "C": "selectExpr(\"readings.*\")",
+   "D": "A cross join between the documents and their readings"
+  },
+  "correct": "A",
+  "explanation": "explode() turns each element of an array into its own row, carrying the parent columns along. It is the standard move for changing grain from one-row-per-container to one-row-per-item. Use explode_outer() when an empty or null array should still produce a row rather than vanishing.",
+  "why": {
+   "B": "flatten() collapses an array of arrays into a single array. It does not create rows.",
+   "C": "The star expansion works on a struct's fields, not on array elements, so this gives one column per field of the array type rather than one row per element.",
+   "D": "The readings are nested inside the document, not a separate relation to join against."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "explode",
+   "arrays",
+   "grain"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q009"
+ },
+ {
+  "id": "ASSOC-S3-Q010",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O3"
+  ],
+  "stem": "Which statement about DataFrame column operations in PySpark is correct?",
+  "code": null,
+  "options": {
+   "A": "withColumnRenamed() returns a new DataFrame; the original is unchanged, because DataFrames are immutable.",
+   "B": "withColumn() modifies the DataFrame in place and returns None.",
+   "C": "drop() raises an error if the named column does not exist.",
+   "D": "Column operations are applied immediately, so each one triggers a separate job."
+  },
+  "correct": "A",
+  "explanation": "Spark DataFrames are immutable - every transformation returns a new one, and the original is untouched. This is why transformations are chained or reassigned, and why forgetting to reassign is a common source of \"my change did nothing\". Transformations are also lazy: nothing executes until an action.",
+  "why": {
+   "B": "withColumn() returns a new DataFrame. Nothing in the DataFrame API mutates in place.",
+   "C": "drop() silently ignores column names that are not present.",
+   "D": "Transformations are lazy and only build a plan. An action such as count() or write triggers execution."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "withcolumn",
+   "select",
+   "rename"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q010"
+ },
+ {
+  "id": "ASSOC-S3-Q011",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O3"
+  ],
+  "stem": "A column full_location holds values like \"Boston, MA\". An engineer needs separate city and state columns. Which approach is correct in Spark SQL?",
+  "code": null,
+  "options": {
+   "A": "Use split(full_location, ', ') and index the resulting array: element 0 for city, element 1 for state.",
+   "B": "Use substring() with fixed offsets for each part.",
+   "C": "Use explode(split(full_location, ', ')) to get city and state as columns.",
+   "D": "Cast full_location to a STRUCT with city and state fields."
+  },
+  "correct": "A",
+  "explanation": "split() returns an array, and indexing it gives the parts. Be aware that Spark SQL array indexing is 0-based while some other SQL dialects are 1-based - a common slip. Guard against values that do not contain the separator, since the array will be shorter than expected and the index returns NULL rather than erroring.",
+  "why": {
+   "B": "Fixed offsets break the moment a city name has a different length, which is immediately.",
+   "C": "explode() would put city and state on separate *rows*, which is the wrong grain entirely.",
+   "D": "A cast cannot parse a delimited string into a struct."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "split",
+   "string-functions"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q011"
+ },
+ {
+  "id": "ASSOC-S3-Q012",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O4"
+  ],
+  "stem": "An events table should hold one row per event_id, but some events were redelivered with identical values. An engineer writes df.dropDuplicates(). Later, a second source starts redelivering events with a corrected timestamp but the same event_id. What goes wrong?",
+  "code": null,
+  "options": {
+   "A": "dropDuplicates() with no columns compares entire rows, so the corrected version differs and both rows survive.",
+   "B": "dropDuplicates() fails because the DataFrame has no primary key defined.",
+   "C": "dropDuplicates() keeps the first row it encounters, which is non-deterministic and may keep either.",
+   "D": "Nothing goes wrong; the corrected row replaces the original."
+  },
+  "correct": "A",
+  "explanation": "dropDuplicates() with no arguments compares every column, so two rows that differ in any field are both kept. Deduplicating on the *business key* - dropDuplicates([\"event_id\"]) - is what the requirement actually calls for. When versions genuinely differ, order by an ingestion timestamp and keep the newest rather than letting Spark pick.",
+  "why": {
+   "B": "Spark has no notion of a declared primary key; the call succeeds.",
+   "C": "True of dropDuplicates([\"event_id\"]) without ordering, but not the failure here - with no columns specified, neither row is removed at all.",
+   "D": "Nothing about dropDuplicates prefers a corrected row. Both simply remain."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "dedup",
+   "dropduplicates",
+   "business-key"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q012"
+ },
+ {
+  "id": "ASSOC-S3-Q013",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O4"
+  ],
+  "stem": "A dashboard needs the number of distinct users per day across billions of rows, refreshed hourly. A 1-2% error is acceptable. Which function suits it best, and why?",
+  "code": null,
+  "options": {
+   "A": "approx_count_distinct(), because it uses HyperLogLog and avoids the expensive exact shuffle.",
+   "B": "count(distinct ...), because accuracy always matters more on a dashboard.",
+   "C": "count() with a groupBy on user_id, then a second count of the groups.",
+   "D": "collect_set() followed by size(), which computes distinct values in one pass."
+  },
+  "correct": "A",
+  "explanation": "Exact distinct counts require shuffling every value to compare them - the cost grows with cardinality and it is often the slowest part of a dashboard query. approx_count_distinct() uses HyperLogLog sketches for a bounded error (about 5% by default, tunable) at a fraction of the cost. When the business has said 1-2% error is fine, paying for exactness is a choice to be slower for no benefit.",
+  "why": {
+   "B": "Accuracy has already been scoped by the requirement. Treating \"always\" as an argument ignores the stated tolerance.",
+   "C": "This produces the same exact count with an extra stage - more expensive, not less.",
+   "D": "collect_set() materialises every distinct value in memory, which is far worse at this cardinality and risks OOM."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "approx-count-distinct",
+   "aggregation",
+   "performance"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q013"
+ },
+ {
+  "id": "ASSOC-S3-Q014",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O4"
+  ],
+  "stem": "A column has 1,000 rows of which 150 are NULL. What do count(*), count(col) and avg(col) each consider?",
+  "code": null,
+  "options": {
+   "A": "count(*) returns 1000; count(col) returns 850; avg(col) averages the 850 non-null values.",
+   "B": "All three ignore NULLs, so all operate on 850 rows.",
+   "C": "count(*) returns 1000; count(col) returns 1000; avg(col) treats NULLs as zero.",
+   "D": "count(*) returns 850 because NULL rows are excluded from row counts."
+  },
+  "correct": "A",
+  "explanation": "count(*) counts rows; count(col) counts non-null values in that column; and the aggregates skip NULLs entirely. The consequence people get caught by is that avg() divides by 850, not 1000 - so if a NULL genuinely means zero, the average comes out too high unless you COALESCE first.",
+  "why": {
+   "B": "count(*) counts rows regardless of any column's nullity.",
+   "C": "count(col) excludes nulls, and avg() skips them rather than treating them as zero - the difference that shifts the result.",
+   "D": "count(*) is a row count and is unaffected by nulls."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "aggregation",
+   "null-handling",
+   "count"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q014"
+ },
+ {
+  "id": "ASSOC-S3-Q015",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O5"
+  ],
+  "stem": "A job processes about 2 GB of data but takes far longer than expected. The Spark UI shows a shuffle stage with 200 tasks, most finishing in well under a second. Which change is most likely to help?",
+  "code": null,
+  "options": {
+   "A": "Lower spark.sql.shuffle.partitions, so each task handles a worthwhile amount of data.",
+   "B": "Raise spark.sql.shuffle.partitions to increase parallelism.",
+   "C": "Increase spark.executor.memory so tasks have more headroom.",
+   "D": "Enable broadcast joins by raising spark.sql.autoBroadcastJoinThreshold."
+  },
+  "correct": "A",
+  "explanation": "200 is the default for spark.sql.shuffle.partitions, and on 2 GB it gives roughly 10 MB per task. At that size the per-task overhead - scheduling, serialisation, writing a shuffle file - dominates the actual work, and you also get 200 tiny output files. Hundreds of very fast tasks is the signature of over-partitioning; the fix is fewer, bigger partitions.",
+  "why": {
+   "B": "More partitions makes it worse. The tasks are already too small to justify their own overhead.",
+   "C": "Nothing here suggests memory pressure. Tasks finishing quickly is the opposite of the spill-and-GC pattern that memory fixes.",
+   "D": "Broadcast thresholds affect join strategy. The problem described is partition sizing, not join choice."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "shuffle-partitions",
+   "tuning",
+   "small-files"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q015"
+ },
+ {
+  "id": "ASSOC-S3-Q016",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O5"
+  ],
+  "stem": "What does spark.sql.autoBroadcastJoinThreshold control, and what does setting it to -1 do?",
+  "code": null,
+  "options": {
+   "A": "The maximum size a table can be for Spark to broadcast it automatically; -1 disables automatic broadcasting entirely.",
+   "B": "The number of executors a broadcast is sent to; -1 means all of them.",
+   "C": "The timeout in seconds before a broadcast is abandoned; -1 means no timeout.",
+   "D": "The memory reserved for broadcasts; -1 lets Spark choose dynamically."
+  },
+  "correct": "A",
+  "explanation": "The default is 10 MB. Below that, Spark broadcasts the smaller side automatically rather than shuffling both. Setting -1 turns the automatic behaviour off - useful when a mis-estimated table size is causing driver OOM during broadcast, which is the usual reason anyone touches this setting.",
+  "why": {
+   "B": "The broadcast always goes to all executors; there is no count to configure.",
+   "C": "The broadcast timeout is a separate setting, spark.sql.broadcastTimeout.",
+   "D": "This is a size threshold for the decision, not a memory reservation."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "autobroadcastjointhreshold",
+   "config"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q016"
+ },
+ {
+  "id": "ASSOC-S3-Q017",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O5"
+  ],
+  "stem": "A job fails with an out-of-memory error on the driver. The code ends with result_df.collect() on a DataFrame of several million rows. What is the correct fix?",
+  "code": null,
+  "options": {
+   "A": "Do not collect the whole result - write it to a table, or use limit()/take() if only a sample is needed.",
+   "B": "Increase spark.driver.memory until the collect fits.",
+   "C": "Increase spark.executor.memory so the data is prepared before collection.",
+   "D": "Repartition to fewer partitions before collecting."
+  },
+  "correct": "A",
+  "explanation": "collect() pulls every row to the driver, a single JVM. It does not matter how large the cluster is - the driver is the bottleneck, and raising its memory only moves the failure to a slightly larger dataset. The habit worth building: treat collect() as something you do to a handful of rows, never to a result set.",
+  "why": {
+   "B": "A temporary reprieve that fails again as data grows, and wastes memory on the driver that could be doing useful work.",
+   "C": "Executor memory is irrelevant - the failure is on the driver.",
+   "D": "Partition count does not change the total volume arriving at the driver."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "driver-memory",
+   "collect",
+   "oom"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q017"
+ },
+ {
+  "id": "ASSOC-S3-Q018",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O6"
+  ],
+  "stem": "A gold aggregate is queried by a BI dashboard several hundred times per hour, and its source data changes once nightly. Which object suits it best?",
+  "code": null,
+  "options": {
+   "A": "A materialized view, so the aggregate is computed once and each dashboard query reads stored results.",
+   "B": "A view, so every dashboard query sees the freshest possible data.",
+   "C": "A streaming table, so the aggregate updates continuously as data arrives.",
+   "D": "A temporary view, so the result is cached for the session."
+  },
+  "correct": "A",
+  "explanation": "Match the object to the read/write ratio. Here it is hundreds of reads against one write per day, so recomputing on every read wastes the same work hundreds of times. A materialized view stores the computed result and refreshes on a schedule - the freshness the data actually has, at a fraction of the query cost.",
+  "why": {
+   "B": "A view recomputes on every query. \"Freshest possible\" is worth nothing when the source only changes nightly.",
+   "C": "Streaming tables suit continuously arriving data. A nightly batch does not need one, and it keeps resources warm for no benefit.",
+   "D": "Temporary views vanish with the session and are not visible to a BI tool at all."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "view",
+   "materialized-view",
+   "gold"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q018"
+ },
+ {
+  "id": "ASSOC-S3-Q019",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O6"
+  ],
+  "stem": "What is the essential difference between a streaming table and a materialized view in Databricks?",
+  "code": null,
+  "options": {
+   "A": "A streaming table processes each input row once, incrementally; a materialized view holds the result of a query and refreshes it.",
+   "B": "A streaming table is always in memory; a materialized view is always on disk.",
+   "C": "A materialized view can only be built from a single table; a streaming table can join many.",
+   "D": "They are the same object with different syntax."
+  },
+  "correct": "A",
+  "explanation": "A streaming table is append-oriented and incremental - each source row is processed once and never revisited, which is what makes it suit ingestion and ever-growing sources. A materialized view represents the *result* of a query and is refreshed, recomputing as needed. Incremental consumption versus a maintained result is the distinction to hold on to.",
+  "why": {
+   "B": "Both are persisted. Neither is defined by where it lives.",
+   "C": "Materialized views can join freely.",
+   "D": "They have genuinely different semantics, and picking the wrong one shows up as either stale results or needless recomputation."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "streaming-table",
+   "materialized-view",
+   "incremental"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q019"
+ },
+ {
+  "id": "ASSOC-S3-Q020",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O6"
+  ],
+  "stem": "An analytics team needs access to order data, but must not see the customer_email column. The underlying table cannot be modified. What is the simplest approach that satisfies this?",
+  "code": null,
+  "options": {
+   "A": "Create a view selecting only the permitted columns and grant the team SELECT on the view rather than the table.",
+   "B": "Create a copy of the table without the column and schedule a job to keep it in sync.",
+   "C": "Grant SELECT on the table and ask the team not to query that column.",
+   "D": "Add a column mask to customer_email that returns NULL for everyone."
+  },
+  "correct": "A",
+  "explanation": "A view is the standard governance boundary: it exposes exactly the columns you choose, stores no duplicate data, and stays current automatically because it is computed at query time. Grant on the view, withhold on the table, and the restriction is structural rather than a matter of trust.",
+  "why": {
+   "B": "A synced copy is real duplication with real drift risk and an ongoing job to maintain, for something a view does for free.",
+   "C": "A request is not access control.",
+   "D": "A blanket mask hides the column from everyone including those who need it. A mask is the right tool when *some* principals should see it."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "view",
+   "governance",
+   "unity-catalog"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q020"
+ },
+ {
+  "id": "ASSOC-S3-Q021",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O7"
+  ],
+  "stem": "A Delta table must never accept a row where quantity is less than 1. Which approach enforces this at write time?",
+  "code": null,
+  "options": {
+   "A": "ALTER TABLE ... ADD CONSTRAINT valid_qty CHECK (quantity >= 1), which rejects violating writes.",
+   "B": "A scheduled job that deletes violating rows after each load.",
+   "C": "A view that filters out rows where quantity < 1.",
+   "D": "Documenting the rule in the table comment for downstream teams."
+  },
+  "correct": "A",
+  "explanation": "A CHECK constraint is enforced by Delta on write: a violating row fails the transaction rather than landing and being cleaned up later. That is the difference between a table that *cannot* hold bad data and one that merely usually does not. Note that adding a constraint validates existing rows too, so it will fail if the table already violates it.",
+  "why": {
+   "B": "The bad rows exist between the load and the cleanup, and anything reading in that window sees them.",
+   "C": "A view hides the rows from that one path. The table still contains them and other readers still see them.",
+   "D": "A comment is documentation, not enforcement."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "constraints",
+   "delta",
+   "quality"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q021"
+ },
+ {
+  "id": "ASSOC-S3-Q022",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O7"
+  ],
+  "stem": "Which of these is the strongest signal that a silver table's quality has silently degraded, rather than failed outright?",
+  "code": null,
+  "options": {
+   "A": "A sharp rise in the proportion of NULLs in a column that is normally populated.",
+   "B": "The job's run duration increasing by 10%.",
+   "C": "The table's storage size growing week on week.",
+   "D": "An increase in the number of files in the table's directory."
+  },
+  "correct": "A",
+  "explanation": "A jump in nulls usually means a cast started failing or an upstream field was renamed - the pipeline still succeeds, the row count still looks right, and the data is quietly wrong. That combination is exactly what makes it dangerous, and it is why null-rate is worth tracking as a metric rather than only checked when something breaks.",
+  "why": {
+   "B": "Runtime drifts for many benign reasons, including simply having more data.",
+   "C": "Growth is expected for an accumulating table.",
+   "D": "File count relates to compaction and small-file management, which is a performance concern rather than a correctness one."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "quality",
+   "monitoring",
+   "silver"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q022"
+ },
+ {
+  "id": "ASSOC-S3-Q023",
+  "exam": "associate",
+  "section": "ASSOC-S3",
+  "objectives": [
+   "ASSOC-S3-O7",
+   "ASSOC-S3-O4"
+  ],
+  "stem": "After joining a fact table to a dimension, which single check most directly catches an accidental fan-out?",
+  "code": null,
+  "options": {
+   "A": "Assert that the output row count equals the input fact row count.",
+   "B": "Assert that the output contains no NULLs.",
+   "C": "Assert that the output row count is greater than zero.",
+   "D": "Assert that every dimension row appears in the output."
+  },
+  "correct": "A",
+  "explanation": "When a join is meant to enrich a fact table without changing its grain, the row count is the invariant - it should come out exactly as it went in. Asserting that catches both fan-out (too many) and unintended inner-join drops (too few) with one cheap check, which is why it belongs in the pipeline rather than in someone's head.",
+  "why": {
+   "B": "A fan-out produces duplicated rows that are perfectly non-null. This check would pass.",
+   "C": "A non-empty result says almost nothing; 870 rows is non-empty and wrong.",
+   "D": "Not every dimension row should appear - only those referenced. This asserts the wrong thing entirely."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "quality-check",
+   "row-count",
+   "validation"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S3-Q023"
+ },
+ {
+  "id": "ASSOC-S4-Q001",
+  "exam": "associate",
+  "section": "ASSOC-S4",
+  "objectives": [
+   "ASSOC-S4-O1"
+  ],
+  "stem": "A job task writes to a Delta table and is configured with max_retries = 3. The task fails partway through its third write, then succeeds on retry. What must be true of the task for the final table to be correct?",
+  "code": null,
+  "options": {
+   "A": "The task must be idempotent - rerunning it from the start must not duplicate work already committed.",
+   "B": "Nothing extra. Databricks rolls back everything a failed attempt wrote before retrying.",
+   "C": "The task must write with mode(\"append\") so the retry adds only new rows.",
+   "D": "The retry count must be 1, because higher values risk duplication."
+  },
+  "correct": "A",
+  "explanation": "A retry reruns the task from the beginning. Delta gives ACID guarantees per write operation, not across a whole task - so writes the failed attempt already committed are still there. If the retry blindly appends the same data again, you get duplicates. Idempotent design (overwrite a partition, MERGE on a key, or a checkpoint) is what makes retries safe, and it is the reason retries are a design decision rather than a checkbox.",
+  "why": {
+   "B": "There is no task-level transaction. Individual writes committed before the failure remain committed.",
+   "C": "Append is precisely the mode that duplicates on retry. It is the problem, not the fix.",
+   "D": "Reducing retries does not make a non-idempotent task safe - a single retry can duplicate just as thoroughly."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "retries",
+   "idempotency",
+   "failure"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S4-Q001"
+ },
+ {
+  "id": "ASSOC-S4-Q002",
+  "exam": "associate",
+  "section": "ASSOC-S4",
+  "objectives": [
+   "ASSOC-S4-O1"
+  ],
+  "stem": "A pipeline should run an expensive reprocessing task only when an upstream check reports that data drifted. Which Lakeflow Jobs feature expresses this directly?",
+  "code": null,
+  "options": {
+   "A": "An If/else condition task that branches on a value the check task returns.",
+   "B": "A task with a retry policy that fails until the condition is met.",
+   "C": "Two separate jobs, with the second triggered manually when needed.",
+   "D": "A single task containing an if statement in its notebook."
+  },
+  "correct": "A",
+  "explanation": "Conditional task branching is built into Lakeflow Jobs: a condition evaluates a value - often a task value set by an earlier task - and downstream tasks run or are skipped accordingly. Keeping the branch in the job graph rather than inside a notebook means the decision is visible in the run history, so you can see which path a given run took.",
+  "why": {
+   "B": "Retries handle failure, not choice. Deliberately failing to express a condition is a misuse.",
+   "C": "Manual triggering removes the automation the requirement asks for.",
+   "D": "This works but hides the decision. The task always shows as run, and the skipped path leaves no trace in the run graph."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "conditional",
+   "if-else",
+   "control-flow"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S4-Q002"
+ },
+ {
+  "id": "ASSOC-S4-Q003",
+  "exam": "associate",
+  "section": "ASSOC-S4",
+  "objectives": [
+   "ASSOC-S4-O1"
+  ],
+  "stem": "A job must run the same notebook once for each of twelve source regions. Which approach uses Lakeflow Jobs as intended?",
+  "code": null,
+  "options": {
+   "A": "A For each task that iterates over the list of regions, passing each as a parameter.",
+   "B": "Twelve separate tasks, each hardcoding one region.",
+   "C": "One task whose notebook loops over regions internally.",
+   "D": "Twelve separate jobs on the same schedule."
+  },
+  "correct": "A",
+  "explanation": "A For each task runs one iteration per input value, giving per-region visibility in the run graph, per-iteration retries, and controllable concurrency - without twelve copies of the same definition to keep in step. Adding a thirteenth region becomes a data change rather than a job change.",
+  "why": {
+   "B": "Twelve near-identical tasks drift apart the moment one is edited, and adding a region means editing the job.",
+   "C": "An internal loop works but is opaque: one region failing fails the whole task, and a retry redoes all twelve.",
+   "D": "Twelve jobs multiplies the maintenance without adding anything."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "for-each",
+   "loops",
+   "parameters"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S4-Q003"
+ },
+ {
+  "id": "ASSOC-S4-Q004",
+  "exam": "associate",
+  "section": "ASSOC-S4",
+  "objectives": [
+   "ASSOC-S4-O2"
+  ],
+  "stem": "A job has tasks A, B, C and D. B and C both depend on A. D depends on both B and C. Task C fails and has no retries. What is the resulting state?",
+  "code": null,
+  "options": {
+   "A": "A and B complete successfully; C fails; D is skipped because a dependency failed.",
+   "B": "A completes; B, C and D all fail.",
+   "C": "A and B complete; C fails; D runs anyway using B's output.",
+   "D": "The whole job is rolled back, leaving no changes committed."
+  },
+  "correct": "A",
+  "explanation": "Dependencies control ordering and propagation, not atomicity. B has no relationship with C so it completes normally, while D cannot run because one of the tasks it depends on did not succeed - it is marked skipped, not failed. Anything A and B committed to the lakehouse stays committed; the job is not a transaction.",
+  "why": {
+   "B": "B does not depend on C and is unaffected by its failure.",
+   "C": "D depends on both. A task runs only when all of its dependencies have succeeded.",
+   "D": "There is no job-level rollback. This is the most consequential misconception in this section - each write committed independently."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "dag",
+   "dependencies",
+   "failure-propagation"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S4-Q004"
+ },
+ {
+  "id": "ASSOC-S4-Q005",
+  "exam": "associate",
+  "section": "ASSOC-S4",
+  "objectives": [
+   "ASSOC-S4-O2"
+  ],
+  "stem": "Which of these is NOT something a single Lakeflow Jobs task can be configured to run directly?",
+  "code": null,
+  "options": {
+   "A": "An arbitrary shell script on the driver node.",
+   "B": "A notebook.",
+   "C": "A SQL query, alert or dashboard refresh.",
+   "D": "A Lakeflow Declarative Pipeline."
+  },
+  "correct": "A",
+  "explanation": "Task types cover notebooks, Python scripts and wheels, SQL (queries, alerts, dashboard refreshes), declarative pipelines, dbt, JARs and nested jobs. There is no \"run this shell command\" task type - shell work happens inside a notebook or script task. Knowing the available types matters because choosing the right one gives you the right monitoring for free.",
+  "why": {
+   "B": "Notebook is the most common task type.",
+   "C": "SQL tasks cover queries, alerts and dashboard refreshes.",
+   "D": "A pipeline task orchestrates a declarative pipeline as a step in a larger job."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "task-types",
+   "sql-task",
+   "pipeline-task"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S4-Q005"
+ },
+ {
+  "id": "ASSOC-S4-Q006",
+  "exam": "associate",
+  "section": "ASSOC-S4",
+  "objectives": [
+   "ASSOC-S4-O2"
+  ],
+  "stem": "Task A computes a row count that task B needs. What is the intended way to pass it?",
+  "code": null,
+  "options": {
+   "A": "Task values - A sets a value, B reads it via the task's output reference.",
+   "B": "Write the count to a global temporary view that B queries.",
+   "C": "Save the count to a file in DBFS and have B read the file.",
+   "D": "Pass it as a job parameter set before the run begins."
+  },
+  "correct": "A",
+  "explanation": "Task values exist for exactly this: small pieces of data handed from one task to the next, visible in the run history so you can see what was passed. They also make conditional branching possible, since a condition can test a task value.",
+  "why": {
+   "B": "Tasks may run on different compute, and a temporary view does not survive across them.",
+   "C": "This works but reinvents task values with a file to clean up and no visibility in the run history.",
+   "D": "Job parameters are fixed before the run starts, so they cannot carry something computed during it."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "task-values",
+   "parameters",
+   "passing-data"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S4-Q006"
+ },
+ {
+  "id": "ASSOC-S4-Q007",
+  "exam": "associate",
+  "section": "ASSOC-S4",
+  "objectives": [
+   "ASSOC-S4-O3",
+   "ASSOC-S4-O4"
+  ],
+  "stem": "A partner drops a file into cloud storage at an unpredictable time, usually between 01:00 and 06:00. Downstream reports must be ready as soon as possible after it lands. Which trigger fits best?",
+  "code": null,
+  "options": {
+   "A": "A file arrival trigger on the landing location.",
+   "B": "A scheduled run every 15 minutes from 01:00 to 07:00.",
+   "C": "A scheduled run at 06:00, after the file is certain to have arrived.",
+   "D": "A continuous job that polls the directory."
+  },
+  "correct": "A",
+  "explanation": "When the requirement is \"as soon as the data lands\" and arrival time is unpredictable, a file arrival trigger matches the event directly - the job runs once, promptly, and only when there is something to process. Polling schedules trade latency against wasted runs, and a fixed time forces you to plan for the worst case every day.",
+  "why": {
+   "B": "Up to 24 empty runs a night, and still up to 15 minutes of latency after the file arrives.",
+   "C": "Guarantees the reports are late whenever the file lands early, which is most of the time.",
+   "D": "A continuous job keeps compute alive all night to watch a directory."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "file-arrival-trigger",
+   "scheduling",
+   "cost"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S4-Q007"
+ },
+ {
+  "id": "ASSOC-S4-Q008",
+  "exam": "associate",
+  "section": "ASSOC-S4",
+  "objectives": [
+   "ASSOC-S4-O4"
+  ],
+  "stem": "A gold aggregation job must run whenever an upstream silver table is updated, but the upstream job's schedule changes often. Which trigger avoids re-coordinating the two schedules every time?",
+  "code": null,
+  "options": {
+   "A": "A table update trigger on the silver table.",
+   "B": "A cron schedule offset to run shortly after the upstream job usually finishes.",
+   "C": "Merging both jobs into one so the dependency is a task dependency.",
+   "D": "A file arrival trigger on the silver table's storage location."
+  },
+  "correct": "A",
+  "explanation": "A table update trigger reacts to the data actually changing, so the downstream job no longer cares when the upstream one runs. That decoupling is the point: the schedules can drift independently and the dependency still holds.",
+  "why": {
+   "B": "This is the coupling the requirement asks you to remove - every upstream schedule change means re-tuning the offset.",
+   "C": "Valid when both are owned by one team, but it forces a single schedule and couples their failure domains.",
+   "D": "Delta writes produce many file operations including compaction, so file arrival is a noisy and unreliable proxy for \"the table was updated\"."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "table-update-trigger",
+   "dependencies",
+   "data-driven"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S4-Q008"
+ },
+ {
+  "id": "ASSOC-S4-Q009",
+  "exam": "associate",
+  "section": "ASSOC-S4",
+  "objectives": [
+   "ASSOC-S4-O3"
+  ],
+  "stem": "A job is scheduled hourly but sometimes takes longer than an hour. By default, what happens at the next scheduled time?",
+  "code": null,
+  "options": {
+   "A": "The scheduled run is skipped while the previous run is still active.",
+   "B": "A second run starts concurrently with the first.",
+   "C": "The running job is cancelled and restarted.",
+   "D": "The run is queued and starts as soon as the previous one finishes."
+  },
+  "correct": "A",
+  "explanation": "Concurrent runs default to 1, so an overlapping scheduled trigger is skipped rather than piling up. That is usually what you want - two runs writing the same table simultaneously is rarely safe - but it means a job that consistently overruns silently halves its frequency. Queueing can be enabled if runs must not be lost.",
+  "why": {
+   "B": "Only if max concurrent runs is deliberately raised above 1.",
+   "C": "Databricks never cancels a running job to start a scheduled one.",
+   "D": "That is queueing behaviour, which is available but not the default."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "scheduling",
+   "cron",
+   "concurrency"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S4-Q009"
+ },
+ {
+  "id": "ASSOC-S7-Q001",
+  "exam": "associate",
+  "section": "ASSOC-S7",
+  "objectives": [
+   "ASSOC-S7-O1"
+  ],
+  "stem": "Two Unity Catalog tables are dropped: one managed, one external. What happens to the underlying data files in each case?",
+  "code": null,
+  "options": {
+   "A": "The managed table's files are deleted; the external table's files are left in place and only the catalog entry is removed.",
+   "B": "Both tables' files are deleted, since Unity Catalog governs both.",
+   "C": "Neither table's files are deleted; DROP only ever removes metadata.",
+   "D": "The managed table's files are retained for the retention period; the external table's are deleted immediately."
+  },
+  "correct": "A",
+  "explanation": "This is the defining difference. A managed table's lifecycle is owned by Unity Catalog, so dropping it deletes the data. An external table points at storage you manage, so dropping it removes only the registration and the files remain. Worth knowing that a dropped managed table can still be recovered with UNDROP within the retention window - but that is a safety net, not a reason to be casual.",
+  "why": {
+   "B": "External tables exist precisely so that Databricks does not own the files.",
+   "C": "Managed tables do delete their data.",
+   "D": "Reversed on both counts."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "managed-table",
+   "external-table",
+   "drop"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S7-Q001"
+ },
+ {
+  "id": "ASSOC-S7-Q002",
+  "exam": "associate",
+  "section": "ASSOC-S7",
+  "objectives": [
+   "ASSOC-S7-O1"
+  ],
+  "stem": "A team is creating a new table that only Databricks workloads will read or write. Why does Databricks recommend a managed table here?",
+  "code": null,
+  "options": {
+   "A": "Unity Catalog owns the layout, so predictive optimization can compact, cluster and vacuum it automatically.",
+   "B": "Managed tables are the only kind that can be governed by Unity Catalog.",
+   "C": "Managed tables support ACID transactions; external tables do not.",
+   "D": "Managed tables can be queried by external engines; external tables cannot."
+  },
+  "correct": "A",
+  "explanation": "When Unity Catalog owns the storage layout it can maintain the table for you - automatic compaction, liquid clustering and vacuuming - which is exactly the operational overhead teams otherwise carry themselves. External tables are for when something outside Databricks also needs to own those files.",
+  "why": {
+   "B": "Unity Catalog governs external tables too, including permissions and lineage.",
+   "C": "Both are Delta tables with the same ACID guarantees.",
+   "D": "Backwards, and in any case external access is a matter of protocols and credential vending rather than table type."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "managed-table",
+   "best-practice"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S7-Q002"
+ },
+ {
+  "id": "ASSOC-S7-Q003",
+  "exam": "associate",
+  "section": "ASSOC-S7",
+  "objectives": [
+   "ASSOC-S7-O2"
+  ],
+  "stem": "A group is granted SELECT on a catalog. A new schema and table are later created inside it. What can the group read?",
+  "code": null,
+  "options": {
+   "A": "The new table, because privileges granted at the catalog level are inherited by objects created within it.",
+   "B": "Nothing new - the grant applied only to objects that existed at the time.",
+   "C": "The schema but not the table, because table access must be granted explicitly.",
+   "D": "Nothing, because SELECT is not a valid privilege at catalog level."
+  },
+  "correct": "A",
+  "explanation": "Unity Catalog privileges flow down the hierarchy - metastore, catalog, schema, table - and inheritance is dynamic, so objects created later are covered too. This is powerful and worth respecting: a broad grant at catalog level silently covers everything anyone adds afterwards, which is why least privilege usually means granting at schema or table level.",
+  "why": {
+   "B": "Inheritance is evaluated at query time, not frozen when the grant was made.",
+   "C": "A table inherits from its schema, which inherits from its catalog. No separate grant is needed.",
+   "D": "SELECT is valid at catalog and schema level and means exactly this."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "grants",
+   "privilege-inheritance",
+   "unity-catalog"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S7-Q003"
+ },
+ {
+  "id": "ASSOC-S7-Q004",
+  "exam": "associate",
+  "section": "ASSOC-S7",
+  "objectives": [
+   "ASSOC-S7-O2"
+  ],
+  "stem": "A user has been granted SELECT on a table but still cannot query it. What is the most likely missing privilege?",
+  "code": null,
+  "options": {
+   "A": "USE CATALOG on the catalog and USE SCHEMA on the schema containing the table.",
+   "B": "MODIFY on the table, which is required alongside SELECT.",
+   "C": "Ownership of the table.",
+   "D": "SELECT on the metastore."
+  },
+  "correct": "A",
+  "explanation": "Reaching an object requires traversal privileges on every container above it: USE CATALOG, then USE SCHEMA, then SELECT. A grant on the table alone leaves the user unable to get to it. This is the single most common Unity Catalog permission puzzle, and the error message rarely names the missing traversal privilege directly.",
+  "why": {
+   "B": "MODIFY grants writes. Reading needs only SELECT plus traversal.",
+   "C": "Ownership is not needed to read.",
+   "D": "There is no SELECT at metastore level."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "grants",
+   "use-catalog",
+   "troubleshooting"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S7-Q004"
+ },
+ {
+  "id": "ASSOC-S7-Q005",
+  "exam": "associate",
+  "section": "ASSOC-S7",
+  "objectives": [
+   "ASSOC-S7-O2"
+  ],
+  "stem": "Why is a service principal, rather than a personal account, the recommended identity for a production pipeline?",
+  "code": null,
+  "options": {
+   "A": "The pipeline keeps working when the person leaves, and its access can be scoped to exactly what the job needs.",
+   "B": "Service principals can be granted privileges that users cannot.",
+   "C": "Service principals bypass Unity Catalog permission checks for automation.",
+   "D": "Only service principals can run scheduled jobs."
+  },
+  "correct": "A",
+  "explanation": "Two reasons that matter in practice: continuity, because a pipeline tied to a person breaks when that person's account is disabled; and least privilege, because a service principal holds only the access the job needs rather than everything its author happens to have. Audit logs also attribute the work to the pipeline rather than to a human who was asleep at the time.",
+  "why": {
+   "B": "The privilege model is the same for both principal types.",
+   "C": "Service principals are subject to exactly the same checks. Anything else would make them a security hole.",
+   "D": "Users can own and run scheduled jobs; it is just a worse idea."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "service-principal",
+   "grants",
+   "automation"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S7-Q005"
+ },
+ {
+  "id": "ASSOC-S7-Q006",
+  "exam": "associate",
+  "section": "ASSOC-S7",
+  "objectives": [
+   "ASSOC-S7-O3"
+  ],
+  "stem": "A table must show full email addresses to the support group and a redacted value to everyone else, from the same table name. Which mechanism does this?",
+  "code": null,
+  "options": {
+   "A": "A column mask on the email column whose function returns the value or a redacted string depending on group membership.",
+   "B": "Two copies of the table with different columns, and grants directing each group to one.",
+   "C": "A row filter on the email column.",
+   "D": "Revoking SELECT on the email column for non-support users."
+  },
+  "correct": "A",
+  "explanation": "A column mask attaches a function to a column that is evaluated per querying user - typically with is_account_group_member() - so one table name serves both audiences and the policy travels with the column rather than living in whichever view someone happened to query.",
+  "why": {
+   "B": "Two copies means duplication and drift, and the requirement explicitly says the same table name.",
+   "C": "Row filters remove *rows*. Hiding part of a column's value is a mask, not a filter.",
+   "D": "Unity Catalog grants SELECT at table level, not per column, so this is not available as stated."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "column-mask",
+   "row-filter",
+   "dynamic-views"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S7-Q006"
+ },
+ {
+  "id": "ASSOC-S7-Q007",
+  "exam": "associate",
+  "section": "ASSOC-S7",
+  "objectives": [
+   "ASSOC-S7-O3"
+  ],
+  "stem": "Regional managers must each see only their own region's rows from a shared orders table. Which approach fits, and what does it attach to?",
+  "code": null,
+  "options": {
+   "A": "A row filter function on the table, matching the querying user's region against the row.",
+   "B": "A column mask on the region column.",
+   "C": "Separate tables per region with grants per group.",
+   "D": "A view per region, with each manager granted access to their own."
+  },
+  "correct": "A",
+  "explanation": "Row filters restrict which rows a user sees, evaluated per query against their identity or group membership. Attaching it to the table means every path to the data - notebook, SQL editor, dashboard, someone else's view built on top - inherits the restriction, which is what makes it a governance control rather than a convention.",
+  "why": {
+   "B": "A mask changes a value within a row; it cannot remove the row.",
+   "C": "Physically splitting the data multiplies maintenance and breaks any query that needs the whole picture.",
+   "D": "Workable but it does not scale - a new region means a new view and new grants, and anyone reaching the base table bypasses it entirely."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "row-filter",
+   "multi-tenant",
+   "regional"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S7-Q007"
+ },
+ {
+  "id": "ASSOC-S7-Q008",
+  "exam": "associate",
+  "section": "ASSOC-S7",
+  "objectives": [
+   "ASSOC-S7-O4"
+  ],
+  "stem": "An organisation must mask every column containing PII across hundreds of tables, and new tables appear weekly. Why is an attribute-based policy preferable to attaching a column mask to each column?",
+  "code": null,
+  "options": {
+   "A": "A policy applies wherever a tag appears, so newly created columns tagged as PII are covered automatically without anyone remembering.",
+   "B": "Attribute-based policies are evaluated faster than column masks.",
+   "C": "Column masks cannot be applied to more than one column per table.",
+   "D": "Only attribute-based policies can distinguish between user groups."
+  },
+  "correct": "A",
+  "explanation": "Per-object masks scale linearly with objects and depend on someone applying them every time. An ABAC policy binds the rule to a *tag*, so governance follows the data as it is created - the failure mode it removes is the one that actually happens, which is a new table shipping unprotected because a step was forgotten.",
+  "why": {
+   "B": "Performance is not the argument; consistency at scale is.",
+   "C": "A table can have masks on many columns.",
+   "D": "Column masks can test group membership perfectly well."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "abac",
+   "tags",
+   "policy",
+   "scale"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S7-Q008"
+ },
+ {
+  "id": "ASSOC-S7-Q009",
+  "exam": "associate",
+  "section": "ASSOC-S7",
+  "objectives": [
+   "ASSOC-S7-O4",
+   "ASSOC-S7-O3"
+  ],
+  "stem": "In an attribute-based access control model on Unity Catalog, what determines whether a policy applies to a given column?",
+  "code": null,
+  "options": {
+   "A": "A tag on the column, which the policy targets.",
+   "B": "The column's data type.",
+   "C": "The column's position in the table schema.",
+   "D": "Whether the column is part of the table's primary key."
+  },
+  "correct": "A",
+  "explanation": "ABAC works by binding rules to attributes - tags - rather than to named objects. Tag a column as containing PII and every policy targeting that tag applies to it immediately, wherever it lives. The governance question shifts from \"did someone protect this table\" to \"is the data classified correctly\", which is a much easier thing to audit.",
+  "why": {
+   "B": "Data type is far too blunt - not every STRING is sensitive and not all sensitive data is a STRING.",
+   "C": "Position carries no meaning.",
+   "D": "Key membership is unrelated to sensitivity."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "abac",
+   "governance",
+   "tags"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S7-Q009"
+ },
+ {
+  "id": "ASSOC-S6-Q001",
+  "exam": "associate",
+  "section": "ASSOC-S6",
+  "objectives": [
+   "ASSOC-S6-O3"
+  ],
+  "stem": "A data engineer notices a batch job's duration has doubled after a new data source was onboarded. In the Spark UI, the longest stage shows that most tasks finish in under 30 seconds, but one task takes over 10 minutes. The stage's task summary shows Min/Median shuffle read near 400 MB while Max shuffle read exceeds 5 GB. Which solution reduces the job runtime?",
+  "code": null,
+  "options": {
+   "A": "Increase cluster size to add more executors so the slow task finishes faster",
+   "B": "Confirm adaptive query execution with skew join handling is active to automatically split the oversized partition at runtime",
+   "C": "Reduce spark.sql.shuffle.partitions to coalesce more work into fewer tasks",
+   "D": "Manually repartition the dataset using a salt key before the join to distribute skewed keys evenly"
+  },
+  "correct": "B",
+  "explanation": "One task reading 5 GB while the median reads 400 MB is the signature of data skew: a single partition holds far more of one join key than the others. Adaptive Query Execution's skew join handling detects oversized partitions at runtime and splits them automatically, which fixes the root cause with no code change. Reach for AQE before hand-tuning.",
+  "why": {
+   "A": "Skew is a distribution problem, not a capacity one. Adding executors leaves the one oversized partition on a single task - the job is still gated by that task, and now costs more.",
+   "C": "Fewer partitions makes skew worse by packing even more data into each task.",
+   "D": "Salting genuinely works, and it is what you would do if AQE could not. But it means rewriting the join by hand, so it is the wrong first move when the engine can handle it automatically."
+  },
+  "difficulty": "analysis",
+  "provenance": "official-sample",
+  "tags": [
+   "spark-ui",
+   "data-skew",
+   "aqe",
+   "shuffle"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S6-Q001"
+ },
+ {
+  "id": "ASSOC-S1-Q001",
+  "exam": "associate",
+  "section": "ASSOC-S1",
+  "objectives": [
+   "ASSOC-S1-O1",
+   "ASSOC-S1-O2"
+  ],
+  "stem": "A data engineer requires rapid iteration on pipelines while maintaining reliable rollbacks after bad ingests, ensuring audit trails for regulatory compliance, and providing consistent access to a single source of truth for both AI and BI workloads. Which strategy should the data engineer use to meet these requirements?",
+  "code": null,
+  "options": {
+   "A": "DBFS CSV storage with manual file versioning and nightly copies for rollback",
+   "B": "Delta Lake ACID transactions and time travel, governed by Unity Catalog for consistent access and lineage",
+   "C": "Cloud object storage only, with ad hoc SQL queries for recovery and governance",
+   "D": "Ephemeral in-memory DataFrames for audit trails and BI distribution"
+  },
+  "correct": "B",
+  "explanation": "Map each requirement to the feature that provides it. Reliable rollback comes from Delta Lake time travel (RESTORE to a prior version); audit trails come from the transaction log plus Unity Catalog lineage; a single source of truth for AI and BI comes from UC governing one copy of the data. This pairing is the platform's core answer and recurs across the exam.",
+  "why": {
+   "A": "Manual file versioning is exactly what Delta's transaction log replaces. No ACID guarantees, and nightly copies mean losing up to a day.",
+   "C": "Object storage alone has no transaction log, so there is nothing to roll back to and no governance layer.",
+   "D": "In-memory DataFrames are ephemeral by definition - the opposite of an audit trail."
+  },
+  "difficulty": "application",
+  "provenance": "official-sample",
+  "tags": [
+   "delta-lake",
+   "time-travel",
+   "unity-catalog",
+   "acid"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S1-Q001"
+ },
+ {
+  "id": "ASSOC-S2-Q001",
+  "exam": "associate",
+  "section": "ASSOC-S2",
+  "objectives": [
+   "ASSOC-S2-O1"
+  ],
+  "stem": "A data engineer is building downstream pipelines to consume Databricks audit logs from a customer-owned S3 bucket. Before implementing schema inference and checkpointing, they want to understand the delivery format, typical ingestion latency, and whether files may be overwritten. What is Databricks audit log storage behavior?",
+  "code": null,
+  "options": {
+   "A": "Files are delivered as JSON with typical event logging under 15 minutes after delivery begins, and new deliveries can overwrite existing files",
+   "B": "Files are delivered as CSV with sub-minute latency guarantees, and overwrites never occur once a file is written to preserve immutability",
+   "C": "Files are delivered as Parquet with eventual consistency beyond 24 hours, and overwrites are disabled to simplify streaming ingestion",
+   "D": "Files are delivered as JSON with delivery on a weekly batch cadence, and overwrites replace prior content completely without appending"
+  },
+  "correct": "A",
+  "explanation": "Audit logs arrive as JSON, typically within about 15 minutes, and Databricks may overwrite an already-delivered file. That last point is the one that matters for pipeline design: because files are mutable, an ingestion approach that assumes append-only files can miss or duplicate records, so plan for idempotent processing rather than trusting file immutability.",
+  "why": {
+   "B": "Audit logs are JSON, not CSV, and there is no sub-minute guarantee.",
+   "C": "Not Parquet, and the latency figure is far too pessimistic.",
+   "D": "The format is right but the cadence is not - delivery is continuous, not weekly."
+  },
+  "difficulty": "recall",
+  "provenance": "official-sample",
+  "tags": [
+   "audit-logs",
+   "ingestion",
+   "auto-loader",
+   "json"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S2-Q001"
+ },
+ {
+  "id": "ASSOC-S6-Q002",
+  "exam": "associate",
+  "section": "ASSOC-S6",
+  "objectives": [
+   "ASSOC-S6-O5",
+   "ASSOC-S1-O2"
+  ],
+  "stem": "A data engineering team supports multiple business analysts who run ad hoc SQL queries throughout the day on curated Delta tables. The team needs to ensure efficient query performance, fast cluster startup, and support for multiple simultaneous users, while managing cost by avoiding unnecessary scaling to very large clusters. Which cluster configuration meets these requirements?",
+  "code": null,
+  "options": {
+   "A": "A job cluster with autoscaling designed for scheduled ETL workflows",
+   "B": "An all-purpose cluster configured with a fixed number of worker nodes",
+   "C": "A high-concurrency cluster with autoscaling enabled",
+   "D": "A single-node cluster configured for lightweight development tasks"
+  },
+  "correct": "C",
+  "explanation": "Work the requirements one at a time: \"multiple simultaneous users\" points to high concurrency, and \"avoid unnecessary scaling\" points to autoscaling rather than a fixed large cluster. High concurrency plus autoscaling is the only option satisfying both.",
+  "why": {
+   "A": "Job clusters are created per run and terminate after it - they exist for scheduled work, not interactive ad hoc querying.",
+   "B": "A fixed node count cannot flex with demand: it is either wasteful when idle or a bottleneck at peak.",
+   "D": "A single node cannot serve multiple concurrent analysts."
+  },
+  "difficulty": "application",
+  "provenance": "official-sample",
+  "tags": [
+   "compute",
+   "concurrency",
+   "autoscaling",
+   "cost"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S6-Q002"
+ },
+ {
+  "id": "ASSOC-S5-Q001",
+  "exam": "associate",
+  "section": "ASSOC-S5",
+  "objectives": [
+   "ASSOC-S5-O3",
+   "ASSOC-S5-O1"
+  ],
+  "stem": "A team wants a modular way to deploy, version, and orchestrate ETL pipelines in Databricks - enabling CI/CD and repeatability. Which feature supports this requirement?",
+  "code": null,
+  "options": {
+   "A": "Use models in Unity Catalog to represent ETL jobs, where each model stores the pipeline code artifact and CI/CD promotes versions by updating model aliases tied to Job tasks.",
+   "B": "Package transformation logic as wheel libraries stored in Unity Catalog Volumes and bind them to Jobs tasks to ensure deterministic deployment across environments.",
+   "C": "Package API logic inside a Volume-mounted notebook, and use Jobs API v2 to trigger the notebook, depending on notebook revision history to act as a versioning system.",
+   "D": "Use DABs to define resources and code assets, version them in Git, and promote deployments across environments through automated CI/CD actions."
+  },
+  "correct": "D",
+  "explanation": "Declarative Automation Bundles (formerly Databricks Asset Bundles) are the platform's answer to packaging jobs, pipelines and their configuration as version-controlled code, then promoting the same definitions across dev, test and prod with per-target overrides. When a question asks for deployment plus versioning plus environment promotion together, it is describing bundles.",
+  "why": {
+   "A": "Models in Unity Catalog version ML models, not ETL job definitions. Using model aliases to deploy pipelines misuses the registry.",
+   "B": "Wheels are a reasonable way to package transformation *code*, but they do not define the jobs, pipelines or environment configuration around it.",
+   "C": "Notebook revision history is not a deployment mechanism, and relying on it for versioning gives no reproducible promotion between environments."
+  },
+  "difficulty": "application",
+  "provenance": "official-sample",
+  "tags": [
+   "dabs",
+   "cicd",
+   "deployment",
+   "versioning"
+  ],
+  "variant_of": null,
+  "family": "ASSOC-S5-Q001"
+ },
+ {
+  "id": "PRO-S10-Q001",
+  "exam": "professional",
+  "section": "PRO-S10",
+  "objectives": [
+   "PRO-S10-O1"
+  ],
+  "stem": "A Delta Lake table was created with the first query below. Realizing that the original query had a typographical error, the second query was executed. Which result will occur after running the second command?",
+  "code": "CREATE TABLE prod.sales_by_stor\nUSING DELTA\nLOCATION \"/mnt/prod/sales_by_store\"\n\nALTER TABLE prod.sales_by_stor RENAME TO prod.sales_by_store\n",
+  "options": {
+   "A": "All related files and metadata are dropped and recreated in a single ACID transaction.",
+   "B": "The table name change is recorded in the Delta transaction log.",
+   "C": "A new Delta transaction log is created for the renamed table.",
+   "D": "The table reference in the metastore is updated."
+  },
+  "correct": "D",
+  "explanation": "The table was created with an explicit LOCATION, making it an external table. Renaming it changes only the metastore's pointer - no data files move, and the Delta transaction log is untouched. The key idea is the separation between the catalog (which names things) and the transaction log (which records data operations); a rename is purely a catalog operation.",
+  "why": {
+   "A": "Nothing is dropped or rewritten. A rename that moved terabytes of files would be a very expensive typo fix.",
+   "B": "The transaction log records data operations on the table, not the name the catalog knows it by.",
+   "C": "The log lives with the data at its storage location, which has not changed, so no new log is created."
+  },
+  "difficulty": "recall",
+  "provenance": "official-sample",
+  "tags": [
+   "delta-lake",
+   "metastore",
+   "external-table",
+   "rename"
+  ],
+  "variant_of": null,
+  "family": "PRO-S10-Q001"
+ },
+ {
+  "id": "PRO-S1-Q001",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O8"
+  ],
+  "stem": "A Structured Streaming job deployed to production has been experiencing delays during peak hours of the day. Currently, during normal execution, each microbatch of data is processed in under 3 seconds. During peak hours, execution time for each microbatch becomes very inconsistent, sometimes exceeding 30 seconds. The streaming write is currently configured with a 10-second trigger interval. Holding all other variables constant and assuming records need to be processed in less than 10 seconds, which adjustment will meet the requirement?",
+  "code": null,
+  "options": {
+   "A": "Use the trigger once option and configure a Databricks job to execute the query every 8 seconds; this ensures all backlogged records are processed with each batch.",
+   "B": "Decrease the trigger interval to 5 seconds; triggering batches more frequently may prevent records from backing up and large batches from causing a spill.",
+   "C": "Decrease the trigger interval to 5 seconds; triggering batches more frequently allows idle executors to begin processing the next batch while longer-running tasks from previous batches finish.",
+   "D": "The trigger interval cannot be modified without modifying the checkpoint directory; to maintain the current stream state, increase the number of shuffle partitions to maximize parallelism."
+  },
+  "correct": "B",
+  "explanation": "Smaller, more frequent batches keep each microbatch's working set small enough to avoid spilling to disk, which is what makes peak-hour runtimes blow out to 30 seconds. Note that B and C recommend the same action - the exam is testing the *reasoning*, not the change. Read the justification, not just the verb.",
+  "why": {
+   "A": "Trigger-once processes all available data in one batch, which makes the batch larger, not smaller - the opposite of what is needed.",
+   "C": "Right action, wrong mechanism. Structured Streaming microbatches run sequentially; the next batch does not start while the previous one is still finishing, so there are no idle executors overlapping work.",
+   "D": "The trigger interval can be changed without touching the checkpoint. Trigger interval is not part of the checkpointed state."
+  },
+  "difficulty": "analysis",
+  "provenance": "official-sample",
+  "tags": [
+   "structured-streaming",
+   "trigger-interval",
+   "microbatch",
+   "sla"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q001"
+ },
+ {
+  "id": "PRO-S10-Q002",
+  "exam": "professional",
+  "section": "PRO-S10",
+  "objectives": [
+   "PRO-S10-O1"
+  ],
+  "stem": "A Delta Lake table representing metadata about content posts from users has the schema below. Based on that schema, which column should be used for partitioning the Delta table?",
+  "code": "user_id     LONG,\npost_text   STRING,\npost_id     STRING,\nlongitude   FLOAT,\nlatitude    FLOAT,\npost_time   TIMESTAMP,\ndate        DATE\n",
+  "options": {
+   "A": "post_id",
+   "B": "post_time",
+   "C": "date",
+   "D": "user_id"
+  },
+  "correct": "C",
+  "explanation": "A partition column needs low enough cardinality that each partition holds a substantial amount of data - the usual guidance is at least around a gigabyte per partition. `date` gives one partition per day, which is coarse enough to avoid a small-file explosion and aligns with how such data is usually queried. Worth knowing that modern Databricks guidance is to prefer Liquid Clustering over partitioning for most tables (see PRO-S10-O3); this question predates that shift and tests classic partition-column selection.",
+  "why": {
+   "A": "post_id is unique per row - one partition per post, which is the worst possible choice.",
+   "B": "A TIMESTAMP has second or sub-second granularity, so partitioning on it creates an enormous number of tiny partitions.",
+   "D": "user_id is high cardinality and skewed - a few prolific users would produce huge partitions while most produce trivial ones."
+  },
+  "difficulty": "application",
+  "provenance": "official-sample",
+  "tags": [
+   "partitioning",
+   "cardinality",
+   "delta-lake"
+  ],
+  "variant_of": null,
+  "family": "PRO-S10-Q002"
+ },
+ {
+  "id": "PRO-S8-Q001",
+  "exam": "professional",
+  "section": "PRO-S8",
+  "objectives": [
+   "PRO-S8-O2"
+  ],
+  "stem": "A table named user_ltv is being used to create a view that will be used by data analysts on various teams. Users in the workspace are configured into groups, which are used for setting up data access using ACLs. The user_ltv table has the schema `email STRING, age INT, ltv INT`. The view definition below is executed, then an analyst who is NOT a member of the marketing group runs `SELECT * FROM email_ltv`. What will be the result of this query?",
+  "code": "CREATE VIEW email_ltv AS\nSELECT\n  CASE WHEN is_member('marketing') THEN email ELSE 'REDACTED' END AS email,\n  ltv\nFROM user_ltv\n",
+  "options": {
+   "A": "Only the email and ltv columns will be returned; the email column will contain the string \"REDACTED\" in each row.",
+   "B": "Three columns will be returned, but one column will be named \"REDACTED\" and contain only null values.",
+   "C": "Only the email and ltv columns will be returned; the email column will contain all null values.",
+   "D": "The email and ltv columns will be returned with the values in user_ltv."
+  },
+  "correct": "A",
+  "explanation": "This is a dynamic view. `is_member('marketing')` is evaluated per querying user, so for a non-member the CASE yields the literal string 'REDACTED' in the email column. The view selects only email and ltv, so `age` never appears regardless of who asks - the view is the security boundary.",
+  "why": {
+   "B": "The column is aliased AS email; 'REDACTED' is the value, not the column name. And only two columns are selected.",
+   "C": "The CASE returns a string literal, not NULL.",
+   "D": "This is what a marketing group member would see. The whole point of is_member() is that the result differs by caller."
+  },
+  "difficulty": "analysis",
+  "provenance": "official-sample",
+  "tags": [
+   "unity-catalog",
+   "views",
+   "dynamic-views",
+   "is_member",
+   "column-masking"
+  ],
+  "variant_of": null,
+  "family": "PRO-S8-Q001"
+ },
+ {
+  "id": "PRO-S1-Q002",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O10",
+   "PRO-S1-O5"
+  ],
+  "stem": "The business reporting team requires that data for their dashboards be updated every hour. The total processing time for the pipeline, which extracts, transforms, and loads data for its runs, is 10 minutes. Assuming normal operating conditions, which configuration will meet their service-level agreement requirements with the lowest cost?",
+  "code": null,
+  "options": {
+   "A": "Schedule a job to execute the pipeline once an hour on a dedicated interactive cluster.",
+   "B": "Schedule a job to execute the pipeline once an hour on a new job cluster.",
+   "C": "Schedule a Structured Streaming job with a trigger interval of 60 minutes.",
+   "D": "Configure a job that executes every time new data lands in a given directory."
+  },
+  "correct": "B",
+  "explanation": "A job cluster is created for the run and terminated when it finishes, so you pay for roughly 10 minutes of compute per hour instead of 60. Job clusters are also billed at a lower DBU rate than all-purpose compute. When a question pairs a fixed schedule with \"lowest cost\", job clusters are almost always the answer.",
+  "why": {
+   "A": "A dedicated interactive cluster runs continuously (or must be manually managed), so you pay for 60 minutes an hour to do 10 minutes of work - and at the higher all-purpose rate.",
+   "C": "A streaming job keeps a cluster alive between triggers, which is the same always-on cost problem for what is fundamentally a batch workload.",
+   "D": "File-arrival triggering does not meet a defined hourly SLA - it fires whenever data happens to land, which could be far more or less often than hourly."
+  },
+  "difficulty": "application",
+  "provenance": "official-sample",
+  "tags": [
+   "job-cluster",
+   "cost",
+   "scheduling",
+   "sla"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q002"
+ },
+ {
+  "id": "PRO-S7-Q001",
+  "exam": "professional",
+  "section": "PRO-S7",
+  "objectives": [
+   "PRO-S7-O1"
+  ],
+  "stem": "The security team is exploring whether the Databricks secrets module can be leveraged for connecting to an external database. After testing the code with all Python variables defined as plain strings, they upload the password to the secrets module and configure the correct permissions for the currently active user. They modify their code as below, leaving all other variables unchanged. What will happen when this code is executed?",
+  "code": "password = dbutils.secrets.get(scope=\"db_creds\", key=\"jdbc_password\")\nprint(password)\n\ndf = (spark.read\n      .format(\"jdbc\")\n      .option(\"url\", connection)\n      .option(\"dbtable\", tablename)\n      .option(\"user\", username)\n      .option(\"password\", password))\n",
+  "options": {
+   "A": "The connection to the external table will succeed; the string \"REDACTED\" will be printed.",
+   "B": "The connection to the external table will succeed; the string value of the password will be printed in plain text.",
+   "C": "An interactive input box will appear in the notebook; if the right password is provided, the connection will succeed, and the password will be printed in plain text.",
+   "D": "An interactive input box will appear in the notebook; if the right password is provided, the connection will succeed, and the encoded password will be saved to DBFS."
+  },
+  "correct": "A",
+  "explanation": "Secrets retrieved via dbutils.secrets.get hold their real value in code - so the JDBC connection works - but Databricks redacts them from any notebook output. Printing one displays \"REDACTED\". This is a deliberate guardrail against accidentally leaking credentials into notebook results, logs or exported HTML.",
+  "why": {
+   "B": "This is precisely what redaction exists to prevent.",
+   "C": "dbutils.secrets.get reads from the secret scope; it never prompts. You may be thinking of dbutils.widgets.",
+   "D": "No prompt appears, and nothing is written to DBFS."
+  },
+  "difficulty": "recall",
+  "provenance": "official-sample",
+  "tags": [
+   "secrets",
+   "dbutils",
+   "redaction",
+   "jdbc"
+  ],
+  "variant_of": null,
+  "family": "PRO-S7-Q001"
+ },
+ {
+  "id": "PRO-S6-Q001",
+  "exam": "professional",
+  "section": "PRO-S6",
+  "objectives": [
+   "PRO-S6-O3"
+  ],
+  "stem": "A data ingestion task requires a 1-TB JSON dataset to be written out to Parquet with a target part-file size of 512 MB. Because Parquet is being used instead of Delta Lake, built-in file-sizing features such as Auto-Optimize and Auto-Compaction cannot be used. Which approach will work WITHOUT rearranging the data?",
+  "code": null,
+  "options": {
+   "A": "Ingest the data, execute the narrow transformations, repartition to 2,048 partitions, and then write to Parquet.",
+   "B": "Set spark.sql.adaptive.advisoryPartitionSizeInBytes to 512 MB, ingest the data, execute the narrow transformations, coalesce to 2,048 partitions, and then write to Parquet.",
+   "C": "Set spark.sql.files.maxPartitionBytes to 512 MB, ingest the data, execute the narrow transformations, and then write to Parquet.",
+   "D": "Set spark.sql.shuffle.partitions to 2,048 partitions, ingest the data, execute the narrow transformations, optimize the data by sorting it (which automatically repartitions the data), and then write to Parquet."
+  },
+  "correct": "C",
+  "explanation": "The constraint \"without rearranging the data\" is the whole question - it rules out any shuffle. `spark.sql.files.maxPartitionBytes` controls how much data each partition holds when files are *read*, so setting it to 512 MB gives partitions of roughly that size that flow through narrow transformations untouched and land as 512 MB output files. No shuffle occurs at any point.",
+  "why": {
+   "A": "repartition() is a full shuffle - exactly what the question forbids.",
+   "B": "advisoryPartitionSizeInBytes applies to adaptive shuffle partitioning, and coalesce still rearranges data across partitions.",
+   "D": "shuffle.partitions only affects operations that shuffle, and the sort explicitly repartitions."
+  },
+  "difficulty": "analysis",
+  "provenance": "official-sample",
+  "tags": [
+   "file-sizing",
+   "parquet",
+   "partitioning",
+   "spark-config"
+  ],
+  "variant_of": null,
+  "family": "PRO-S6-Q001"
+ },
+ {
+  "id": "PRO-S10-Q003",
+  "exam": "professional",
+  "section": "PRO-S10",
+  "objectives": [
+   "PRO-S10-O1",
+   "PRO-S8-O1"
+  ],
+  "stem": "The marketing team wants to share data in an aggregate table with the sales organization, but the field names used by the teams do not match, and a number of marketing-specific fields have not been approved for the sales organization. Which solution addresses the situation while emphasizing simplicity?",
+  "code": null,
+  "options": {
+   "A": "Create a view on the marketing table selecting only those fields approved for the sales team; alias the names of any fields that should be standardized to the sales naming conventions.",
+   "B": "Create a new table with the required schema and use Delta Lake's DEEP CLONE functionality to sync up changes committed to one table to the corresponding table.",
+   "C": "Use a CTAS statement to create a derivative table from the marketing table, and then configure a production job to propagate the changes.",
+   "D": "Add a parallel table write to the current production pipeline, updating a new sales table that varies as required from the marketing table."
+  },
+  "correct": "A",
+  "explanation": "A view solves both halves of the problem at once - column selection handles the unapproved fields, aliasing handles the naming mismatch - and it stays current automatically because it is computed at query time. Options B, C and D all create a second physical copy that must be kept in sync. When a question emphasizes \"simplicity\", prefer the solution that stores no duplicate data.",
+  "why": {
+   "B": "DEEP CLONE copies data and does not continuously sync; it also cannot rename or drop columns.",
+   "C": "CTAS plus a propagation job is real duplication plus real operational burden, for something a view does for free.",
+   "D": "A parallel write adds a second copy to maintain and a new failure mode in the production pipeline."
+  },
+  "difficulty": "application",
+  "provenance": "official-sample",
+  "tags": [
+   "views",
+   "data-sharing",
+   "simplicity",
+   "clone"
+  ],
+  "variant_of": null,
+  "family": "PRO-S10-Q003"
+ },
+ {
+  "id": "PRO-S1-Q003",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O5"
+  ],
+  "stem": "A Databricks job has been configured with three tasks, each of which is a Databricks notebook. Task A does not depend on other tasks. Tasks B and C run in parallel, with each having a serial dependency on task A. What will be the resulting state if tasks A and B complete successfully but task C fails during a scheduled run?",
+  "code": null,
+  "options": {
+   "A": "All logic expressed in the notebook associated with tasks A and B will have been successfully completed; some operations in task C may have been completed successfully.",
+   "B": "Unless all tasks are completed successfully, no changes will be committed to the Lakehouse; because task C failed, all commits will be rolled back automatically.",
+   "C": "All logic expressed in the notebook associated with tasks A and B will have been successfully completed; any changes made in task C will be rolled back due to task failure.",
+   "D": "Because all tasks are managed as a dependency graph, no changes will be committed to the Lakehouse until all tasks have successfully been completed."
+  },
+  "correct": "A",
+  "explanation": "Delta Lake gives ACID guarantees per *write operation*, not across a multi-task job. A job is not a distributed transaction: tasks A and B committed their writes and those stand, and task C may have committed several writes before failing partway through. This is why idempotent, restartable task design matters - the platform will not undo partial work for you.",
+  "why": {
+   "B": "There is no job-level transaction to roll back. Committed writes from A and B are durable.",
+   "C": "Only the individual write that was in flight when C failed is rolled back; writes C already committed remain.",
+   "D": "The dependency graph controls execution *order*, not transactional atomicity."
+  },
+  "difficulty": "analysis",
+  "provenance": "official-sample",
+  "tags": [
+   "jobs",
+   "multi-task",
+   "dependencies",
+   "transactions",
+   "failure"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q003"
+ }
+]

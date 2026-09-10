@@ -226,3 +226,10 @@ display(spark.sql(f"""
 
 spark.sql(f"DROP CATALOG IF EXISTS {DEMO} CASCADE")
 print("cleaned up")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S8 assignment notebook](../../../assignments/PRO-S8/assignment) · [the task](../../../assignments/PRO-S8/README.md).

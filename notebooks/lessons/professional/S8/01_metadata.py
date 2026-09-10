@@ -176,3 +176,12 @@ display(spark.sql(f"""
 # MAGIC
 # MAGIC Comments and tags are not alternatives. Comments say *what this is*; tags say
 # MAGIC *what class of thing this is* — and only the second is queryable at scale.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [02_inheritance](./02_inheritance).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S8 assignment notebook](../../../assignments/PRO-S8/assignment) · [the task](../../../assignments/PRO-S8/README.md).

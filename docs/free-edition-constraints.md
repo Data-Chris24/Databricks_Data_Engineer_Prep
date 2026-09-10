@@ -60,12 +60,33 @@ redeploy, so this is a study tool you bring up when you need it, not a site to
 hand to other people.
 
 ```bash
-databricks bundle deploy --profile FREE     # redeploys and restarts
-databricks apps get <app-name> --profile FREE -o json   # check app_status.state
+databricks apps start de-prep-study --profile FREE                  # restart without redeploying
+databricks apps get de-prep-study --profile FREE -o json | jq .app_status.state
 ```
 
-Studying must never be blocked by a stopped app, so the content also builds to a
-static export.
+Or merge anything to `main`: the deploy workflow redeploys, which also restarts it.
+Progress lives in Lakebase, so a stopped app loses nothing.
+
+### The study app
+
+`app/` deploys as the `de-prep-study` app through the bundle, **from CI only**.
+Two rules that come from how Lakebase and Databricks Apps hand out ownership:
+
+- **Deploy before running locally.** The app's service principal creates the
+  `study` schema on its first start and thereby owns it. If `npm run dev` runs
+  against the database first, *your* role owns the schema and the deployed app
+  gets `permission denied` forever (recovery is drop-and-redeploy, which loses
+  data). `app/README.md` has the check to run first.
+- **Never `bundle deploy` from a laptop.** Development mode prefixes resource
+  names, so it would create a second app and use one of the three slots.
+
+Verified before the first deploy: the bundle interpolates
+`${workspace.file_path}` into the app's environment (`DE_PREP_FILES_ROOT`), and
+`bundle validate --strict -t free` accepts the app resource. Still to confirm on
+the first CI deploy, and to record here: whether the app starts on its own after
+`bundle deploy` (else add `bundle run study_app` to the workflow), that the CI
+service principal may attach the Lakebase resource, and that a user can open
+notebooks under the service principal's bundle folder from the app's links.
 
 ---
 

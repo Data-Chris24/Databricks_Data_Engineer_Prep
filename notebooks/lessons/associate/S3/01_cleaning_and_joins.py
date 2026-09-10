@@ -152,3 +152,12 @@ print("union    :", a.union(a).distinct().count(), " (10 - deduplicated)")
 # MAGIC - Broadcasting avoids shuffling the big side; it is automatic under the threshold.
 # MAGIC
 # MAGIC Next: `02_reshaping_and_aggregates.py`.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [02_reshaping_and_aggregates](./02_reshaping_and_aggregates).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [ASSOC-S3 assignment notebook](../../../assignments/ASSOC-S3/assignment) · [the task](../../../assignments/ASSOC-S3/README.md).

@@ -90,9 +90,9 @@ study UI — are **not needed** and should not be built.
 
 - **3 apps per account.** Budget them; delete throwaways.
 - **Apps auto-stop 24h** after being started, updated or redeployed. This is a
-  study tool you spin up, *not* an always-on site for other people. A one-command
-  redeploy is documented, and a static export keeps studying unblocked when the
-  app is down.
+  study tool you spin up, *not* an always-on site for other people. One command
+  restarts it, and progress lives in Lakebase, so a stopped app loses nothing
+  (Decision 9).
 - App compute reports as size `MEDIUM`.
 
 ---
@@ -218,3 +218,53 @@ questions are still derivative works — "changed a bit" does not clear copyrigh
 
 Real exam content is under NDA and never enters this repo, including in commit
 messages and issues.
+
+---
+
+## Decision 9: The study app is a Databricks App with two areas, Learn and Test
+
+Status: built 2026-09-10 (`app/`), deployed through the bundle.
+
+The first study surface was a single generated HTML page published as a Claude
+artifact. It proved the drill loop but could not link into the workspace, and its
+progress lived in a browser. It is retired; `tools/build_study_app.py` and its
+template are gone.
+
+What replaced it, and why each choice:
+
+- **AppKit (TypeScript/React) + Lakebase**, as Decisions 3 and 4 planned. The app
+  runs *inside* the workspace, so a section page can deep-link to the lesson
+  notebooks the bundle deployed, and the last cell of each lesson notebook links
+  on to the assignment notebook. Progress survives the 24-hour auto-stop because
+  it is in Postgres, not the browser.
+- **Content is build-time JSON, committed.** `tools/build_app_content.py` renders
+  `content/` and `notebooks/` into `app/shared/content/*.json`. Committed rather
+  than gitignored because bundle sync honours `.gitignore` (a generated file would
+  never reach the remote build) and because a deployed app is then reproducible
+  from a commit. `--check` runs in CI, the same contract as the objective docs.
+- **The bundle deploys the app; the Lakebase project is not a bundle resource.**
+  A `bundle destroy` must never delete learner progress, and the account allows
+  one project. It is created once by hand and referenced by name.
+- **CI is the only deployer.** Development-mode bundles prefix resource names, so
+  a laptop deploy would create a second app and consume one of three slots.
+- **Section completion = reaching the end of the page** (a sentinel in view for a
+  second), with a manual toggle either way. Clicking the notebook link was
+  rejected as the signal because people who read first and lab later would never
+  complete anything.
+- **Test mode draws one question per *family*** (a question plus its concise
+  `variant_of` rewrites), apportioned across sections by exam weighting, and
+  refuses to start until the bank has at least `scored_items` families for the
+  exam. So variants sharpen a bank; they never inflate it past the gate.
+- **The timer is the server's.** `started_at` and the deadline are stored with
+  the attempt; the client counts down from the server's clock offset and a reload
+  cannot reset it. A closed tab is settled the next time the attempt is read.
+- **Answer keys ship in the client bundle**, because Practice needs them
+  instantly. Test mode's "nothing revealed until submit" is therefore a UI
+  guarantee, not a security one. Fine for a personal study tool; serving test
+  questions without keys is the hardening step if that ever matters.
+
+Verified against the live workspace before merge: `${workspace.file_path}` does
+interpolate into the app resource's `config.env` (so notebook links get their
+root), and `bundle validate --strict` accepts the app resource on Free Edition.
+What still needs the first CI deploy to confirm is recorded in
+[free-edition-constraints.md](free-edition-constraints.md#the-study-app).

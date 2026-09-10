@@ -1,0 +1,295 @@
+{
+ "ASSOC-S1": {
+  "lessons": [
+   {
+    "path": "notebooks/lessons/associate/S1/01_delta_guarantees",
+    "title": "Delta Lake's guarantees"
+   },
+   {
+    "path": "notebooks/lessons/associate/S1/02_catalog_and_compute",
+    "title": "Unity Catalog and compute"
+   }
+  ],
+  "assignment": {
+   "readme": "notebooks/assignments/ASSOC-S1/README.md",
+   "notebook": null,
+   "grade_job": "grade_assoc_s1"
+  }
+ },
+ "ASSOC-S2": {
+  "lessons": [
+   {
+    "path": "notebooks/lessons/associate/S2/01_copy_into",
+    "title": "COPY INTO — incremental loading from a volume"
+   },
+   {
+    "path": "notebooks/lessons/associate/S2/02_auto_loader",
+    "title": "Auto Loader — schema enforcement and schema evolution"
+   },
+   {
+    "path": "notebooks/lessons/associate/S2/03_schema_evolution",
+    "title": "Schema evolution — and why this is a separate notebook"
+   }
+  ],
+  "assignment": {
+   "readme": "notebooks/assignments/ASSOC-S2/README.md",
+   "notebook": "notebooks/assignments/ASSOC-S2/assignment",
+   "grade_job": "grade_assoc_s2"
+  }
+ },
+ "ASSOC-S3": {
+  "lessons": [
+   {
+    "path": "notebooks/lessons/associate/S3/01_cleaning_and_joins",
+    "title": "Cleaning and joins"
+   },
+   {
+    "path": "notebooks/lessons/associate/S3/02_reshaping_and_aggregates",
+    "title": "Reshaping, dedup and aggregates"
+   },
+   {
+    "path": "notebooks/lessons/associate/S3/03_gold_and_quality",
+    "title": "Gold objects and quality"
+   }
+  ],
+  "assignment": {
+   "readme": "notebooks/assignments/ASSOC-S3/README.md",
+   "notebook": "notebooks/assignments/ASSOC-S3/assignment",
+   "grade_job": "grade_assoc_s3"
+  }
+ },
+ "ASSOC-S4": {
+  "lessons": [
+   {
+    "path": "notebooks/lessons/associate/S4/01_tasks_and_dependencies",
+    "title": "Tasks, dependencies and task values"
+   },
+   {
+    "path": "notebooks/lessons/associate/S4/02_transform_and_publish",
+    "title": "Downstream tasks and conditional flow"
+   }
+  ],
+  "assignment": {
+   "readme": "notebooks/assignments/ASSOC-S4/README.md",
+   "notebook": null,
+   "grade_job": "grade_assoc_s4"
+  }
+ },
+ "ASSOC-S5": {
+  "lessons": [
+   {
+    "path": "notebooks/lessons/associate/S5/01_bundles_and_variables",
+    "title": "Bundles, variables and promotion"
+   },
+   {
+    "path": "notebooks/lessons/associate/S5/02_git_and_ci",
+    "title": "Git workflow and CI"
+   }
+  ],
+  "assignment": {
+   "readme": "notebooks/assignments/ASSOC-S5/README.md",
+   "notebook": null,
+   "grade_job": "grade_assoc_s5"
+  }
+ },
+ "ASSOC-S6": {
+  "lessons": [
+   {
+    "path": "notebooks/lessons/associate/S6/01_diagnosing_skew",
+    "title": "Diagnosing skew and reading a plan"
+   },
+   {
+    "path": "notebooks/lessons/associate/S6/02_health_and_layout",
+    "title": "Pipeline health and table layout"
+   }
+  ],
+  "assignment": {
+   "readme": "notebooks/assignments/ASSOC-S6/README.md",
+   "notebook": null,
+   "grade_job": "grade_assoc_s6"
+  }
+ },
+ "ASSOC-S7": {
+  "lessons": [
+   {
+    "path": "notebooks/lessons/associate/S7/01_tables_and_grants",
+    "title": "Managed tables and grants"
+   },
+   {
+    "path": "notebooks/lessons/associate/S7/02_masking_and_filters",
+    "title": "Column masks and row filters"
+   }
+  ],
+  "assignment": {
+   "readme": "notebooks/assignments/ASSOC-S7/README.md",
+   "notebook": null,
+   "grade_job": "grade_assoc_s7"
+  }
+ },
+ "PRO-S1": {
+  "lessons": [
+   {
+    "path": "notebooks/lessons/professional/S1/01_udfs_and_testing",
+    "title": "UDFs and testing"
+   },
+   {
+    "path": "notebooks/lessons/professional/S1/02_pipelines_and_cdc",
+    "title": "Pipelines, streaming and CDC"
+   }
+  ],
+  "assignment": {
+   "readme": "notebooks/assignments/PRO-S1/README.md",
+   "notebook": null,
+   "grade_job": "grade_pro_s1"
+  }
+ },
+ "PRO-S2": {
+  "lessons": [
+   {
+    "path": "notebooks/lessons/professional/S2/01_formats",
+    "title": "Reading the formats the exam names"
+   },
+   {
+    "path": "notebooks/lessons/professional/S2/02_append_only",
+    "title": "One append-only table, fed by batch *and* stream"
+   }
+  ],
+  "assignment": {
+   "readme": "notebooks/assignments/PRO-S2/README.md",
+   "notebook": "notebooks/assignments/PRO-S2/assignment",
+   "grade_job": "grade_pro_s2"
+  }
+ },
+ "PRO-S3": {
+  "lessons": [
+   {
+    "path": "notebooks/lessons/professional/S3/01_windows_and_quarantine",
+    "title": "Window functions and quarantining"
+   }
+  ],
+  "assignment": {
+   "readme": "notebooks/assignments/PRO-S3/README.md",
+   "notebook": null,
+   "grade_job": "grade_pro_s3"
+  }
+ },
+ "PRO-S4": {
+  "lessons": [
+   {
+    "path": "notebooks/lessons/professional/S4/01_delta_sharing",
+    "title": "Delta Sharing"
+   },
+   {
+    "path": "notebooks/lessons/professional/S4/02_federation",
+    "title": "Lakehouse Federation"
+   }
+  ],
+  "assignment": {
+   "readme": "notebooks/assignments/PRO-S4/README.md",
+   "notebook": "notebooks/assignments/PRO-S4/assignment",
+   "grade_job": "grade_pro_s4"
+  }
+ },
+ "PRO-S5": {
+  "lessons": [
+   {
+    "path": "notebooks/lessons/professional/S5/01_observability",
+    "title": "Observability sources"
+   },
+   {
+    "path": "notebooks/lessons/professional/S5/02_alert_design",
+    "title": "Designing an alert that is worth keeping"
+   }
+  ],
+  "assignment": {
+   "readme": "notebooks/assignments/PRO-S5/README.md",
+   "notebook": null,
+   "grade_job": "grade_pro_s5"
+  }
+ },
+ "PRO-S6": {
+  "lessons": [
+   {
+    "path": "notebooks/lessons/professional/S6/01_layout_and_skipping",
+    "title": "Layout, data skipping and clustering"
+   },
+   {
+    "path": "notebooks/lessons/professional/S6/02_cost_and_profiling",
+    "title": "Cost, managed tables and query profiling"
+   }
+  ],
+  "assignment": {
+   "readme": "notebooks/assignments/PRO-S6/README.md",
+   "notebook": null,
+   "grade_job": "grade_pro_s6"
+  }
+ },
+ "PRO-S7": {
+  "lessons": [
+   {
+    "path": "notebooks/lessons/professional/S7/01_anonymisation",
+    "title": "Anonymisation techniques"
+   },
+   {
+    "path": "notebooks/lessons/professional/S7/02_retention_and_purging",
+    "title": "Retention and purging"
+   }
+  ],
+  "assignment": {
+   "readme": "notebooks/assignments/PRO-S7/README.md",
+   "notebook": null,
+   "grade_job": "grade_pro_s7"
+  }
+ },
+ "PRO-S8": {
+  "lessons": [
+   {
+    "path": "notebooks/lessons/professional/S8/01_metadata",
+    "title": "Making data findable"
+   },
+   {
+    "path": "notebooks/lessons/professional/S8/02_inheritance",
+    "title": "The Unity Catalog permission inheritance model"
+   }
+  ],
+  "assignment": {
+   "readme": "notebooks/assignments/PRO-S8/README.md",
+   "notebook": "notebooks/assignments/PRO-S8/assignment",
+   "grade_job": "grade_pro_s8"
+  }
+ },
+ "PRO-S9": {
+  "lessons": [
+   {
+    "path": "notebooks/lessons/professional/S9/01_reading_failures",
+    "title": "Reading a failure"
+   },
+   {
+    "path": "notebooks/lessons/professional/S9/02_deploying_and_silent_failure",
+    "title": "Deploying, and the failures that do not raise"
+   }
+  ],
+  "assignment": {
+   "readme": "notebooks/assignments/PRO-S9/README.md",
+   "notebook": null,
+   "grade_job": "grade_pro_s9"
+  }
+ },
+ "PRO-S10": {
+  "lessons": [
+   {
+    "path": "notebooks/lessons/professional/S10/01_star_schema",
+    "title": "Dimensional modelling"
+   },
+   {
+    "path": "notebooks/lessons/professional/S10/02_liquid_clustering",
+    "title": "Liquid clustering, and what it replaces"
+   }
+  ],
+  "assignment": {
+   "readme": "notebooks/assignments/PRO-S10/README.md",
+   "notebook": "notebooks/assignments/PRO-S10/assignment",
+   "grade_job": "grade_pro_s10"
+  }
+ }
+}

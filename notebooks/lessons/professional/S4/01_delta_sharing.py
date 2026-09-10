@@ -335,3 +335,12 @@ for r in w.recipients.list():
 spark.sql(f"ALTER TABLE {CATALOG}.{SCHEMA}.pro_s4_teach_customers "
           "SET TBLPROPERTIES (delta.enableChangeDataFeed = false)")
 print("cleaned up")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [02_federation](./02_federation).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S4 assignment notebook](../../../assignments/PRO-S4/assignment) · [the task](../../../assignments/PRO-S4/README.md).

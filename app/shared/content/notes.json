@@ -1,0 +1,350 @@
+{
+ "ASSOC-S1": {
+  "section_id": "ASSOC-S1",
+  "exam": "associate",
+  "title": "Databricks Intelligence Platform",
+  "weight": 6,
+  "markdown": "# Databricks Intelligence Platform — 6%\n\nThe smallest section, but its ideas underpin everything else.\n\n## Core components — `ASSOC-S1-O1`\n\n**Delta Lake** is Parquet plus an ordered transaction log. Parquet gives columnar\nstorage and compression; the *log* gives everything that matters for reliability:\n\n- **ACID transactions** — a write is atomic, so readers never see it half-finished\n- **Time travel** — every version is numbered and queryable, so a bad load is\n  recoverable with `RESTORE`\n- **Schema enforcement** — writes that do not fit are rejected rather than silently\n  reshaping the table\n\n**Unity Catalog** governs across workspaces: a three-level namespace\n(`catalog.schema.table`), one permission model for tables, volumes, models and\nfunctions, plus lineage and audit.\n\nPair them and you have the answer to a whole family of exam questions: *reliable\nrollback, audit trail, and one governed copy for both AI and BI* is Delta Lake for the\nguarantees, Unity Catalog for the governance.\n\n## Compute — `ASSOC-S1-O2`\n\n| Type | Lives | Suits | Billed |\n|---|---|---|---|\n| Job compute | created per run, terminates after | scheduled ETL | lower DBU rate |\n| All-purpose | until stopped | interactive development | higher DBU rate |\n| SQL warehouse | until idle timeout | BI and ad-hoc SQL | its own rate |\n| Serverless | managed entirely by Databricks | fast start, no configuration | per use |\n\n**The cost question is nearly always about idle time.** A 12-minute nightly job on job\ncompute costs 12 minutes; the same job on an all-purpose cluster left running costs 24\nhours at a higher rate. When a question pairs a scheduled workload with \"lowest cost\",\njob compute is the answer.\n\nFor many concurrent analysts running ad-hoc SQL, high concurrency with autoscaling\nbeats a fixed-size cluster — which is either wasteful when idle or a bottleneck at\npeak.\n\n> Free Edition is serverless-only, so compute *selection* cannot be practised there.\n> Learn the trade-offs; you will be asked to reason about them rather than configure\n> them.\n",
+  "toc": [
+   {
+    "level": 2,
+    "text": "Core components",
+    "anchor": "core-components--assoc-s1-o1",
+    "objective_ids": [
+     "ASSOC-S1-O1"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Compute",
+    "anchor": "compute--assoc-s1-o2",
+    "objective_ids": [
+     "ASSOC-S1-O2"
+    ]
+   }
+  ],
+  "subpages": []
+ },
+ "ASSOC-S2": {
+  "section_id": "ASSOC-S2",
+  "exam": "associate",
+  "title": "Data Ingestion and Loading",
+  "weight": 21,
+  "markdown": "# Data Ingestion and Loading — 21%\n\nGetting data in, incrementally, without duplicating it or losing it when the source\nchanges shape.\n\n## Ingestion patterns — `ASSOC-S2-O1`\n\nWhat makes ingestion *incremental* is bookkeeping: a record of what has already been\nconsumed. `COPY INTO` keeps a file list in table metadata; Auto Loader keeps a\ncheckpoint.\n\nIncremental is **not** the same as continuous. Auto Loader with\n`trigger(availableNow=True)` is incremental *and* batch — it processes what has\narrived and stops.\n\n## `COPY INTO` — `ASSOC-S2-O2`\n\nLoads files into an **existing** table, enforcing that table's schema.\n\n```sql\nCOPY INTO bronze_orders\nFROM '/Volumes/catalog/schema/raw/orders'\nFILEFORMAT = CSV\nFORMAT_OPTIONS ('header' = 'true', 'nullValue' = '')\n```\n\n**It is idempotent per file.** Run it twice and the second run is a no-op — which is\nwhat makes it safe to schedule and safe to retry.\n\nIt will **not** coerce CSV text into declared numeric types. Declare\n`unit_price DOUBLE` against a CSV source and the load fails with\n`DELTA_FAILED_TO_MERGE_FIELDS`. Make bronze all `STRING` and cast into silver.\n\n## Auto Loader — `ASSOC-S2-O3`\n\nStructured Streaming underneath, but `availableNow` makes it behave like a batch job.\n\n**Three locations, and confusing two of them is a classic trap:**\n\n| Location | Holds | Delete it and… |\n|---|---|---|\n| landing path | the source files | nothing to read |\n| `cloudFiles.schemaLocation` | inferred schema + versions | schema re-inferred from scratch |\n| `checkpointLocation` | which files were processed | **everything is reprocessed** |\n\n**Schema evolution takes two settings, one on each side:**\n\n- `cloudFiles.schemaEvolutionMode` on the **reader** — lets Auto Loader notice a new column\n- `mergeSchema` on the **writer** — lets the Delta table accept it\n\nSet only the first and you get `DELTA_METADATA_MISMATCH`. The one that *sounds* like\n\"the schema evolution option\" is half the job.\n\n**`addNewColumns` fails on purpose** the first time it meets a new column:\n\n```\n[UNKNOWN_FIELD_EXCEPTION.NEW_FIELDS_IN_FILE] ... which can be fixed by an\nautomatic retry: true\n```\n\nThe failure *is* the mechanism — it records the wider schema and stops so a human\nlearns the source changed. Something must run it again: interactively you re-run the\ncell, in a job the retry policy does it. Catching the exception inside one notebook\nrun does not work.\n\n**`rescuedDataColumn`** captures anything that would not fit the schema, so a\nmalformed batch costs you a column to inspect rather than lost records. Enable it as\nroutine.\n\n## Choosing an approach — `ASSOC-S2-O6`\n\n| | `COPY INTO` | Auto Loader |\n|---|---|---|\n| Tracks files in | table metadata | a checkpoint |\n| Schema | must exist, enforced | inferred, can evolve |\n| Scale | thousands of files | millions |\n| Best for | predictable periodic loads | continuous or drifting sources |\n\n## Lakeflow Connect — `ASSOC-S2-O4`\n\n**Standard connectors** read sources you can reach directly — cloud storage (Auto\nLoader), Kafka, Kinesis. **Managed connectors** are governed pipelines for enterprise\napplications and databases (Salesforce, Workday, SQL Server), with Databricks handling\nextraction and scheduling.\n\nDatabase CDC connectors use an **ingestion gateway** that captures changes from the\nsource into staging, and a pipeline that applies them to Unity Catalog tables.\n\n## JDBC and semi-structured — `ASSOC-S2-O5`, `ASSOC-S2-O7`\n\nCredentials belong in a secret scope, read with `dbutils.secrets.get()`. Databricks\nredacts them from notebook output — printing one shows `REDACTED`, which is what stops\ncredentials escaping into exported HTML, logs and screen-shares.\n\nLand nested JSON in bronze **with its nesting intact**, then reshape on the way to\nsilver. Bronze faithful to the source means you can always reprocess when a\ntransformation turns out to be wrong.\n",
+  "toc": [
+   {
+    "level": 2,
+    "text": "Ingestion patterns",
+    "anchor": "ingestion-patterns--assoc-s2-o1",
+    "objective_ids": [
+     "ASSOC-S2-O1"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "COPY INTO",
+    "anchor": "copy-into--assoc-s2-o2",
+    "objective_ids": [
+     "ASSOC-S2-O2"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Auto Loader",
+    "anchor": "auto-loader--assoc-s2-o3",
+    "objective_ids": [
+     "ASSOC-S2-O3"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Choosing an approach",
+    "anchor": "choosing-an-approach--assoc-s2-o6",
+    "objective_ids": [
+     "ASSOC-S2-O6"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Lakeflow Connect",
+    "anchor": "lakeflow-connect--assoc-s2-o4",
+    "objective_ids": [
+     "ASSOC-S2-O4"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "JDBC and semi-structured",
+    "anchor": "jdbc-and-semi-structured--assoc-s2-o5-assoc-s2-o7",
+    "objective_ids": [
+     "ASSOC-S2-O5",
+     "ASSOC-S2-O7"
+    ]
+   }
+  ],
+  "subpages": [
+   {
+    "slug": "errors-worth-meeting",
+    "title": "Errors worth meeting on purpose",
+    "objective_ids": [
+     "ASSOC-S2-O2",
+     "ASSOC-S2-O3"
+    ],
+    "markdown": "# Errors worth meeting on purpose\n\n**Objectives:** `ASSOC-S2-O2`, `ASSOC-S2-O3`\n\nEvery error below was hit while building the Section 2 lessons — none are\nhypothetical. Each is a case where Databricks fails *deliberately* to stop you\ndoing something worse silently, and each is the kind of thing the exam asks about\nsideways: not \"what does this error say\" but \"what will happen when…\".\n\nThe habit worth building: **read the error, it usually tells you the fix.** Two of\nthese say it outright.\n\n---\n\n## 1. `DELTA_FAILED_TO_MERGE_FIELDS`\n\n**When:** `COPY INTO` a table whose columns you declared as `DOUBLE`/`INT`, from CSV.\n\n```\n[DELTA_FAILED_TO_MERGE_FIELDS] Failed to merge fields 'unit_price' and 'unit_price'\n```\n\n**Why:** CSV has no types — every field is text until something interprets it.\n`COPY INTO` will not silently coerce that text into your declared types, because\ncoercion is where data quietly goes wrong: `\"12.5x\"` becoming `12.5`, or a European\ndecimal comma becoming a different number entirely.\n\n**The fix, and the better design:** make bronze all `STRING`, faithful to the\nsource, and cast on the way to silver. A value that will not cast becomes a null\nyou can *count* rather than a load that fails at 3am.\n\n```sql\n-- silver\nSELECT CAST(quantity AS INT) AS quantity, ...\n```\n\n**Exam-shaped question:** you declare a typed table and `COPY INTO` a CSV — does it\ncast, fail, or load nulls? It fails.\n\n---\n\n## 2. `UNKNOWN_FIELD_EXCEPTION.NEW_FIELDS_IN_FILE`\n\n**When:** Auto Loader with `schemaEvolutionMode = addNewColumns` meets a column it\nhas not seen.\n\n```\n[UNKNOWN_FIELD_EXCEPTION.NEW_FIELDS_IN_FILE] Encountered unknown fields during\nparsing: [channel], which can be fixed by an automatic retry: true\n```\n\n**Why this is not a bug:** read the last clause. Auto Loader records the wider\nschema, then stops **so a human finds out the source changed**. A pipeline that\nsilently absorbs new columns is a pipeline nobody notices has changed.\n\n**The fix:** run it again. Something must do the running:\n\n- **interactively** — re-run the cell; you are the retry\n- **in a job** — set `max_retries`, and the failure becomes invisible\n\n**What does not work:** catching the exception inside one notebook run. See #4.\n\n**Exam-shaped question:** a nightly Auto Loader job starts failing after upstream\nadds a column, with retries disabled. What is happening, and what is the fix?\n\n---\n\n## 3. `DELTA_METADATA_MISMATCH`\n\n**When:** the reader evolved but the writer did not.\n\n```\n[DELTA_METADATA_MISMATCH] A schema mismatch detected when writing to the Delta\ntable. To enable schema migration ... set: .option(\"mergeSchema\", \"true\")\n```\n\n**Why:** schema evolution takes **two** settings, one on each side, and only one of\nthem is named like it.\n\n| Setting | Side | Without it |\n|---|---|---|\n| `cloudFiles.schemaEvolutionMode` | reader | Auto Loader never notices the column |\n| `mergeSchema` | writer | the Delta table rejects it — this error |\n\nSetting only the first is the most common version of this mistake, because it is\nthe one that *sounds* like \"the schema evolution option\".\n\n**Exam-shaped question:** `schemaEvolutionMode` is set to `addNewColumns` and the\njob still fails on a new column. What is missing?\n\n---\n\n## 4. `Some streams terminated before this command could finish!`\n\n**When:** a streaming query fails inside a notebook — **even if you caught the\nexception**.\n\n**Why:** Databricks tracks terminated streaming queries per notebook, separately\nfrom Python exception handling. The cell fails on that bookkeeping regardless of\nyour `try`/`except`, and `spark.streams.resetTerminated()` does not clear it.\n\n**The fix:** stop trying to handle a stream failure inside the notebook run. Let the\nrestart come from outside it — you re-running the cell, or a job retry policy.\n\nThis is worth knowing because the instinct to wrap it in `try`/`except` is a good\ninstinct that happens to be wrong here, and the error message gives no hint as to\nwhy.\n\n---\n\n## The pattern underneath all four\n\nDatabricks fails loudly where the alternative is failing quietly:\n\n| It refuses to | Because silently doing it would |\n|---|---|\n| Coerce CSV text into declared types | change your numbers |\n| Absorb a new column without stopping | hide a source change |\n| Widen a Delta table implicitly | let a typo become a column |\n| Pretend a dead stream is fine | lose data you believed was loaded |\n\nWhen something fails on Databricks, the useful first question is usually *what\nwould have gone wrong if this had worked?*\n",
+    "toc": [
+     {
+      "level": 2,
+      "text": "1. DELTA_FAILED_TO_MERGE_FIELDS",
+      "anchor": "errors-worth-meeting--1-delta_failed_to_merge_fields",
+      "objective_ids": []
+     },
+     {
+      "level": 2,
+      "text": "2. UNKNOWN_FIELD_EXCEPTION.NEW_FIELDS_IN_FILE",
+      "anchor": "errors-worth-meeting--2-unknown_field_exceptionnew_fields_in_file",
+      "objective_ids": []
+     },
+     {
+      "level": 2,
+      "text": "3. DELTA_METADATA_MISMATCH",
+      "anchor": "errors-worth-meeting--3-delta_metadata_mismatch",
+      "objective_ids": []
+     },
+     {
+      "level": 2,
+      "text": "4. Some streams terminated before this command could finish!",
+      "anchor": "errors-worth-meeting--4-some-streams-terminated-before-this-command-could-finish",
+      "objective_ids": []
+     },
+     {
+      "level": 2,
+      "text": "The pattern underneath all four",
+      "anchor": "errors-worth-meeting--the-pattern-underneath-all-four",
+      "objective_ids": []
+     }
+    ]
+   }
+  ]
+ },
+ "ASSOC-S3": {
+  "section_id": "ASSOC-S3",
+  "exam": "associate",
+  "title": "Data Transformation and Modeling",
+  "weight": 22,
+  "markdown": "# Data Transformation and Modeling — 22%\n\nThe heaviest section on the Associate exam. Most of it is joins, aggregation and the\nbronze→silver→gold progression, and most of the traps are things that produce a\n*wrong answer without an error*.\n\n## Cleaning bronze into silver — `ASSOC-S3-O1`\n\nBronze should be faithful to the source. CSV has no types, so a bronze table loaded\nfrom CSV is honestly all `STRING`; typing it there just makes loads fail. Cast on the\nway to silver instead.\n\n`CAST` returns `NULL` when a value will not convert — it does not raise and does not\ndrop the row. So a schema change upstream shows up as a quietly growing null count,\nnot as a failure. Count your nulls after casting; `try_cast()` makes the intent\nexplicit.\n\n**Nulls have meanings.** Before filling one, ask whether it means *unknown* or\n*a specific value*. A null discount that the business says means \"no discount\" should\nbecome `0.0` — that records the meaning. Filling an *unknown* with a default invents\ndata. Same operation, opposite verdict.\n\n## Joins — `ASSOC-S3-O2`\n\nThe exam probes join *cardinality* more than join syntax.\n\n| Join | Keeps | Watch for |\n|---|---|---|\n| `INNER` | matching pairs only | silently drops unmatched rows |\n| `LEFT` | all left rows, NULLs on the right | the usual choice when nothing may be lost |\n| `LEFT ANTI` | left rows with **no** match | finding orphans |\n| `CROSS` | every combination | almost always an accident |\n\n**Fan-out is the one to internalise.** A join returns one row per matching *pair*. If\nthe dimension has two rows for a key, every fact row with that key comes back twice —\nthe count goes *up* and nothing errors. Slowly-changing dimensions cause this\nconstantly. The fix is a point-in-time join that puts the validity window in the join\ncondition:\n\n```sql\nON  e.plan_id = p.plan_id\nAND e.event_date >= p.valid_from\nAND e.event_date <  p.valid_to\n```\n\nNote the asymmetric bounds — `>=` and `<` — so an event on a boundary date matches\nexactly one version.\n\n**Broadcast joins.** A normal join shuffles both sides so matching keys meet. If one\nside is small, broadcasting it to every executor avoids shuffling the large side at\nall. Automatic below `spark.sql.autoBroadcastJoinThreshold` (10 MB default); `-1`\ndisables it.\n\n**`UNION` deduplicates, `UNION ALL` does not.** Deduplication means a shuffle, so\nprefer `UNION ALL` and deduplicate deliberately.\n\n## Reshaping — `ASSOC-S3-O3`\n\n`explode()` turns each array element into its own row, carrying the parent columns —\nthe standard way to change grain from one-row-per-container to one-row-per-item. Use\n`explode_outer()` when an empty array should still produce a row.\n\n`split()` returns an array; index it for the parts. **Spark SQL arrays are 0-based.**\n\nIndexing past the end **raises** `INVALID_ARRAY_INDEX` under ANSI semantics — it does\nnot return null — so one malformed row fails the batch. Use `get(arr, i)` when a\nmissing part is expected and should be null.\n\nDataFrames are immutable. Every transformation returns a new one, and transformations\nare lazy — nothing runs until an action.\n\n## Dedup and aggregates — `ASSOC-S3-O4`\n\n`dropDuplicates()` with no arguments compares *whole rows*, so two versions of a\nrecord that differ anywhere are both kept. Deduplicate on the **business key**:\n`dropDuplicates([\"event_id\"])`. When versions genuinely differ, order by an ingestion\ntimestamp and keep the newest rather than letting Spark pick.\n\n`count(*)` counts rows. `count(col)` counts non-nulls. `avg()` skips nulls — so it\ndivides by the non-null count, and an average comes out too high if a null really\nmeant zero.\n\n`approx_count_distinct()` uses HyperLogLog for a bounded error at a fraction of the\ncost of an exact distinct. When the business has agreed a tolerance, paying for\nexactness is choosing to be slower for nothing.\n\n## Tuning — `ASSOC-S3-O5`\n\n| Setting | Does | Symptom it fixes |\n|---|---|---|\n| `spark.sql.shuffle.partitions` | post-shuffle partition count (default 200) | hundreds of sub-second tasks = too many; long spilling tasks = too few |\n| `spark.sql.autoBroadcastJoinThreshold` | auto-broadcast size limit | unnecessary shuffles, or driver OOM if too high |\n| `spark.driver.memory` | driver heap | **not** the fix for `collect()` on a big result |\n| `spark.executor.memory` | executor heap | spill and GC pressure |\n\n`collect()` pulls every row to the driver. Cluster size is irrelevant — the driver is\none JVM. Write the result to a table; `collect()` is for a handful of rows.\n\n## Gold objects — `ASSOC-S3-O6`\n\n| Object | Computed | Choose when |\n|---|---|---|\n| View | every query | source changes as often as it is read |\n| Materialized view | on refresh | read far more often than written |\n| Streaming table | incrementally, once per row | append-oriented, continuously arriving data |\n\nMatch the object to the read/write ratio. A dashboard hitting a nightly aggregate\nhundreds of times an hour should not recompute it hundreds of times.\n\nViews are also the simplest governance boundary: select the permitted columns, grant\non the view, withhold on the table. No duplicate data, always current.\n\n## Quality — `ASSOC-S3-O7`\n\nA `CHECK` constraint is enforced on write — a violating row fails the transaction\nrather than landing and being cleaned up later. Adding one validates existing rows,\nso it fails if the table already violates it.\n\nThe strongest signal of *silent* degradation is a jump in null rate: the job still\nsucceeds, the row count still looks right, and the data is quietly wrong.\n\nAfter a join meant to enrich without changing grain, assert the row count is\nunchanged. One cheap check catches both fan-out and unintended drops.\n",
+  "toc": [
+   {
+    "level": 2,
+    "text": "Cleaning bronze into silver",
+    "anchor": "cleaning-bronze-into-silver--assoc-s3-o1",
+    "objective_ids": [
+     "ASSOC-S3-O1"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Joins",
+    "anchor": "joins--assoc-s3-o2",
+    "objective_ids": [
+     "ASSOC-S3-O2"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Reshaping",
+    "anchor": "reshaping--assoc-s3-o3",
+    "objective_ids": [
+     "ASSOC-S3-O3"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Dedup and aggregates",
+    "anchor": "dedup-and-aggregates--assoc-s3-o4",
+    "objective_ids": [
+     "ASSOC-S3-O4"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Tuning",
+    "anchor": "tuning--assoc-s3-o5",
+    "objective_ids": [
+     "ASSOC-S3-O5"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Gold objects",
+    "anchor": "gold-objects--assoc-s3-o6",
+    "objective_ids": [
+     "ASSOC-S3-O6"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Quality",
+    "anchor": "quality--assoc-s3-o7",
+    "objective_ids": [
+     "ASSOC-S3-O7"
+    ]
+   }
+  ],
+  "subpages": []
+ },
+ "ASSOC-S4": {
+  "section_id": "ASSOC-S4",
+  "exam": "associate",
+  "title": "Working with Lakeflow Jobs",
+  "weight": 16,
+  "markdown": "# Working with Lakeflow Jobs — 16%\n\nOrchestration: task graphs, triggers, and what happens when part of a job fails.\n\n## Tasks and the DAG — `ASSOC-S4-O2`\n\nA job is a graph of tasks with dependencies. A task runs when **all** of its\ndependencies have succeeded.\n\n**A job is not a transaction.** This is the most consequential idea in the section.\nGiven A → (B, C) → D, if C fails:\n\n- A and B **completed**, and whatever they wrote to the lakehouse **stays written**\n- C failed, and writes it committed before failing are still there\n- D is **skipped**, not failed\n\nDelta gives ACID guarantees per write operation, never across a job. Nothing rolls\nback for you.\n\n**Task types:** notebook, Python script, Python wheel, SQL (query, alert, dashboard\nrefresh), pipeline, dbt, JAR, and nested jobs. There is no \"run a shell command\" task —\nthat happens inside a notebook or script.\n\n**Task values** pass small results between tasks and show up in the run history. They\nalso enable conditional branching, since a condition can test one.\n\n## Control flow — `ASSOC-S4-O1`\n\n**Retries assume idempotence.** A retry reruns the task from the start. If the failed\nattempt already committed writes and the retry blindly appends the same data, you get\nduplicates. Idempotent design — overwrite a partition, `MERGE` on a key, or a\ncheckpoint — is what makes retries safe. Retries are a design decision, not a checkbox.\n\n**If/else conditions** branch on a value, usually a task value from an earlier task.\nKeeping the branch in the job graph rather than inside a notebook means the run\nhistory shows which path a run took.\n\n**For each** runs one iteration per input value, with per-iteration visibility,\nretries and controllable concurrency. Adding a new value becomes a data change rather\nthan a job change.\n\n## Triggers — `ASSOC-S4-O3`, `ASSOC-S4-O4`\n\n| Trigger | Fires | Use when |\n|---|---|---|\n| Scheduled (cron) | at fixed times | the cadence is genuinely time-based |\n| File arrival | when files land | arrival time is unpredictable and latency matters |\n| Table update | when a table changes | you depend on data, not on someone's schedule |\n| Continuous | keeps running | genuinely never-ending work |\n\n**Choose time-based or data-driven by what you actually depend on.** If a downstream\njob cares that upstream *finished*, a table update trigger decouples the two — the\nupstream schedule can change and the dependency still holds. A cron offset \"shortly\nafter upstream usually finishes\" is a coupling you have to re-tune forever.\n\nA file arrival trigger beats polling: one prompt run when there is something to\nprocess, instead of two dozen empty runs a night.\n\n**Overlapping runs are skipped by default.** Max concurrent runs is 1, so a job that\nconsistently overruns its schedule silently halves its frequency. Queueing is available\nwhen runs must not be lost.\n",
+  "toc": [
+   {
+    "level": 2,
+    "text": "Tasks and the DAG",
+    "anchor": "tasks-and-the-dag--assoc-s4-o2",
+    "objective_ids": [
+     "ASSOC-S4-O2"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Control flow",
+    "anchor": "control-flow--assoc-s4-o1",
+    "objective_ids": [
+     "ASSOC-S4-O1"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Triggers",
+    "anchor": "triggers--assoc-s4-o3-assoc-s4-o4",
+    "objective_ids": [
+     "ASSOC-S4-O3",
+     "ASSOC-S4-O4"
+    ]
+   }
+  ],
+  "subpages": []
+ },
+ "ASSOC-S5": {
+  "section_id": "ASSOC-S5",
+  "exam": "associate",
+  "title": "Implementing CI/CD",
+  "weight": 10,
+  "markdown": "# Implementing CI/CD — 10%\n\nGetting the same code into dev, test and prod without editing it on the way.\n\n## Git folders — `ASSOC-S5-O1`\n\nDatabricks Git folders put notebooks under normal version control: branch, commit,\npush, open a pull request, all from the workspace.\n\nWork on a **branch per change** and integrate through pull requests. Beyond avoiding\ncollisions, that gives every change a review point and a revert path — the things you\nwant on the day something breaks in production.\n\n## Bundles — `ASSOC-S5-O2`, `ASSOC-S5-O3`\n\nDeclarative Automation Bundles (formerly Databricks Asset Bundles) package jobs,\npipelines and their configuration as version-controlled code.\n\n```yaml\nbundle:\n  name: my-project\n\nvariables:\n  catalog:\n    default: dev_catalog\n\ntargets:\n  dev:\n    default: true\n    mode: development\n  prod:\n    mode: production\n    variables:\n      catalog: prod_catalog          # same definition, different value\n```\n\n**One definition, promoted across environments, with only configuration differing.**\nThat is the whole point — and it is what makes a dev deployment genuinely predict\nprod. Two copies of a bundle diverge, and the moment they do, dev stops telling you\nanything.\n\n`mode: development` prefixes deployed resources with your username, so your\nexperiments cannot collide with anyone else's or with production.\n\n## The CLI in automation — `ASSOC-S5-O4`\n\n```bash\ndatabricks bundle validate --strict -t prod\ndatabricks bundle deploy -t prod\ndatabricks bundle run my_job -t prod\n```\n\n**`validate` is a configuration check, not a test run.** It catches malformed YAML,\nunresolved variables and bad references before anything is uploaded. It never executes\nyour code — so a bundle can validate cleanly and still fail at runtime, which is why a\npipeline runs tests as well.\n\nIn CI, authenticate as a **service principal** using OAuth machine-to-machine\n(`DATABRICKS_CLIENT_ID` / `DATABRICKS_CLIENT_SECRET`), never as a person. Deploys are\nthen attributable to the pipeline and scoped to what it needs.\n\n> Worth knowing: `DATABRICKS_CONFIG_PROFILE`, if set, overrides those M2M variables and\n> the CLI silently authenticates as *you* instead. A local test of CI auth can appear to\n> succeed while proving nothing.\n",
+  "toc": [
+   {
+    "level": 2,
+    "text": "Git folders",
+    "anchor": "git-folders--assoc-s5-o1",
+    "objective_ids": [
+     "ASSOC-S5-O1"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Bundles",
+    "anchor": "bundles--assoc-s5-o2-assoc-s5-o3",
+    "objective_ids": [
+     "ASSOC-S5-O2",
+     "ASSOC-S5-O3"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "The CLI in automation",
+    "anchor": "the-cli-in-automation--assoc-s5-o4",
+    "objective_ids": [
+     "ASSOC-S5-O4"
+    ]
+   }
+  ],
+  "subpages": []
+ },
+ "ASSOC-S6": {
+  "section_id": "ASSOC-S6",
+  "exam": "associate",
+  "title": "Troubleshooting, Monitoring and Optimization",
+  "weight": 10,
+  "markdown": "# Troubleshooting, Monitoring and Optimization — 10%\n\nReading what the platform tells you, and knowing which knob matches which symptom.\n\n## Monitoring jobs — `ASSOC-S6-O1`, `ASSOC-S6-O2`\n\nRun history is where an investigation starts. Comparing a slow run's task durations\nagainst previous runs localises the problem before you open a single log — if one task\nwent from 2 minutes to 70 while the rest held steady, you know where to look.\n\n**A successful run can still be unhealthy.** A job that normally takes 20 minutes and\ntook 90 has told you something, even though it went green. Left alone that becomes a\nmissed SLA or a quota breach.\n\nThe DAG view shows upstream blockers; the run list shows failure rates over time.\n\n## Reading the Spark UI — `ASSOC-S6-O3`\n\n| Symptom in the UI | Means |\n|---|---|\n| One task far slower than the rest, max shuffle read >> median | **data skew** — one key holds disproportionate data |\n| \"spill (disk)\" on a stage | working set exceeded memory; correct but slow |\n| Hundreds of sub-second tasks | over-partitioned; per-task overhead dominates |\n| Long shuffle read/write times | too much data moving between stages |\n\n**Skew** is the classic. Adaptive Query Execution with skew join handling splits\noversized partitions at runtime, which fixes the cause with no code change — try that\nbefore hand-salting keys.\n\n**Spill** is Spark surviving rather than failing: it writes to disk instead of raising\nOOM. The result is right and slow. Causes are partitions that are too large or a skewed\nkey; fixes are more partitions, less data per task, or addressing the skew.\n\n## Layout optimization — `ASSOC-S6-O4`\n\n**Liquid clustering** is now preferred over partitioning for most tables. A partition\ncolumn is a decision you are stuck with — changing it means rewriting the table — and\nchoosing badly gives you either huge skewed partitions or millions of tiny files.\nClustering keys can be changed with `ALTER TABLE`, and the layout adapts incrementally.\n\n**Predictive optimization** runs maintenance — compaction, clustering, vacuum —\nautomatically on managed tables, because Unity Catalog owns the layout.\n\n**Deletion vectors** mark rows as deleted rather than rewriting files, making deletes\nand updates much cheaper; the files are cleaned up later during maintenance.\n\n## Compute failures — `ASSOC-S6-O5`\n\n| Failure | Usual cause |\n|---|---|\n| Cluster will not start | cloud quota, a bad init script, an unavailable instance type |\n| Library conflict | two libraries pinning incompatible versions of a shared dependency |\n| Driver OOM | `collect()` or `toPandas()` on a large result |\n| Executor OOM | partitions too large, or heavy skew |\n\n**Driver OOM is not fixed by a bigger cluster.** `collect()` pulls every row into a\nsingle JVM; more executors do not help. Write the result to a table instead.\n\n> On serverless compute there are no clusters to configure, so these particular\n> failures cannot occur — and cannot be practised. This objective is theory on Free\n> Edition.\n",
+  "toc": [
+   {
+    "level": 2,
+    "text": "Monitoring jobs",
+    "anchor": "monitoring-jobs--assoc-s6-o1-assoc-s6-o2",
+    "objective_ids": [
+     "ASSOC-S6-O1",
+     "ASSOC-S6-O2"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Reading the Spark UI",
+    "anchor": "reading-the-spark-ui--assoc-s6-o3",
+    "objective_ids": [
+     "ASSOC-S6-O3"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Layout optimization",
+    "anchor": "layout-optimization--assoc-s6-o4",
+    "objective_ids": [
+     "ASSOC-S6-O4"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Compute failures",
+    "anchor": "compute-failures--assoc-s6-o5",
+    "objective_ids": [
+     "ASSOC-S6-O5"
+    ]
+   }
+  ],
+  "subpages": []
+ },
+ "ASSOC-S7": {
+  "section_id": "ASSOC-S7",
+  "exam": "associate",
+  "title": "Governance and Security",
+  "weight": 15,
+  "markdown": "# Governance and Security — 15%\n\nUnity Catalog: who can reach what, and how restrictions travel with the data.\n\n## Managed vs external tables — `ASSOC-S7-O1`\n\nThe difference is **lifecycle ownership**:\n\n| | Managed | External |\n|---|---|---|\n| Storage layout | Unity Catalog owns it | you own it |\n| `DROP TABLE` | **deletes the data** | removes only the registration |\n| Maintenance | automatic — compaction, clustering, vacuum | yours |\n\nPrefer managed unless something outside Databricks also needs to own the files.\nPredictive optimization can only maintain a table whose layout Unity Catalog controls,\nwhich is exactly the operational work teams otherwise carry.\n\nA dropped managed table can be recovered with `UNDROP` within the retention window —\na safety net, not a licence to be casual.\n\n## Privileges — `ASSOC-S7-O2`\n\n**Traversal is required.** Reaching an object needs privileges on every container\nabove it:\n\n```\nUSE CATALOG  →  USE SCHEMA  →  SELECT\n```\n\nA grant on the table alone leaves the user unable to get to it. This is the most\ncommon Unity Catalog puzzle, and the error rarely names the missing traversal\nprivilege.\n\n**Inheritance is dynamic.** Privileges flow metastore → catalog → schema → table, and\nobjects created *later* are covered too. A broad grant at catalog level silently\ncovers everything anyone adds afterwards — which is why least privilege usually means\ngranting at schema or table level.\n\n**Use service principals for pipelines.** The pipeline survives the person leaving,\nits access is scoped to what the job needs rather than everything its author had, and\naudit logs attribute the work to the pipeline. Service principals are subject to\nexactly the same permission checks — they are not a bypass.\n\n## Masking and row filters — `ASSOC-S7-O3`\n\n| Need | Mechanism |\n|---|---|\n| Hide or transform a **value** | column mask |\n| Remove **rows** | row filter |\n\nBoth attach to the **table** and are evaluated per querying user, typically with\n`is_account_group_member()`. Because they attach to the table, every path to the data\ninherits them — notebook, SQL editor, dashboard, someone else's view built on top.\nThat is what makes them governance rather than convention.\n\nA view can also expose a permitted subset, and is the simplest answer when a whole\ngroup should see a fixed slice. It stops being enough when different users need\ndifferent slices *of the same rows*.\n\n## ABAC — `ASSOC-S7-O4`\n\nAttribute-based policies bind rules to **tags** rather than to named objects. Tag a\ncolumn as PII, and every policy targeting that tag applies to it immediately, wherever\nit lives.\n\nThe failure this removes is the one that actually happens: a new table shipping\nunprotected because someone forgot a step. Per-object masks scale linearly with objects\nand depend on human diligence every time. The governance question shifts from \"did\nsomeone protect this table\" to \"is the data classified correctly\", which is far easier\nto audit.\n",
+  "toc": [
+   {
+    "level": 2,
+    "text": "Managed vs external tables",
+    "anchor": "managed-vs-external-tables--assoc-s7-o1",
+    "objective_ids": [
+     "ASSOC-S7-O1"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Privileges",
+    "anchor": "privileges--assoc-s7-o2",
+    "objective_ids": [
+     "ASSOC-S7-O2"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Masking and row filters",
+    "anchor": "masking-and-row-filters--assoc-s7-o3",
+    "objective_ids": [
+     "ASSOC-S7-O3"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "ABAC",
+    "anchor": "abac--assoc-s7-o4",
+    "objective_ids": [
+     "ASSOC-S7-O4"
+    ]
+   }
+  ],
+  "subpages": []
+ }
+}

@@ -32,6 +32,14 @@ variables:
   schema:
     description: Schema within the catalog for lab and assignment tables.
     default: de_prep
+  # The study app's Lakebase branch and database, as full resource names. These
+  # are IDs we chose, not workspace identifiers, so they are safe as defaults.
+  lakebase_branch:
+    description: Lakebase branch the study app stores learner progress in.
+    default: projects/de-prep/branches/production
+  lakebase_database:
+    description: Lakebase database within that branch.
+    default: projects/de-prep/branches/production/databases/databricks-postgres
 
 targets:
   # Free Edition - the required path. Serverless only; never add job clusters

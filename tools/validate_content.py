@@ -130,6 +130,8 @@ def check_questions() -> dict[str, int]:
 
     per_objective: dict[str, int] = defaultdict(int)
     seen_ids: dict[str, str] = {}
+    primary_of: dict[str, str] = {}
+    variants: list[tuple[str, str, str]] = []  # (src, qid, variant_of)
     total = 0
 
     files = sorted(QUESTIONS_DIR.rglob("*.yaml"))
@@ -182,6 +184,10 @@ def check_questions() -> dict[str, int]:
             for oid in q["objective_ids"]:
                 per_objective[oid] += 1
 
+            primary_of[qid] = q["objective_ids"][0]
+            if q.get("variant_of"):
+                variants.append((src, qid, q["variant_of"]))
+
             # The ID's section prefix should agree with the primary objective, so
             # a question always files itself under the section it's really testing.
             m = QUESTION_ID_RE.match(qid)
@@ -195,7 +201,29 @@ def check_questions() -> dict[str, int]:
                         f"{primary} belongs to {want}"
                     )
 
-    print(f"  {total} questions across {len(files)} file(s)")
+    # Variants: a concise rewrite of an existing question. The app groups a
+    # question with its variants into one family and draws one per test, so the
+    # link has to resolve, stay on the same primary objective, and be one level
+    # deep (a variant of a variant would make "family" ambiguous).
+    variant_ids = {qid for _, qid, _ in variants}
+    for src, qid, target in variants:
+        if target == qid:
+            error(f"{src}: {qid} is a variant of itself")
+        elif target not in primary_of:
+            error(f"{src}: {qid} is a variant of unknown question {target}")
+        else:
+            if primary_of[target] != primary_of[qid]:
+                error(
+                    f"{src}: {qid} (primary {primary_of[qid]}) is a variant of {target} "
+                    f"(primary {primary_of[target]}) - variants share their primary objective"
+                )
+            if target in variant_ids:
+                error(
+                    f"{src}: {qid} is a variant of {target}, which is itself a variant - "
+                    f"point variant_of at the original question"
+                )
+
+    print(f"  {total} questions across {len(files)} file(s), {len(variants)} variant(s)")
     return per_objective
 
 
@@ -241,6 +269,50 @@ def check_notebook_cells() -> None:
     print(f"  {checked} notebooks checked for missing cell magics")
 
 
+ASSIGNMENT_LINK_RE = re.compile(r"assignments/(?P<sec>(?:ASSOC|PRO)-S\d+)/assignment\b")
+
+
+def check_lesson_notebooks_link_to_assignment() -> None:
+    """A lesson notebook must end by pointing at its section's assignment notebook.
+
+    The study app sends learners from a section page into the lesson notebooks,
+    and the last cell of each one is what carries them on to the assignment. Only
+    sections that have a learner-facing `assignment.py` are checked, so a section
+    whose starter has not been written yet is a warning, not an error.
+    """
+    lessons_root = REPO_ROOT / "notebooks" / "lessons"
+    assignments_root = REPO_ROOT / "notebooks" / "assignments"
+    prefix = {"associate": "ASSOC", "professional": "PRO"}
+    checked = 0
+    if not lessons_root.exists():
+        return
+    for exam_dir in sorted(p for p in lessons_root.iterdir() if p.is_dir()):
+        pre = prefix.get(exam_dir.name)
+        if not pre:
+            continue
+        for section_dir in sorted(p for p in exam_dir.iterdir() if p.is_dir()):
+            sid = f"{pre}-{section_dir.name}"
+            starter = assignments_root / sid / "assignment.py"
+            notebooks = sorted(section_dir.glob("*.py"))
+            if not starter.exists():
+                if notebooks:
+                    warn(f"{sid}: no assignment.py starter yet, lesson notebooks cannot link to it")
+                continue
+            for nb in notebooks:
+                checked += 1
+                cells = nb.read_text().split("# COMMAND ----------")
+                last = cells[-1] if cells else ""
+                m = ASSIGNMENT_LINK_RE.search(last)
+                if not m:
+                    error(
+                        f"{rel(nb)}: last cell does not link to assignments/{sid}/assignment - "
+                        f"add a closing '# MAGIC %md' cell with the link"
+                    )
+                elif m.group("sec") != sid:
+                    error(f"{rel(nb)}: last cell links to {m.group('sec')}, expected {sid}")
+    print(f"  {checked} lesson notebooks checked for an assignment link")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -259,6 +331,7 @@ def main() -> int:
 
     print("notebooks")
     check_notebook_cells()
+    check_lesson_notebooks_link_to_assignment()
 
     if warnings:
         print(f"\n{len(warnings)} warning(s):")

@@ -150,3 +150,10 @@ display(spark.sql("""
 # MAGIC `notebooks/assignments/ASSOC-S3/` uses a different source: billing events against
 # MAGIC a **slowly-changing** plan dimension. The joins in this lesson will not survive
 # MAGIC contact with it, and that is the point.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [ASSOC-S3 assignment notebook](../../../assignments/ASSOC-S3/assignment) · [the task](../../../assignments/ASSOC-S3/README.md).

@@ -144,6 +144,39 @@ def test_distractor_rationale_never_explains_the_correct_answer():
             )
 
 
+def _by_id():
+    return {q["id"]: q for _, q in all_questions()}
+
+
+def test_variant_targets_exist():
+    by_id = _by_id()
+    for path, q in all_questions():
+        if q.get("variant_of"):
+            assert q["variant_of"] in by_id, f"{q['id']} is a variant of unknown {q['variant_of']}"
+            assert q["variant_of"] != q["id"], f"{q['id']} is a variant of itself"
+
+
+def test_variant_shares_primary_objective():
+    by_id = _by_id()
+    for path, q in all_questions():
+        target = q.get("variant_of")
+        if target and target in by_id:
+            assert by_id[target]["objective_ids"][0] == q["objective_ids"][0], (
+                f"{q['id']} and its source {target} test different primary objectives"
+            )
+
+
+def test_variant_target_is_an_original():
+    """No chains: a variant points at the original, so a family is one hop deep."""
+    by_id = _by_id()
+    for path, q in all_questions():
+        target = q.get("variant_of")
+        if target and target in by_id:
+            assert not by_id[target].get("variant_of"), (
+                f"{q['id']} is a variant of {target}, which is itself a variant"
+            )
+
+
 def test_attributed_questions_name_their_source():
     """official-sample and concept-inspired questions must carry a source_note.
 
@@ -233,3 +266,57 @@ def test_notebook_cell_magic_check_passes_a_correct_notebook(tmp_path, monkeypat
     vc.errors.clear()
     vc.check_notebook_cells()
     assert vc.errors == []
+
+
+def _lesson_tree(tmp_path, last_cell: str, with_starter: bool = True):
+    lesson = tmp_path / "notebooks" / "lessons" / "associate" / "S3"
+    lesson.mkdir(parents=True)
+    (lesson / "01_lesson.py").write_text(
+        "# Databricks notebook source\n"
+        "# MAGIC %md\n# MAGIC # A lesson\n\n"
+        "# COMMAND ----------\n\n"
+        "print('code')\n\n"
+        "# COMMAND ----------\n\n"
+        f"{last_cell}\n"
+    )
+    assignment = tmp_path / "notebooks" / "assignments" / "ASSOC-S3"
+    assignment.mkdir(parents=True)
+    if with_starter:
+        (assignment / "assignment.py").write_text("# Databricks notebook source\n")
+
+
+def test_lesson_notebook_link_check_fails_without_a_link(tmp_path, monkeypatch):
+    import validate_content as vc
+
+    _lesson_tree(tmp_path, "# MAGIC %md\n# MAGIC Done.")
+    monkeypatch.setattr(vc, "REPO_ROOT", tmp_path)
+    vc.errors.clear()
+    vc.check_lesson_notebooks_link_to_assignment()
+    assert any("does not link to assignments/ASSOC-S3/assignment" in e for e in vc.errors), vc.errors
+    vc.errors.clear()
+
+
+def test_lesson_notebook_link_check_passes_with_a_link(tmp_path, monkeypatch):
+    import validate_content as vc
+
+    _lesson_tree(
+        tmp_path,
+        "# MAGIC %md\n# MAGIC [Open the assignment](../../../assignments/ASSOC-S3/assignment)",
+    )
+    monkeypatch.setattr(vc, "REPO_ROOT", tmp_path)
+    vc.errors.clear()
+    vc.check_lesson_notebooks_link_to_assignment()
+    assert vc.errors == []
+
+
+def test_lesson_notebook_link_check_warns_when_no_starter_exists(tmp_path, monkeypatch):
+    import validate_content as vc
+
+    _lesson_tree(tmp_path, "# MAGIC %md\n# MAGIC Done.", with_starter=False)
+    monkeypatch.setattr(vc, "REPO_ROOT", tmp_path)
+    vc.errors.clear()
+    vc.warnings.clear()
+    vc.check_lesson_notebooks_link_to_assignment()
+    assert vc.errors == []
+    assert any("no assignment.py starter" in w for w in vc.warnings)
+    vc.warnings.clear()

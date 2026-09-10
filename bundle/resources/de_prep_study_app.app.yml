@@ -1,0 +1,32 @@
+# The study app: Learn (section notes, notebook links) and Test (practice, timed
+# exams). AppKit (TypeScript/React) with Lakebase for per-user progress.
+#
+# Deployed only by CI from main. A local `bundle deploy` in development mode
+# would create a second, dev-prefixed app and eat one of Free Edition's three
+# app slots - use `npm run dev` in app/ for local work instead.
+#
+# The Lakebase project itself is NOT a bundle resource on purpose: a
+# `bundle destroy` would delete every learner's progress, and the account
+# allows exactly one project. It is created once by hand (docs/architecture.md,
+# Decision 9) and referenced here by name.
+resources:
+  apps:
+    study_app:
+      name: de-prep-study
+      description: "[DE prep] Study app: Learn and Test"
+      source_code_path: ../../app
+      config:
+        command: ["npm", "run", "start"]
+        env:
+          - name: LAKEBASE_ENDPOINT
+            value_from: postgres
+          # Where the bundle put this repo's files in the workspace. The app
+          # turns repo-relative notebook paths into deep links with it.
+          - name: DE_PREP_FILES_ROOT
+            value: ${workspace.file_path}
+      resources:
+        - name: postgres
+          postgres:
+            branch: ${var.lakebase_branch}
+            database: ${var.lakebase_database}
+            permission: CAN_CONNECT_AND_CREATE
