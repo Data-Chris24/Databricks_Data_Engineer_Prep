@@ -297,3 +297,12 @@ display(merged.select("scan_id", "route_code"))
 
 dbutils.fs.rm(SCRATCH, True)
 print("cleaned up")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [02_append_only](./02_append_only).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S2 assignment notebook](../../../assignments/PRO-S2/assignment) · [the task](../../../assignments/PRO-S2/README.md).

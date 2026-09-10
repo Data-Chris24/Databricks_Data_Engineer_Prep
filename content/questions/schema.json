@@ -102,6 +102,11 @@
           "type": "array",
           "items": { "type": "string" },
           "uniqueItems": true
+        },
+        "variant_of": {
+          "type": "string",
+          "pattern": "^[A-Z]+-S[0-9]+-Q[0-9]{3}$",
+          "description": "ID of the question this is a concise, harder rewrite of. Both share a primary objective. A timed test never includes a question and its variant together; the app treats the chain as one family."
         }
       },
       "allOf": [

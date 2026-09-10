@@ -191,3 +191,10 @@ except Exception as e:
 spark.sql(f"DROP CATALOG IF EXISTS {FCAT}")
 spark.sql(f"DROP CONNECTION IF EXISTS {CONN}")
 print("cleaned up")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S4 assignment notebook](../../../assignments/PRO-S4/assignment) · [the task](../../../assignments/PRO-S4/README.md).

@@ -32,6 +32,34 @@ jobs:
         run: python tools/validate_content.py
       - name: Objective docs must match their source YAML
         run: python tools/render_objectives.py --check
+      - name: App content JSON must match content/ and notebooks/
+        run: python tools/build_app_content.py --check
+
+  app:
+    name: Study app
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      # No credentials: the app builds and tests offline. The remote build on
+      # Databricks Apps repeats `npm ci` + `npm run build` at deploy time.
+      - name: Install
+        run: npm ci --ignore-scripts
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
 
   tests:
     name: Tests

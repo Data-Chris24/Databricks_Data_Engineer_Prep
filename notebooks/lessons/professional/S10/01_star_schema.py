@@ -110,3 +110,12 @@ display(spark.sql("DESCRIBE DETAIL pro_s10_teach_fact_sales")
 # MAGIC
 # MAGIC The assignment's dimension changes over time, and joining on the natural key
 # MAGIC there produces a plausible, wrong answer.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [02_liquid_clustering](./02_liquid_clustering).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S10 assignment notebook](../../../assignments/PRO-S10/assignment) · [the task](../../../assignments/PRO-S10/README.md).

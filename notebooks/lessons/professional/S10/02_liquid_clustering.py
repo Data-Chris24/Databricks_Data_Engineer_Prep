@@ -197,3 +197,10 @@ except Exception as e:
 spark.sql("DROP TABLE IF EXISTS pro_s10_sales_clustered")
 spark.sql("DROP TABLE IF EXISTS pro_s10_sales_both")
 print("cleaned up")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S10 assignment notebook](../../../assignments/PRO-S10/assignment) · [the task](../../../assignments/PRO-S10/README.md).

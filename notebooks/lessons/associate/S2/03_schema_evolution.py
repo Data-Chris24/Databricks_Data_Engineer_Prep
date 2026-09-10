@@ -189,3 +189,10 @@ display(spark.sql("""
 # Clean up the scratch area now that the section is complete.
 dbutils.fs.rm(WORK, True)
 print("lesson scratch removed")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [ASSOC-S2 assignment notebook](../../../assignments/ASSOC-S2/assignment) · [the task](../../../assignments/ASSOC-S2/README.md).

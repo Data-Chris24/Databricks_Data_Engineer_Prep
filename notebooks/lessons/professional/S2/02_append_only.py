@@ -219,3 +219,10 @@ spark.sql(f"DROP TABLE IF EXISTS {TABLE}")
 spark.sql("DROP TABLE IF EXISTS pro_s2_teach_downstream")
 dbutils.fs.rm(CKPT, True)
 print("cleaned up")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [PRO-S2 assignment notebook](../../../assignments/PRO-S2/assignment) · [the task](../../../assignments/PRO-S2/README.md).

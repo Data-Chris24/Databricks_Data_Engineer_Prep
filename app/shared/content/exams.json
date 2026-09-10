@@ -1,0 +1,548 @@
+[
+ {
+  "id": "associate",
+  "name": "Databricks Certified Data Engineer Associate",
+  "short": "Associate",
+  "items": 45,
+  "minutes": 90,
+  "guide": "2026-05-04",
+  "sections": [
+   {
+    "id": "ASSOC-S1",
+    "number": 1,
+    "title": "Databricks Intelligence Platform",
+    "weight": 6,
+    "objectives": [
+     {
+      "id": "ASSOC-S1-O1",
+      "text": "Understand the core components of the Databricks Data Intelligence Platform, such as its architecture, Delta Lake, and Unity Catalog.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S1-O2",
+      "text": "Understand Databricks Data Intelligence Platform's compute services, including their characteristics, limitations, and cost models, and select the most suitable option for each workload use case.",
+      "lab": "theory_only"
+     }
+    ]
+   },
+   {
+    "id": "ASSOC-S2",
+    "number": 2,
+    "title": "Data Ingestion and Loading",
+    "weight": 21,
+    "objectives": [
+     {
+      "id": "ASSOC-S2-O1",
+      "text": "Enable and detail data ingestion patterns, including batch, streaming, and incremental loading, and import data from sources such as local files, Lakeflow Connect standard connectors, and Lakeflow Connect managed connectors.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S2-O2",
+      "text": "Use the COPY INTO command to incrementally load files from cloud object storage (ADLS/S3/GCS) into Unity Catalog-governed tables.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S2-O3",
+      "text": "Use Auto Loader with schema enforcement and schema evolution in batch modes (for example, directory listing or file notification) to land data into Unity Catalog-governed tables.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S2-O4",
+      "text": "Configure Lakeflow Connect to reliably ingest data from diverse enterprise sources into Unity Catalog-governed tables.",
+      "lab": "partial"
+     },
+     {
+      "id": "ASSOC-S2-O5",
+      "text": "Use JDBC/ODBC or REST clients in notebooks to land data into cloud storage or directly into Unity Catalog-governed tables, usually orchestrated and scheduled with Lakeflow Jobs.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S2-O6",
+      "text": "Prioritize between Auto Loader, Lakeflow Connect (standard and managed connectors), partner connectors, and other ingestion methods based on technical requirements such as data volume, ingestion frequency, data types, and governance needs with Unity Catalog.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S2-O7",
+      "text": "Ingest semi-structured and unstructured data (for example, JSON and nested data) via Lakeflow Connect and other managed connectors into Unity Catalog-governed Delta tables.",
+      "lab": "full"
+     }
+    ]
+   },
+   {
+    "id": "ASSOC-S3",
+    "number": 3,
+    "title": "Data Transformation and Modeling",
+    "weight": 22,
+    "objectives": [
+     {
+      "id": "ASSOC-S3-O1",
+      "text": "Implement data cleaning by reading bronze tables with PySpark/SQL, cleaning nulls, standardizing data types, and writing to new silver tables.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S3-O2",
+      "text": "Combine DataFrames with operations such as inner join, left join, broadcast join, multiple keys, cross join, union, and union all.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S3-O3",
+      "text": "Manipulate columns, rows, and table structures by adding, dropping, splitting, renaming column names, applying filters, and exploding arrays.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S3-O4",
+      "text": "Perform data deduplication operations and aggregate operations on DataFrames, such as count, approximate count distinct, mean, and summary.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S3-O5",
+      "text": "Understand the basic tuning parameters (spark.sql.shuffle.partitions, spark.default.parallelism, spark.executor/driver.memory, spark.sql.autoBroadcastJoinThreshold) and re-measure the performance.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S3-O6",
+      "text": "Understand the difference between, and how to build, Gold layer objects such as materialized views, views, streaming tables, and tables for BI and analytics teams in Unity Catalog.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S3-O7",
+      "text": "Apply data quality checks and validation rules to ensure reliable Silver and Gold datasets.",
+      "lab": "full"
+     }
+    ]
+   },
+   {
+    "id": "ASSOC-S4",
+    "number": 4,
+    "title": "Working with Lakeflow Jobs",
+    "weight": 16,
+    "objectives": [
+     {
+      "id": "ASSOC-S4-O1",
+      "text": "Implement control flows (retries and conditional tasks such as branching and looping) using Lakeflow Jobs for pipeline orchestration.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S4-O2",
+      "text": "Configure common tasks (notebook, SQL query, dashboard, and pipeline tasks) and their dependencies using Lakeflow Jobs and its DAG-based task graph.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S4-O3",
+      "text": "Implement job schedules using Lakeflow Jobs with an understanding of trigger types (scheduled, file arrival, and table update).",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S4-O4",
+      "text": "Choose between time-based and data-driven triggers based on data availability and pipeline dependencies.",
+      "lab": "full"
+     }
+    ]
+   },
+   {
+    "id": "ASSOC-S5",
+    "number": 5,
+    "title": "Implementing CI/CD",
+    "weight": 10,
+    "objectives": [
+     {
+      "id": "ASSOC-S5-O1",
+      "text": "Manage your code development workflow within the Databricks workspace UI, including creating and switching between branches in Databricks Git Folders (formerly Databricks Repos), committing and pushing changes, and creating pull requests using Databricks Git integration.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S5-O2",
+      "text": "Understand environment-specific configuration using Automation Bundle (formerly Databricks Asset Bundles) variables and overrides while promoting the same codebase across dev, test, and prod targets.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S5-O3",
+      "text": "Deploy Declarative Automation Bundles (formerly Databricks Asset Bundles) to package, configure, and promote Lakeflow Jobs, Lakeflow Spark Declarative Pipelines, and other workspace assets across dev, test, and prod environments.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S5-O4",
+      "text": "Understand the Databricks CLI to validate, deploy, and manage Declarative Automation Bundles (formerly Databricks Asset Bundles) and other workspace assets in automated CI/CD workflows.",
+      "lab": "full"
+     }
+    ]
+   },
+   {
+    "id": "ASSOC-S6",
+    "number": 6,
+    "title": "Troubleshooting, Monitoring, and Optimization",
+    "weight": 10,
+    "objectives": [
+     {
+      "id": "ASSOC-S6-O1",
+      "text": "Identify trends in job performance using the Lakeflow Jobs run history view to compare current execution times against historical baselines.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S6-O2",
+      "text": "Use the Lakeflow Jobs UI to monitor pipeline health by interpreting job statuses, viewing DAG-based task graphs to spot upstream blockers, and tracking pipeline run times and failure rates.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S6-O3",
+      "text": "Identify common performance bottlenecks such as data skew, shuffling, and disk spilling by interpreting stage-level metrics in the Spark UI.",
+      "lab": "partial"
+     },
+     {
+      "id": "ASSOC-S6-O4",
+      "text": "Understand the features of Liquid Clustering and predictive optimization.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S6-O5",
+      "text": "Diagnose cluster startup failures, library conflicts, and out-of-memory issues.",
+      "lab": "theory_only"
+     }
+    ]
+   },
+   {
+    "id": "ASSOC-S7",
+    "number": 7,
+    "title": "Governance and Security",
+    "weight": 15,
+    "objectives": [
+     {
+      "id": "ASSOC-S7-O1",
+      "text": "Differentiate between managed and external tables in Unity Catalog and perform basic operations (create, modify, delete, and convert between managed and external tables) on them.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S7-O2",
+      "text": "Configure access controls using the UI and SQL by applying GRANT, REVOKE, and DENY privileges to principals (users, groups, and service principals) at appropriate levels of the security hierarchy.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S7-O3",
+      "text": "Understand column-level masking and row-level security to restrict data visibility based on user groups.",
+      "lab": "full"
+     },
+     {
+      "id": "ASSOC-S7-O4",
+      "text": "Understand Unity Catalog ABAC policies to centrally control row-level filtering and column masking for sensitive data.",
+      "lab": "full"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "professional",
+  "name": "Databricks Certified Data Engineer Professional",
+  "short": "Professional",
+  "items": 59,
+  "minutes": 120,
+  "guide": "2026-07-03",
+  "sections": [
+   {
+    "id": "PRO-S1",
+    "number": 1,
+    "title": "Developing Code for Data Processing using Python and SQL",
+    "weight": 22,
+    "objectives": [
+     {
+      "id": "PRO-S1-O1",
+      "text": "Design and implement a scalable Python project structure optimized for Declarative Automation Bundles (formerly Databricks Asset Bundles / DABs), enabling modular development, deployment automation, and CI/CD integration.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S1-O2",
+      "text": "Manage and troubleshoot external third-party library installations and dependencies in Databricks, including PyPI packages, local wheels, and source archives.",
+      "lab": "partial"
+     },
+     {
+      "id": "PRO-S1-O3",
+      "text": "Develop User-Defined Functions (UDFs) using Pandas/Python UDF.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S1-O4",
+      "text": "Build and manage reliable, production-ready data pipelines for batch and streaming data using Lakeflow Spark Declarative Pipelines and Auto Loader.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S1-O5",
+      "text": "Create and automate ETL workloads using Jobs via UI/APIs/CLI.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S1-O6",
+      "text": "Explain the advantages and disadvantages of streaming tables compared to materialized views.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S1-O7",
+      "text": "Use AUTO CDC APIs (formerly APPLY CHANGES) to simplify CDC in Lakeflow Spark Declarative Pipelines.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S1-O8",
+      "text": "Compare Spark Structured Streaming and Lakeflow Spark Declarative Pipelines to determine the optimal approach for building scalable ETL pipelines.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S1-O9",
+      "text": "Create a pipeline component that uses control flow operators (e.g., if/else, for/each, etc.).",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S1-O10",
+      "text": "Choose the appropriate configs for environments and dependencies, high memory for notebook tasks, and auto-optimization to disallow retries.",
+      "lab": "partial"
+     },
+     {
+      "id": "PRO-S1-O11",
+      "text": "Develop unit and integration tests using assertDataFrameEqual, assertSchemaEqual, DataFrame.transform, and testing frameworks, to ensure code correctness, including a built-in debugger.",
+      "lab": "full"
+     }
+    ]
+   },
+   {
+    "id": "PRO-S2",
+    "number": 2,
+    "title": "Data Ingestion & Acquisition",
+    "weight": 7,
+    "objectives": [
+     {
+      "id": "PRO-S2-O1",
+      "text": "Design and implement data ingestion pipelines to efficiently ingest a variety of data formats including Delta Lake, Parquet, ORC, AVRO, JSON, CSV, XML, Text and Binary from diverse sources such as message buses and cloud storage.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S2-O2",
+      "text": "Create an append-only data pipeline capable of handling both batch and streaming data using Delta.",
+      "lab": "full"
+     }
+    ]
+   },
+   {
+    "id": "PRO-S3",
+    "number": 3,
+    "title": "Data Transformation, Cleansing, and Quality",
+    "weight": 10,
+    "objectives": [
+     {
+      "id": "PRO-S3-O1",
+      "text": "Write efficient Spark SQL and PySpark code to apply advanced data transformations, including window functions, joins, and aggregations, to manipulate and analyze large datasets.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S3-O2",
+      "text": "Develop a quarantining process for bad data with Lakeflow Spark Declarative Pipelines, or Auto Loader in classic jobs.",
+      "lab": "full"
+     }
+    ]
+   },
+   {
+    "id": "PRO-S4",
+    "number": 4,
+    "title": "Data Sharing and Federation",
+    "weight": 5,
+    "objectives": [
+     {
+      "id": "PRO-S4-O1",
+      "text": "Demonstrate Delta Sharing securely between Databricks deployments using Databricks-to-Databricks sharing (D2D) or to external platforms using the open sharing protocol (D2O).",
+      "lab": "partial"
+     },
+     {
+      "id": "PRO-S4-O2",
+      "text": "Configure Lakehouse Federation with proper governance across the supported source systems.",
+      "lab": "partial"
+     },
+     {
+      "id": "PRO-S4-O3",
+      "text": "Use Delta Sharing to share live data from the Lakehouse to any computing platform.",
+      "lab": "theory_only"
+     }
+    ]
+   },
+   {
+    "id": "PRO-S5",
+    "number": 5,
+    "title": "Monitoring and Alerting",
+    "weight": 10,
+    "objectives": [
+     {
+      "id": "PRO-S5-O1",
+      "text": "Use system tables for observability over resource utilization, cost, auditing and workload monitoring.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S5-O2",
+      "text": "Use Query Profiler UI and Spark UI to monitor workloads.",
+      "lab": "partial"
+     },
+     {
+      "id": "PRO-S5-O3",
+      "text": "Use the Databricks REST APIs / Databricks CLI for monitoring jobs and pipelines.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S5-O4",
+      "text": "Use Lakeflow Spark Declarative Pipelines event logs to monitor pipelines.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S5-O5",
+      "text": "Use SQL Alerts to monitor data quality.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S5-O6",
+      "text": "Use the Lakeflow Jobs UI and Jobs API to set up notifications for job status and performance issues.",
+      "lab": "full"
+     }
+    ]
+   },
+   {
+    "id": "PRO-S6",
+    "number": 6,
+    "title": "Cost & Performance Optimization",
+    "weight": 13,
+    "objectives": [
+     {
+      "id": "PRO-S6-O1",
+      "text": "Understand how and why using Unity Catalog managed tables reduces operational overhead and maintenance burden.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S6-O2",
+      "text": "Understand Delta optimization techniques, such as deletion vectors and liquid clustering.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S6-O3",
+      "text": "Understand the optimization techniques used by Databricks to ensure the performance of queries on large datasets (data skipping, file pruning, etc.).",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S6-O4",
+      "text": "Apply Change Data Feed (CDF) to address specific limitations of streaming tables and enhance latency.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S6-O5",
+      "text": "Use the query profile to analyze the query and identify bottlenecks, such as bad data skipping, inefficient types of joins, and data shuffling.",
+      "lab": "full"
+     }
+    ]
+   },
+   {
+    "id": "PRO-S7",
+    "number": 7,
+    "title": "Ensuring Data Security and Compliance",
+    "weight": 10,
+    "objectives": [
+     {
+      "id": "PRO-S7-O1",
+      "text": "Use ACLs to secure workspace objects, enforcing the principle of least privilege, including enforcing principles like least privilege and policy enforcement.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S7-O2",
+      "text": "Use row filters and column masks to filter and mask sensitive table data.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S7-O3",
+      "text": "Apply anonymization and pseudonymization methods, such as hashing, tokenization, suppression, and generalization, to confidential data.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S7-O4",
+      "text": "Implement a compliant batch and streaming pipeline that detects and applies masking of PII to ensure data privacy.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S7-O5",
+      "text": "Develop a data purging solution ensuring compliance with data retention policies.",
+      "lab": "full"
+     }
+    ]
+   },
+   {
+    "id": "PRO-S8",
+    "number": 8,
+    "title": "Data Governance",
+    "weight": 7,
+    "objectives": [
+     {
+      "id": "PRO-S8-O1",
+      "text": "Create and add descriptions/metadata about enterprise data to make it more discoverable.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S8-O2",
+      "text": "Demonstrate understanding of the Unity Catalog permission inheritance model.",
+      "lab": "full"
+     }
+    ]
+   },
+   {
+    "id": "PRO-S9",
+    "number": 9,
+    "title": "Debugging and Deploying",
+    "weight": 10,
+    "objectives": [
+     {
+      "id": "PRO-S9-O1",
+      "text": "Identify pertinent diagnostic information using Spark UI, cluster logs, system tables, and query profiles to troubleshoot errors.",
+      "lab": "partial"
+     },
+     {
+      "id": "PRO-S9-O2",
+      "text": "Analyze the errors and remediate the failed job runs with job repairs and parameter overrides.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S9-O3",
+      "text": "Use Lakeflow Spark Declarative Pipelines event logs and the Spark UI to debug Lakeflow Spark Declarative Pipelines and Spark pipelines.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S9-O4",
+      "text": "Build and deploy Databricks resources using Declarative Automation Bundles (formerly Databricks Asset Bundles).",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S9-O5",
+      "text": "Configure and integrate with Git-based CI/CD workflows and Databricks Git folders (formerly Repos) for notebook and code deployment.",
+      "lab": "full"
+     }
+    ]
+   },
+   {
+    "id": "PRO-S10",
+    "number": 10,
+    "title": "Data Modeling",
+    "weight": 6,
+    "objectives": [
+     {
+      "id": "PRO-S10-O1",
+      "text": "Design and implement scalable data models using Delta Lake to manage large datasets.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S10-O2",
+      "text": "Simplify data layout decisions and optimize query performance using Liquid Clustering.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S10-O3",
+      "text": "Identify the benefits of using Liquid Clustering over partitioning and ZORDER.",
+      "lab": "full"
+     },
+     {
+      "id": "PRO-S10-O4",
+      "text": "Design dimensional models for analytical workloads, ensuring efficient querying and aggregation.",
+      "lab": "full"
+     }
+    ]
+   }
+  ]
+ }
+]

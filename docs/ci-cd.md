@@ -286,9 +286,10 @@ doesn't re-run when someone approves, which would leave the approval check stale
 
 | Job | Checks |
 | --- | --- |
-| **Content validation** | `validate_content.py`, plus the generated objective docs match their YAML |
+| **Content validation** | `validate_content.py`, the generated objective docs match their YAML, and the app's content JSON matches `content/` (`build_app_content.py --check`) |
 | **Tests** | The test-presence gate, then `pytest tools/tests` |
 | **Bundle validation** | `tools/validate_bundle.py` — schema + repo invariants, offline |
+| **Study app** | In `app/`: `npm ci`, typecheck, lint, vitest, `npm run build` — no credentials |
 | **Approved by a reviewer** | An approval, or a waiver if no second reviewer exists — see above |
 
 **Why the PR does not run `databricks bundle validate`.** That command always
@@ -338,6 +339,12 @@ individually-valid PRs can merge into a broken `main`. Then
 `databricks bundle deploy -t free`, with a concurrency group so two deploys can't
 race.
 
+The bundle now includes the study app (`bundle/resources/de_prep_study_app.app.yml`),
+so a deploy also rebuilds and restarts `de-prep-study` — Databricks runs
+`npm install` and `npm run build` remotely, which is why `deploy.yml` sets up no
+Node toolchain. Check it afterwards with
+`databricks apps get de-prep-study --profile FREE -o json`.
+
 ---
 
 ## Gotchas worth knowing
@@ -350,7 +357,13 @@ run as *you* instead of as the service principal, and appear to work. Use
 
 **Deploys land under the service principal's path**, not yours:
 `/Workspace/Users/<application-id>/.bundle/databricks-de-prep/free`. That's
-correct, and a good way to tell a CI deploy from one you ran by hand.
+correct, and a good way to tell a CI deploy from one you ran by hand. The study
+app's notebook links point into that folder (`DE_PREP_FILES_ROOT`), so the app
+only links correctly to the deploy that shipped it.
+
+**Never `bundle deploy` the app from a laptop.** Development mode prefixes
+resource names, so it would create a second `de-prep-study` and use one of Free
+Edition's three app slots. Use `npm run dev` in `app/` instead.
 
 **The bundle hardcodes no workspace URL.** `bundle/databricks.yml` deliberately
 omits `workspace.host` on both targets — it does not belong in a public repo, and

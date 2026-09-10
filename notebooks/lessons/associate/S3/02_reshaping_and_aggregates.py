@@ -182,3 +182,12 @@ for k in ["spark.sql.shuffle.partitions", "spark.sql.autoBroadcastJoinThreshold"
 # MAGIC > settable. Know what they do and when they apply — that is what the exam asks.
 # MAGIC
 # MAGIC Next: `03_gold_and_quality.py`.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Next
+# MAGIC
+# MAGIC Continue with the next lesson notebook: [03_gold_and_quality](./03_gold_and_quality).
+# MAGIC
+# MAGIC When the lessons are done, open the graded assignment: [ASSOC-S3 assignment notebook](../../../assignments/ASSOC-S3/assignment) · [the task](../../../assignments/ASSOC-S3/README.md).

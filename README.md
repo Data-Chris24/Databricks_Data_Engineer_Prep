@@ -22,9 +22,9 @@ guides; content is being built section by section.
 | --- | --- |
 | Objective maps (78 objectives, both exams) | ✅ Complete, traced to official guides |
 | Free Edition feasibility analysis | ✅ Verified against a live workspace |
-| Question bank | 🚧 14 official samples seeded, 15/78 objectives covered |
-| Lessons, labs, assignments | 🚧 Starting with Associate Section 2 |
-| Study app | 🚧 Platform viability proven, not yet built |
+| Question bank | 🚧 74 questions, 41/78 objectives covered; Professional needs ~50 more |
+| Lessons, labs, assignments | ✅ All 17 sections; Associate has written notes, Professional notes in progress |
+| Study app | ✅ Databricks App in [`app/`](app/): Learn + Test, Associate fully usable; Professional test mode unlocks when its bank reaches 59 questions |
 
 ---
 
@@ -40,7 +40,8 @@ guides; content is being built section by section.
 | `notebooks/optional-classic/` | [Optional labs](docs/optional-classic-track.md) needing a paid/trial workspace |
 | `grading/` | Unit-test harness + optional [AI reviewer](docs/grading.md) |
 | [`tools/`](tools/) | Content validators + tests — CI runs these |
-| [`bundle/`](bundle/) | Declarative Automation Bundle; deploy target for labs and the app |
+| [`app/`](app/) | The study app (AppKit + Lakebase): Learn, Practice, timed Test |
+| [`bundle/`](bundle/) | Declarative Automation Bundle; deploys the labs and the app |
 | [`.github/workflows/`](.github/workflows/) | [CI/CD](docs/ci-cd.md): PR gate, auto-merge, deploy to Databricks |
 
 Design decisions and their rationale: [`docs/architecture.md`](docs/architecture.md).
@@ -77,16 +78,25 @@ python3 -m venv .venv
 
 ## How to study with this
 
-1. **Start from the objective map** for your exam —
-   [Associate](docs/exam-guides/associate-objectives.md) ·
-   [Professional](docs/exam-guides/professional-objectives.md). Weightings tell you
-   where the marks are: Associate Section 3 is 22% of the exam, Section 1 is 6%.
-2. **Work the lesson** for a section, on the `teach` dataset.
+Open the **study app** in your workspace (it deploys with the bundle) and pick
+**Learn** or **Test**. It remembers where you were.
+
+1. **Learn a section.** The notes are organised by objective, sized by exam
+   weight, and end with links to that section's lesson notebooks. Associate
+   Section 3 is 22% of the exam, Section 1 is 6% — the app shows you.
+2. **Run the lesson notebooks** on the `teach` dataset. The last cell of each
+   points at the next one, and then at the assignment.
 3. **Do the assignment**, on the `assess` dataset. It won't accept the lesson's
-   code — that's the point.
-4. **Get graded.** Unit tests are authoritative; an [optional AI
+   code — that's the point. Unit tests are authoritative; an [optional AI
    reviewer](docs/grading.md) adds feedback on your *approach* if you attach a model.
-5. **Drill the questions** for that section, then move on.
+4. **Practice.** Instant feedback, why each wrong option is wrong, and spaced
+   repetition on what you missed. The readiness bars are sized by exam weight.
+5. **Sit a timed test** at the real length and time limit. Nothing is revealed
+   until you submit; then review everything, or just what you got wrong.
+
+The objective maps are still the source of truth if you prefer paper:
+[Associate](docs/exam-guides/associate-objectives.md) ·
+[Professional](docs/exam-guides/professional-objectives.md).
 
 ---
 
