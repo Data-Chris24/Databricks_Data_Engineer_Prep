@@ -1,0 +1,47 @@
+{
+  "_generated_by": "solutions/PRO-S4/solution.py, run on Free Edition serverless",
+  "share": "pro_s4_partner_share",
+  "recipient": "pro_s4_partner",
+  "object_count": 4,
+  "objects": [
+    [
+      "partner.customers",
+      "TABLE",
+      "ENABLED",
+      false,
+      "workspace.de_prep.pro_s4_assess_customers"
+    ],
+    [
+      "partner.events",
+      "TABLE",
+      "ENABLED",
+      true,
+      "workspace.de_prep.pro_s4_assess_events"
+    ],
+    [
+      "partner.files",
+      "VOLUME",
+      "DISABLED",
+      false,
+      "workspace.de_prep.pro_s4_assess_files"
+    ],
+    [
+      "partner.orders",
+      "TABLE",
+      "DISABLED",
+      false,
+      "workspace.de_prep.pro_s4_assess_orders"
+    ]
+  ],
+  "grants": [
+    [
+      "pro_s4_partner",
+      "SELECT"
+    ]
+  ],
+  "recipient_auth": "DATABRICKS",
+  "recipient_targets_this_metastore": true,
+  "must_not_be_shared": [
+    "workspace.de_prep.pro_s4_assess_salaries"
+  ]
+}

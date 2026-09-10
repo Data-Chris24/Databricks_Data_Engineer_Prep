@@ -211,6 +211,36 @@ def check_coverage(per_objective: dict[str, int]) -> None:
         warn(f"{len(uncovered)} objectives have no questions yet")
 
 
+def check_notebook_cells() -> None:
+    """Every cell containing `# MAGIC` lines must declare its magic on the first line.
+
+    A markdown cell whose `# MAGIC %md` header is missing is not a syntax error to
+    Python - the MAGIC lines are just comments - so it deploys happily and renders
+    prose as an empty code cell. Where the prose contains a character Python cannot
+    parse, it fails at runtime instead, several cells from the real mistake.
+    """
+    roots = [REPO_ROOT / "notebooks", REPO_ROOT / "solutions"]
+    checked = 0
+    for root in roots:
+        if not root.exists():
+            continue
+        for path in sorted(root.rglob("*.py")):
+            checked += 1
+            for i, cell in enumerate(path.read_text().split("# COMMAND ----------")):
+                lines = [ln for ln in cell.strip().splitlines() if ln.strip()]
+                if i == 0 and lines and lines[0] == "# Databricks notebook source":
+                    lines = lines[1:]
+                if not lines:
+                    continue
+                if any(ln.startswith("# MAGIC") for ln in lines) and not lines[0].startswith("# MAGIC %"):
+                    rel = path.relative_to(REPO_ROOT)
+                    error(
+                        f"{rel} cell {i}: has # MAGIC lines but no magic declaration "
+                        f"(first line is {lines[0][:60]!r}) - add '# MAGIC %md'"
+                    )
+    print(f"  {checked} notebooks checked for missing cell magics")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -226,6 +256,9 @@ def main() -> int:
 
     print("coverage")
     check_coverage(per_objective)
+
+    print("notebooks")
+    check_notebook_cells()
 
     if warnings:
         print(f"\n{len(warnings)} warning(s):")
