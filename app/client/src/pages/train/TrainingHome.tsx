@@ -19,6 +19,8 @@ export function TrainingHome() {
   const [grades, setGrades] = useState<Record<string, GradingRun>>({});
   const [error, setError] = useState<string | null>(null);
   const [askResume, setAskResume] = useState(false);
+  const [startOverOpen, setStartOverOpen] = useState(false);
+  const [resetNotice, setResetNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -64,17 +66,26 @@ export function TrainingHome() {
 
   return (
     <div className="page">
-      {askResume && state?.resume && resumeSection ? (
+      {(askResume && state?.resume && resumeSection) || startOverOpen ? (
         <ResumeModal
-          sectionLabel={`S${resumeSection.number} · ${resumeSection.title}`}
+          sectionLabel={resumeSection ? `S${resumeSection.number} · ${resumeSection.title}` : null}
+          initialStep={startOverOpen ? 'confirm' : 'prompt'}
+          onClose={() => setStartOverOpen(false)}
           onContinue={() => {
             markAsked();
-            const anchor = state.resume?.anchor ? `#${state.resume.anchor}` : '';
+            if (!resumeSection) return;
+            const anchor = state?.resume?.anchor ? `#${state.resume.anchor}` : '';
             void navigate(`/train/${examId}/${resumeSection.id}${anchor}`);
           }}
-          onStartOver={async () => {
+          onStartOver={async (resetAssignments) => {
             await store.resetTraining(examId);
+            if (resetAssignments) {
+              const r = await store.resetAllAssignments(examId);
+              setGrades({});
+              setResetNotice(`Resetting ${r.sections.length} assignments: notebooks back to their starters, output tables being dropped (about a minute).`);
+            }
             markAsked();
+            setStartOverOpen(false);
             setState(await store.training(examId));
           }}
         />
@@ -111,6 +122,14 @@ export function TrainingHome() {
               Progress could not be loaded: {error}
             </div>
           ) : null}
+          {resetNotice ? (
+            <div className="notice" style={{ marginTop: 16 }}>
+              {resetNotice}
+            </div>
+          ) : null}
+          <button type="button" className="skip" style={{ marginTop: 18 }} onClick={() => setStartOverOpen(true)}>
+            Start this exam over…
+          </button>
         </aside>
 
         <section>
