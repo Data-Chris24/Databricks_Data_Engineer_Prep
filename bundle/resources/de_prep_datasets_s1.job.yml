@@ -1,0 +1,10 @@
+resources:
+  jobs:
+    generate_datasets_assoc_s1:
+      name: "[DE prep] Generate ASSOC-S1 datasets"
+      tasks:
+        - task_key: generate
+          notebook_task:
+            notebook_path: ../../notebooks/datasets/generate_ASSOC-S1.py
+      queue:
+        enabled: true
