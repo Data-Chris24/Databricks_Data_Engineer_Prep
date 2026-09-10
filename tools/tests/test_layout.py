@@ -106,3 +106,10 @@ def test_app_binds_every_grading_job():
         key = f"grade_{sid.lower().replace('-', '_')}"
         assert env.get(f"DATABRICKS_JOB_{key.upper()}") == f"${{resources.jobs.{key}.id}}", sid
         assert jobs.get(f"job_{key}", {}).get("permission") == "CAN_MANAGE_RUN", sid
+
+
+def test_graders_report_short_uncoloured_failures():
+    for grade in (REPO_ROOT / "grading").glob("*/grade.py"):
+        text = grade.read_text()
+        assert '"--color=no"' in text, f"{grade}: pytest output would carry colour codes into the app"
+        assert "reprcrash" in text, f"{grade}: failure messages would be stack-trace tails"
