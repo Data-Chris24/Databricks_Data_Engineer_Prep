@@ -47,7 +47,7 @@ except Exception as e:
 
 # COMMAND ----------
 
-import io, contextlib, json
+import io, contextlib, json, re
 import pytest
 
 
@@ -59,18 +59,26 @@ class _Collect:
 
     def pytest_runtest_logreport(self, report):
         if report.when == "call" or (report.when == "setup" and report.outcome != "passed"):
-            message = str(report.longrepr)[-600:] if report.failed else ""
             self.results.append({
                 "test": report.nodeid.split("::")[-1],
                 "outcome": report.outcome,
-                "message": message,
+                "message": _short_failure(report) if report.failed else "",
             })
+
+
+def _short_failure(report):
+    """The assertion or exception message, not a screenful of Java stack trace."""
+    crash = getattr(report.longrepr, "reprcrash", None)
+    text = crash.message if crash is not None and getattr(crash, "message", None) else str(report.longrepr)
+    text = re.sub(r"\x1b\[[0-9;]*m", "", text)
+    first = text.strip().splitlines()[0] if text.strip() else ""
+    return first[:400]
 
 
 collector = _Collect()
 buf = io.StringIO()
 with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
-    exit_code = pytest.main([tests_dir, "-v", "--tb=short", "-p", "no:cacheprovider"], plugins=[collector])
+    exit_code = pytest.main([tests_dir, "-v", "--tb=short", "--color=no", "-p", "no:cacheprovider"], plugins=[collector])
 report = buf.getvalue()
 print(report)
 print(f"\npytest exit code: {exit_code}")
