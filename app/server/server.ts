@@ -3,6 +3,8 @@ import { createApp, jobs, lakebase, server } from '@databricks/appkit';
 import { migrate } from './db/migrate';
 import type { AppKitLike } from './lib/appkit';
 import { userMiddleware } from './lib/http';
+import { createLearnerWorkspace } from './lib/workspace';
+import { registerAssignmentRoutes } from './routes/assignment';
 import { registerConfigRoutes } from './routes/config';
 import { registerGradingRoutes } from './routes/grading';
 import { registerPracticeRoutes } from './routes/practice';
@@ -31,6 +33,7 @@ createApp({
       registerPracticeRoutes(app, appkit.lakebase);
       registerTestRoutes(app, appkit.lakebase);
       registerGradingRoutes(app, appkit.lakebase, appkit);
+      registerAssignmentRoutes(app, appkit.lakebase, createLearnerWorkspace());
     });
   },
 }).catch(console.error);

@@ -273,6 +273,16 @@ What replaced it, and why each choice:
   looking can read the tests in their workspace and learn what is checked; they
   cannot find the solution there. That is friction, and the honest limit.
 
+- **Each learner works in their own copy of the starter notebook.** The
+  deployed bundle copy is never edited: a redeploy could overwrite it, and the
+  app's principal cannot write into the CI principal's folder. Instead the
+  assignment step is gated behind opening every hands-on notebook of the section
+  (tracked per user), then *Set up my assignment notebook* imports the embedded
+  starter into `/Users/<app principal>/learners/<email>/<SECTION>/` and grants
+  the learner CAN_MANAGE on their folder. *Reset to starter* re-imports it.
+  Grades are recorded against the tables the learner produced, not the
+  notebook, so a reset keeps the grade history.
+
 Verified against the live workspace before merge: `${workspace.file_path}` does
 interpolate into the app resource's `config.env` (so notebook links get their
 root), and `bundle validate --strict` accepts the app resource on Free Edition.

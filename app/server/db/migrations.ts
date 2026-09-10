@@ -103,4 +103,28 @@ export const migrations: Migration[] = [
         ON study.grading_runs (user_id, section_id, started_at DESC);
     `,
   },
+  {
+    version: 3,
+    name: 'visits_and_assignment_copies',
+    sql: `
+      CREATE TABLE IF NOT EXISTS study.notebook_visits (
+        user_id   TEXT NOT NULL REFERENCES study.users(user_id),
+        path      TEXT NOT NULL,
+        first_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+        last_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (user_id, path)
+      );
+
+      CREATE TABLE IF NOT EXISTS study.assignment_copies (
+        user_id        TEXT NOT NULL REFERENCES study.users(user_id),
+        section_id     TEXT NOT NULL,
+        folder         TEXT NOT NULL,
+        notebook       TEXT NOT NULL,
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+        reset_count    INT NOT NULL DEFAULT 0,
+        last_reset_at  TIMESTAMPTZ,
+        PRIMARY KEY (user_id, section_id)
+      );
+    `,
+  },
 ];

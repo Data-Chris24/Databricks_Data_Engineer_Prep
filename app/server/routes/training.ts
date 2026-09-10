@@ -1,10 +1,17 @@
 import type { Application } from 'express';
 import { z } from 'zod';
 
-import { examById, sectionById } from '../../shared/content';
+import { examById, lessonPaths, notebooks, sectionById } from '../../shared/content';
 import type { ProgressRow, TrainingState } from '../../shared/types';
 import type { Db } from '../lib/appkit';
 import { currentUser, iso, num, param, parseBody, wrap } from '../lib/http';
+
+const Visit = z.object({ path: z.string().min(1).max(300) });
+
+function examLessonPaths(examId: string): string[] {
+  const exam = examById(examId);
+  return exam ? exam.sections.flatMap((s) => lessonPaths(s.id)) : [];
+}
 
 const Patch = z.object({
   anchor: z.string().max(200).optional(),
@@ -48,10 +55,15 @@ export function registerTrainingRoutes(app: Application, db: Db) {
       }
       const latest = rows[0] ? toProgressRow(rows[0]) : null;
       const completed = Object.values(sections).filter((s) => s.completed).length;
+      const paths = examLessonPaths(exam.id);
+      const { rows: visits } = paths.length
+        ? await db.query('SELECT path FROM study.notebook_visits WHERE user_id = $1 AND path = ANY($2::text[])', [user.userId, paths])
+        : { rows: [] };
       const body: TrainingState = {
         sections,
         resume: latest ? { sectionId: latest.sectionId, anchor: latest.lastAnchor } : null,
         percentComplete: Math.round((completed / exam.sections.length) * 100),
+        visited: visits.map((v) => String(v.path)),
       };
       res.json(body);
     }),
@@ -112,6 +124,30 @@ export function registerTrainingRoutes(app: Application, db: Db) {
         user.userId,
         exam.id,
       ]);
+      const paths = examLessonPaths(exam.id);
+      if (paths.length) {
+        await db.query('DELETE FROM study.notebook_visits WHERE user_id = $1 AND path = ANY($2::text[])', [user.userId, paths]);
+      }
+      res.status(204).end();
+    }),
+  );
+
+  app.put(
+    '/api/training/visits',
+    wrap(async (req, res) => {
+      const body = parseBody(Visit, req, res);
+      if (!body) return;
+      const known = Object.values(notebooks).some((n) => n.lessons.some((l) => l.path === body.path));
+      if (!known) {
+        res.status(404).json({ error: 'unknown_notebook' });
+        return;
+      }
+      const user = currentUser(res);
+      await db.query(
+        `INSERT INTO study.notebook_visits (user_id, path) VALUES ($1, $2)
+         ON CONFLICT (user_id, path) DO UPDATE SET last_at = now()`,
+        [user.userId, body.path],
+      );
       res.status(204).end();
     }),
   );

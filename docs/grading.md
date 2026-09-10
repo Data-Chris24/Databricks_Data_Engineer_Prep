@@ -28,6 +28,13 @@ structured result through the notebook's exit value:
  "tests": [...], "report_tail": "..."}
 ```
 
+**Where the learner's work lives.** The assignment step on a section page is
+locked until every hands-on notebook of that section has been opened from the
+app. It then creates the learner's own copy of the starter under the app
+principal's `learners/<email>/<SECTION>/` folder (the deployed copy is never
+edited) and can reset that copy to the starter at any time. Sections whose
+starter has not been written yet link to the README instead.
+
 **From the study app** (the normal path): the section page's *Grade my
 assignment* button triggers the `grade_<section>` job as the app's service
 principal, polls it, and shows the result inline: a pass, or the failing checks

@@ -32,7 +32,7 @@ NOTEBOOKS_DIR = REPO_ROOT / "notebooks"
 BUNDLE_RESOURCES = REPO_ROOT / "bundle" / "resources"
 OUT_DIR = REPO_ROOT / "app" / "shared" / "content"
 
-OUTPUTS = ("exams.json", "questions.json", "notes.json", "notebooks.json", "meta.json")
+OUTPUTS = ("exams.json", "questions.json", "notes.json", "notebooks.json", "starters.json", "meta.json")
 
 OBJECTIVE_RE = re.compile(r"\b(?:ASSOC|PRO)-S\d+-O\d+\b")
 HEADING_RE = re.compile(r"^(#{1,4})\s+(.*?)\s*$")
@@ -319,18 +319,37 @@ def collect_notebooks(exams: list[dict]) -> dict[str, dict]:
     return out
 
 
+def collect_starters(exams: list[dict]) -> dict[str, list[dict]]:
+    """Learner starter notebooks, embedded so the app can give each learner a copy.
+
+    Every `.py` in an assignment folder is a starter (assignment.py, plus e.g.
+    ASSOC-S5's publish_summary.py). The README is the task and stays a link.
+    """
+    out: dict[str, list[dict]] = {}
+    for exam in exams:
+        for s in exam["sections"]:
+            folder = NOTEBOOKS_DIR / "assignments" / s["id"]
+            starters = []
+            if folder.exists():
+                for nb in sorted(folder.glob("*.py")):
+                    starters.append({"name": nb.stem, "source": nb.read_text()})
+            out[s["id"]] = starters
+    return out
+
+
 def collect() -> dict[str, object]:
     exams, all_objectives = collect_exams()
     questions = collect_questions(all_objectives)
     notes = collect_notes(exams)
     notebooks = collect_notebooks(exams)
+    starters = collect_starters(exams)
 
     families = {}
     for exam in exams:
         families[exam["id"]] = len({q["family"] for q in questions if q["exam"] == exam["id"]})
 
     digest = hashlib.sha256()
-    digest.update(json.dumps([exams, questions, notes, notebooks], sort_keys=True).encode())
+    digest.update(json.dumps([exams, questions, notes, notebooks, starters], sort_keys=True).encode())
     meta = {
         "content_version": digest.hexdigest()[:12],
         "question_count": len(questions),
@@ -342,6 +361,7 @@ def collect() -> dict[str, object]:
         "questions.json": questions,
         "notes.json": notes,
         "notebooks.json": notebooks,
+        "starters.json": starters,
         "meta.json": meta,
     }
 

@@ -198,3 +198,16 @@ def test_check_reports_a_stale_file(tmp_path, bundle):
 
 def test_content_version_is_stable_for_identical_input(bundle):
     assert bundle["meta.json"]["content_version"] == bac.collect()["meta.json"]["content_version"]
+
+
+def test_starters_embed_every_learner_notebook(bundle):
+    starters = bundle["starters.json"]
+    for exam in load_all():
+        for s in exam.sections:
+            folder = bac.REPO_ROOT / "notebooks" / "assignments" / s.id
+            expected = sorted(p.stem for p in folder.glob("*.py")) if folder.exists() else []
+            assert sorted(x["name"] for x in starters[s.id]) == expected, s.id
+            for x in starters[s.id]:
+                assert x["source"].startswith("# Databricks notebook source"), f"{s.id}/{x['name']}"
+    assert [x["name"] for x in starters["ASSOC-S3"]] == ["assignment"]
+    assert [x["name"] for x in starters["ASSOC-S5"]] == ["publish_summary"]
