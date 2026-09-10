@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from objectives import REPO_ROOT, load_all  # noqa: E402
 
 QUESTIONS_DIR = REPO_ROOT / "content" / "questions"
+LESSONS_DIR = REPO_ROOT / "content" / "lessons"
 TEMPLATE = Path(__file__).resolve().parent / "templates" / "study.html"
 OUT = REPO_ROOT / "build" / "study.html"
 
@@ -79,7 +80,14 @@ def collect() -> dict:
                 "tags": q.get("tags", []),
             })
 
-    return {"exams": exams, "questions": questions}
+    # Lesson notes, keyed by section id. Markdown is rendered client-side.
+    notes = {}
+    for path in sorted(LESSONS_DIR.rglob("*.md")):
+        sid = path.stem                      # e.g. ASSOC-S3
+        if sid in all_objectives or sid.count("-") == 1:
+            notes[sid] = path.read_text()
+
+    return {"exams": exams, "questions": questions, "notes": notes}
 
 
 def stats(data: dict) -> None:
@@ -88,7 +96,7 @@ def stats(data: dict) -> None:
         for oid in q["objectives"]:
             by_obj[oid] = by_obj.get(oid, 0) + 1
 
-    print(f"{len(data['questions'])} questions\n")
+    print(f"{len(data['questions'])} questions, {len(data.get('notes', {}))} lesson notes\n")
     for exam in data["exams"]:
         total_obj = sum(len(s["objectives"]) for s in exam["sections"])
         covered = sum(

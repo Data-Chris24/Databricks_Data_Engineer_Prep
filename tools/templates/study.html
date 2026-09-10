@@ -172,6 +172,48 @@
   .skip:hover { color: var(--ink); }
   .opt .key.hot { color: var(--accent); }
 
+  .head-controls { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* ---------- reading mode ---------- */
+  .note { background: var(--surface); border: 1px solid var(--line);
+          border-radius: 12px; box-shadow: var(--shadow); padding: 30px 32px;
+          margin-top: 22px; }
+  .note > *:first-child { margin-top: 0; }
+  .note h1 { font-family: var(--cond); font-weight: 700; font-size: 25px;
+             margin: 0 0 4px; letter-spacing: -.01em; }
+  .note h2 { font-family: var(--cond); font-weight: 600; font-size: 19px;
+             margin: 30px 0 8px; padding-top: 16px; border-top: 1px solid var(--line);
+             letter-spacing: -.005em; }
+  .note h3 { font-family: var(--cond); font-weight: 600; font-size: 15.5px;
+             margin: 20px 0 6px; }
+  .note p, .note li { max-width: 68ch; }
+  .note p { margin: 0 0 12px; }
+  .note ul { margin: 0 0 12px; padding-left: 20px; }
+  .note li { margin-bottom: 5px; }
+  .note code { font-family: var(--mono); font-size: 13px; background: var(--raised);
+               border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .note pre { margin: 0 0 14px; }
+  .note pre code { background: none; border: 0; padding: 0; font-size: 13px; }
+  .note strong { font-weight: 600; }
+  .note blockquote { margin: 0 0 14px; padding: 11px 15px; border-left: 3px solid var(--accent);
+                     background: var(--accent-soft); border-radius: 0 7px 7px 0; }
+  .note blockquote p:last-child { margin-bottom: 0; }
+  .note table { border-collapse: collapse; width: 100%; margin: 0 0 16px;
+                font-size: 14.5px; display: block; overflow-x: auto; }
+  .note th, .note td { border: 1px solid var(--line); padding: 7px 11px;
+                       text-align: left; vertical-align: top; }
+  .note th { font-family: var(--cond); font-weight: 600; background: var(--raised);
+             white-space: nowrap; }
+  .note a { color: var(--accent); }
+  .note-nav { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 20px; }
+  .note-nav button { font-family: var(--mono); font-size: 12px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink-dim);
+    border-radius: 7px; padding: 7px 11px; }
+  .note-nav button[aria-pressed="true"] { border-color: var(--accent);
+    color: var(--accent); background: var(--accent-soft); }
+  .note-nav button:hover { border-color: var(--accent); }
+  .drill-cta { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }
+
   .empty { text-align: center; padding: 40px 20px; color: var(--ink-dim); }
   .empty strong { display: block; font-family: var(--cond); font-size: 19px;
                   color: var(--ink); margin-bottom: 6px; }
@@ -202,7 +244,13 @@
       <h1>Databricks DE Readiness</h1>
       <div class="sub" id="sub"></div>
     </div>
-    <div class="exam-switch" id="examSwitch"></div>
+    <div class="head-controls">
+      <div class="exam-switch" id="modeSwitch">
+        <button data-mode="drill" aria-pressed="true">Drill</button>
+        <button data-mode="read" aria-pressed="false">Read</button>
+      </div>
+      <div class="exam-switch" id="examSwitch"></div>
+    </div>
   </header>
 
   <section class="rail">
@@ -266,6 +314,7 @@ function schedule(id, quality) {   // quality: 0 again, 1 hard, 2 good, 3 easy
 
 /* ---------------- selection ---------------------------------------------------- */
 let examId = "associate";
+let mode = "drill";
 let sectionFilter = null;
 let current = null, answered = false;
 
@@ -300,6 +349,79 @@ function sectionAccuracy(sid) {
   return { pct: total ? right / total : 0, seen: qs.filter(q => state[q.id]).length, n: qs.length };
 }
 
+/* ---------------- a small markdown renderer -----------------------------------
+   Only the subset the lesson notes actually use: headings, tables, fenced code,
+   blockquotes, lists, inline code, bold. Loading a library for this would cost
+   more than it saves. ------------------------------------------------------- */
+function md(src) {
+  const esc = t => t.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const inline = t => esc(t)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+
+  const lines = src.split("\n");
+  let out = "", i = 0, listOpen = false, quote = [];
+  const closeList = () => { if (listOpen) { out += "</ul>"; listOpen = false; } };
+  const flushQuote = () => {
+    if (!quote.length) return;
+    out += "<blockquote>" + quote.map(q => `<p>${inline(q)}</p>`).join("") + "</blockquote>";
+    quote = [];
+  };
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (line.startsWith("```")) {
+      closeList(); flushQuote();
+      const lang = line.slice(3).trim();
+      const buf = [];
+      i++;
+      while (i < lines.length && !lines[i].startsWith("```")) buf.push(lines[i++]);
+      i++;
+      out += `<pre><code data-lang="${lang}">${esc(buf.join("\n"))}</code></pre>`;
+      continue;
+    }
+
+    if (line.startsWith("|") && lines[i + 1] && /^\|[\s:|-]+\|$/.test(lines[i + 1].trim())) {
+      closeList(); flushQuote();
+      const cells = r => r.split("|").slice(1, -1).map(c => c.trim());
+      const head = cells(line);
+      i += 2;
+      const rows = [];
+      while (i < lines.length && lines[i].startsWith("|")) rows.push(cells(lines[i++]));
+      out += "<table><thead><tr>" + head.map(h => `<th>${inline(h)}</th>`).join("") +
+             "</tr></thead><tbody>" +
+             rows.map(r => "<tr>" + r.map(c => `<td>${inline(c)}</td>`).join("") + "</tr>").join("") +
+             "</tbody></table>";
+      continue;
+    }
+
+    if (line.startsWith("> ")) { closeList(); quote.push(line.slice(2)); i++; continue; }
+    if (quote.length && !line.startsWith(">")) flushQuote();
+
+    const h = line.match(/^(#{1,4})\s+(.*)$/);
+    if (h) { closeList(); flushQuote(); out += `<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`; i++; continue; }
+
+    if (/^[-*]\s+/.test(line)) {
+      flushQuote();
+      if (!listOpen) { out += "<ul>"; listOpen = true; }
+      out += `<li>${inline(line.replace(/^[-*]\s+/, ""))}</li>`;
+      i++; continue;
+    }
+
+    if (!line.trim()) { closeList(); flushQuote(); i++; continue; }
+
+    closeList();
+    const buf = [line]; i++;
+    while (i < lines.length && lines[i].trim() && !/^[#>|`]|^[-*]\s/.test(lines[i])) buf.push(lines[i++]);
+    out += `<p>${inline(buf.join(" "))}</p>`;
+  }
+  closeList(); flushQuote();
+  return out;
+}
+
 /* ---------------- render -------------------------------------------------------- */
 const el = id => document.getElementById(id);
 
@@ -311,6 +433,10 @@ function renderHeader() {
     `<button data-exam="${e.id}" aria-pressed="${e.id === examId}">${e.short}</button>`).join("");
   el("examSwitch").querySelectorAll("button").forEach(b =>
     b.onclick = () => { examId = b.dataset.exam; sectionFilter = null; next(); });
+  el("modeSwitch").querySelectorAll("button").forEach(b => {
+    b.setAttribute("aria-pressed", String(b.dataset.mode === mode));
+    b.onclick = () => { mode = b.dataset.mode; next(); };
+  });
 }
 
 function renderBars() {
@@ -326,7 +452,11 @@ function renderBars() {
               <span class="pct">${s.weight}%</span></span></button>`;
   }).join("");
   el("bars").querySelectorAll(".bar").forEach(b =>
-    b.onclick = () => { sectionFilter = sectionFilter === b.dataset.sec ? null : b.dataset.sec; next(); });
+    b.onclick = () => {
+      sectionFilter = (mode === "read") ? b.dataset.sec
+                    : (sectionFilter === b.dataset.sec ? null : b.dataset.sec);
+      next();
+    });
 }
 
 function renderProgress() {
@@ -400,15 +530,46 @@ function answer(k) {
   if (skip) skip.onclick = () => next();
 }
 
+function renderRead() {
+  const exam = DATA.exams.find(e => e.id === examId);
+  const withNotes = exam.sections.filter(s => DATA.notes && DATA.notes[s.id]);
+
+  if (!withNotes.length) {
+    el("main").innerHTML = `<div class="card empty"><strong>No notes yet for this exam</strong>
+      Section notes are still being written. Switch to Drill, or try the other exam.</div>`;
+    return;
+  }
+  const sid = (sectionFilter && DATA.notes[sectionFilter]) ? sectionFilter : withNotes[0].id;
+  const nav = withNotes.map(s =>
+    `<button data-note="${s.id}" aria-pressed="${s.id === sid}">${s.id.split("-")[1]} &middot; ${s.weight}%</button>`).join("");
+
+  const qCount = DATA.questions.filter(q => q.section === sid).length;
+  el("main").innerHTML = `
+    <div class="note-nav">${nav}</div>
+    <article class="note">${md(DATA.notes[sid])}
+      <div class="drill-cta">
+        <button class="primary" id="drillThis">Drill ${sid} &rarr; ${qCount} questions</button>
+      </div>
+    </article>`;
+
+  el("main").querySelectorAll("[data-note]").forEach(b =>
+    b.onclick = () => { sectionFilter = b.dataset.note; renderRead(); renderBars(); });
+  const cta = el("drillThis");
+  if (cta) cta.onclick = () => { sectionFilter = sid; mode = "drill"; next(); };
+}
+
 function next() {
   answered = false;
+  renderHeader(); renderBars();
+  if (mode === "read") { renderRead(); renderProgress(); return; }
   current = pick();
-  renderHeader(); renderBars(); renderQuestion(); renderProgress();
+  renderQuestion(); renderProgress();
 }
 
 /* ---------------- keyboard: letters answer, 1-4 grade, Enter = Good ------------ */
 document.addEventListener("keydown", e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (mode !== "drill") return;
   const k = e.key.toUpperCase();
   if (!answered) {
     if (current && current.options[k]) { e.preventDefault(); answer(k); }
