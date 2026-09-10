@@ -129,6 +129,8 @@ export interface TrainingState {
   sections: Record<string, ProgressRow>;
   resume: { sectionId: string; anchor: string | null } | null;
   percentComplete: number;
+  /** Lesson notebook paths (repo-relative) this user has opened from the app. */
+  visited: string[];
 }
 
 export interface ProgressPatch {
@@ -229,4 +231,31 @@ export interface GradingRun {
   finishedAt: string | null;
   result: GradeResult | null;
   error: string | null;
+}
+
+// ---------------------------------------------------------------- assignments
+
+export interface Starter {
+  name: string;
+  source: string;
+}
+
+export interface AssignmentGate {
+  ready: boolean;
+  done: number;
+  total: number;
+  missing: string[];
+}
+
+/** The learner's own copy of a section's starter notebooks. */
+export interface AssignmentState {
+  sectionId: string;
+  hasStarters: boolean;
+  provisioned: boolean;
+  /** Workspace path of the folder holding the copy, e.g. /Users/<app-sp>/learners/<email>/ASSOC-S3. */
+  folder: string | null;
+  /** Workspace path of the main notebook to open. */
+  notebook: string | null;
+  resetCount: number;
+  gate: AssignmentGate;
 }

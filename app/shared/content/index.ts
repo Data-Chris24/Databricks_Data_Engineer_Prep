@@ -10,6 +10,7 @@ import examsJson from './exams.json' with { type: 'json' };
 import questionsJson from './questions.json' with { type: 'json' };
 import notesJson from './notes.json' with { type: 'json' };
 import notebooksJson from './notebooks.json' with { type: 'json' };
+import startersJson from './starters.json' with { type: 'json' };
 import metaJson from './meta.json' with { type: 'json' };
 
 import type {
@@ -20,6 +21,7 @@ import type {
   SectionNote,
   SectionNotebooks,
   SectionSummary,
+  Starter,
 } from '../types';
 
 // The JSON is produced by a script whose output shape the Python tests pin,
@@ -31,6 +33,7 @@ export const notebooks: Record<string, SectionNotebooks> = notebooksJson as Reco
   string,
   SectionNotebooks
 >;
+export const starters: Record<string, Starter[]> = startersJson as Record<string, Starter[]>;
 export const meta: ContentMeta = metaJson as ContentMeta;
 
 const examIndex = new Map<ExamId, Exam>(exams.map((e) => [e.id, e]));
@@ -62,4 +65,9 @@ export function questionsFor(exam: ExamId, section?: string): Question[] {
 /** Distinct families (a question plus its variants) available for an exam. */
 export function familiesFor(exam: ExamId): number {
   return new Set(questionsFor(exam).map((q) => q.family)).size;
+}
+
+/** Repo-relative paths of a section's lesson notebooks, in order. */
+export function lessonPaths(sectionId: string): string[] {
+  return (notebooks[sectionId]?.lessons ?? []).map((l) => l.path);
 }

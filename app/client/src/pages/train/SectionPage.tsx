@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 
 import { notebooks, notes, questionsFor, sectionById } from '../../../../shared/content';
 import type { AppConfig, ProgressRow } from '../../../../shared/types';
+import { AssignmentBand } from '../../components/AssignmentBand';
 import { GradingPanel } from '../../components/GradingPanel';
 import { Icon } from '../../components/Icon';
 import { useExam } from '../../lib/exam';
@@ -22,6 +23,7 @@ export function SectionPage() {
   const nbs = notebooks[sectionId];
 
   const [config, setConfig] = useState<AppConfig | null>(null);
+  const [visited, setVisited] = useState<Set<string>>(() => new Set());
   const [progress, setProgress] = useState<ProgressRow | null>(null);
   const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
   const [scrollPct, setScrollPct] = useState(0);
@@ -43,6 +45,19 @@ export function SectionPage() {
   useEffect(() => {
     store.config().then(setConfig).catch(() => {});
   }, [store]);
+
+  useEffect(() => {
+    store
+      .training(examId)
+      .then((t) => setVisited(new Set(t.visited)))
+      .catch(() => {});
+  }, [store, examId]);
+
+  const markVisited = (path: string) => {
+    if (visited.has(path)) return;
+    setVisited((prev) => new Set(prev).add(path));
+    store.visitNotebook(path).catch(() => {});
+  };
 
   // Mark the section visited on arrival and restore the last position.
   useEffect(() => {
@@ -250,40 +265,22 @@ export function SectionPage() {
                     </span>
                   </>
                 );
+                const seen = visited.has(nb.path);
                 return url ? (
-                  <a key={nb.path} className="nb-card" href={url} target="_blank" rel="noopener noreferrer">
+                  <a key={nb.path} className={`nb-card${seen ? ' seen' : ''}`} href={url} target="_blank" rel="noopener noreferrer" onClick={() => markVisited(nb.path)}>
                     {inner}
+                    {seen ? <span className="nb-seen"><Icon name="check" size={12} stroke={2.5} /> opened</span> : null}
                   </a>
                 ) : (
-                  <div key={nb.path} className="nb-card">
+                  <div key={nb.path} className="nb-card" role="button" tabIndex={0} onClick={() => markVisited(nb.path)} onKeyDown={(e) => e.key === 'Enter' && markVisited(nb.path)}>
                     {inner}
+                    {seen ? <span className="nb-seen"><Icon name="check" size={12} stroke={2.5} /> opened</span> : null}
                   </div>
                 );
               })}
             </div>
 
-            {nbs?.assignment ? (
-              <div className="assignment-band">
-                <div>
-                  <div className="title">Then the assignment, on a dataset the lesson code will not survive</div>
-                  <div className="sub">
-                    {nbs.assignment.notebook ? 'Starter notebook, task and output contract inside.' : 'Read the task in the README, then build it in your own notebook.'}
-                    {' '}Then come back here and grade it.
-                  </div>
-                </div>
-                {(() => {
-                  const target = nbs.assignment.notebook ?? nbs.assignment.readme;
-                  const url = target ? workspaceUrl(config, target) : null;
-                  return url ? (
-                    <a className="btn" href={url} target="_blank" rel="noopener noreferrer">
-                      Open assignment <Icon name="external" size={14} stroke={2.2} />
-                    </a>
-                  ) : (
-                    <span className="sub">{target}</span>
-                  );
-                })()}
-              </div>
-            ) : null}
+            {nbs ? <AssignmentBand sectionId={section.id} notebooks={nbs} config={config} visited={visited} /> : null}
 
             {nbs?.assignment ? <GradingPanel sectionId={section.id} gradeJob={nbs.assignment.grade_job} /> : null}
 

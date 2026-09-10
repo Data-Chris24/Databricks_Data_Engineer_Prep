@@ -6,14 +6,16 @@
 
 import { createContext, useContext } from 'react';
 
-import { examById, questionById, questions } from '../../../shared/content';
+import { examById, lessonPaths, questionById, questions, starters } from '../../../shared/content';
 import { grade } from '../../../shared/grading';
 import { sampleTest, BankTooSmallError as SamplerBankTooSmall } from '../../../shared/sampler';
+import { assignmentGate } from '../../../shared/gate';
 import { schedule, type ReviewState } from '../../../shared/sm2';
 import { meta } from '../../../shared/content';
 import type {
   AppConfig,
   Area,
+  AssignmentState,
   Attempt,
   AttemptStart,
   AttemptSummary,
@@ -60,6 +62,15 @@ export class GradingInProgressError extends ApiError {
   }
 }
 
+export class LessonsUnvisitedError extends ApiError {
+  readonly gate: AssignmentState['gate'];
+  constructor(gate: AssignmentState['gate']) {
+    super(409, { error: 'lessons_unvisited' });
+    this.name = 'LessonsUnvisitedError';
+    this.gate = gate;
+  }
+}
+
 export class AttemptActiveError extends ApiError {
   readonly attemptId: string;
   constructor(attemptId: string) {
@@ -89,6 +100,13 @@ export interface StudyStore {
   gradingRun(sectionId: string): Promise<{ run: GradingRun | null; configured: boolean }>;
   /** Trigger the section's grading job. */
   grade(sectionId: string): Promise<GradingRun>;
+  /** Record that a lesson notebook was opened from the app. */
+  visitNotebook(path: string): Promise<void>;
+  assignment(sectionId: string): Promise<AssignmentState>;
+  /** Create the learner's own copy of the starter notebooks (idempotent). */
+  provisionAssignment(sectionId: string): Promise<AssignmentState>;
+  /** Overwrite the learner's copy with the starter again. */
+  resetAssignment(sectionId: string): Promise<AssignmentState>;
 }
 
 // ------------------------------------------------------------------ api
@@ -106,6 +124,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     if (data.error === 'bank_too_small') throw new BankTooSmallError(Number(data.have), Number(data.need));
     if (data.error === 'attempt_active') throw new AttemptActiveError(String(data.attemptId));
     if (data.error === 'grading_in_progress') throw new GradingInProgressError(data.run as GradingRun);
+    if (data.error === 'lessons_unvisited') throw new LessonsUnvisitedError(data.gate as AssignmentState['gate']);
     throw new ApiError(res.status, data);
   }
   return data as T;
@@ -160,6 +179,18 @@ export class ApiStore implements StudyStore {
   grade(sectionId: string) {
     return request<GradingRun>('POST', `/api/grading/section/${sectionId}/run`);
   }
+  visitNotebook(path: string) {
+    return request<void>('PUT', '/api/training/visits', { path });
+  }
+  assignment(sectionId: string) {
+    return request<AssignmentState>('GET', `/api/assignment/${sectionId}`);
+  }
+  provisionAssignment(sectionId: string) {
+    return request<AssignmentState>('POST', `/api/assignment/${sectionId}/provision`);
+  }
+  resetAssignment(sectionId: string) {
+    return request<AssignmentState>('POST', `/api/assignment/${sectionId}/reset`);
+  }
 }
 
 // --------------------------------------------------------------- memory
@@ -186,6 +217,8 @@ export class MemoryStore implements StudyStore {
   private review = new Map<string, ReviewState>();
   private attemptsById = new Map<string, MemoryAttempt>();
   private gradingRuns = new Map<string, GradingRun>();
+  private visits = new Set<string>();
+  private copies = new Map<string, { folder: string; notebook: string; resetCount: number }>();
   private seq = 0;
 
   constructor(opts: MemoryOptions = {}) {
@@ -217,10 +250,12 @@ export class MemoryStore implements StudyStore {
     const sections: Record<string, ProgressRow> = {};
     for (const r of rows) sections[r.sectionId] = r;
     const completed = rows.filter((r) => r.completed).length;
+    const paths = new Set(ex.sections.flatMap((s) => lessonPaths(s.id)));
     return {
       sections,
       resume: rows[0] ? { sectionId: rows[0].sectionId, anchor: rows[0].lastAnchor } : null,
       percentComplete: Math.round((completed / ex.sections.length) * 100),
+      visited: [...this.visits].filter((p) => paths.has(p)),
     };
   }
   async touchSection(exam: ExamId, sectionId: string, patch: ProgressPatch): Promise<ProgressRow> {
@@ -243,6 +278,40 @@ export class MemoryStore implements StudyStore {
   }
   async resetTraining(exam: ExamId) {
     for (const k of [...this.progress.keys()]) if (k.startsWith(`${exam}:`)) this.progress.delete(k);
+    const paths = new Set(examById(exam)?.sections.flatMap((s) => lessonPaths(s.id)) ?? []);
+    for (const p of [...this.visits]) if (paths.has(p)) this.visits.delete(p);
+  }
+  async visitNotebook(path: string) {
+    this.visits.add(path);
+  }
+  async assignment(sectionId: string): Promise<AssignmentState> {
+    const copy = this.copies.get(sectionId);
+    return {
+      sectionId,
+      hasStarters: (starters[sectionId] ?? []).length > 0,
+      provisioned: Boolean(copy),
+      folder: copy?.folder ?? null,
+      notebook: copy?.notebook ?? null,
+      resetCount: copy?.resetCount ?? 0,
+      gate: assignmentGate(lessonPaths(sectionId), this.visits),
+    };
+  }
+  async provisionAssignment(sectionId: string) {
+    const s = await this.assignment(sectionId);
+    if (!s.gate.ready) throw new LessonsUnvisitedError(s.gate);
+    if (!s.hasStarters) throw new ApiError(404, { error: 'no_starter' });
+    if (!this.copies.has(sectionId)) {
+      const folder = `/Users/memory/learners/local@example.com/${sectionId}`;
+      const main = starters[sectionId].find((x) => x.name === 'assignment') ?? starters[sectionId][0];
+      this.copies.set(sectionId, { folder, notebook: `${folder}/${main.name}`, resetCount: 0 });
+    }
+    return this.assignment(sectionId);
+  }
+  async resetAssignment(sectionId: string) {
+    const copy = this.copies.get(sectionId);
+    if (!copy) throw new ApiError(409, { error: 'not_provisioned' });
+    copy.resetCount += 1;
+    return this.assignment(sectionId);
   }
 
   async practiceState(exam: ExamId) {

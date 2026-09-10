@@ -1577,3 +1577,36 @@ button {
   color: var(--good);
   background: var(--good-soft);
 }
+
+/* ------------------------------------------------------- assignment gating */
+.nb-card.seen {
+  border-color: var(--good);
+}
+.nb-seen {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--good);
+}
+.assignment-band .btn:disabled {
+  background: var(--raised);
+  color: var(--ink-mute);
+  cursor: not-allowed;
+  opacity: 1;
+}
+.band-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+.band-ghost {
+  color: var(--code-dim);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.band-ghost:hover {
+  color: var(--ground);
+  border-color: var(--ground);
+}

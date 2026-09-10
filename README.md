@@ -86,7 +86,8 @@ Open the **study app** in your workspace (it deploys with the bundle) and pick
    weight, and end with links to that section's lesson notebooks. Associate
    Section 3 is 22% of the exam, Section 1 is 6% — the app shows you.
 2. **Run the lesson notebooks** on the `teach` dataset. The last cell of each
-   points at the next one, and then at the assignment.
+   points at the next one. Once you have opened them all, the assignment unlocks
+   and the app gives you your own copy of the starter notebook (resettable).
 3. **Do the assignment**, on the `assess` dataset. It won't accept the lesson's
    code — that's the point. Back in the app, **Grade my assignment** runs the
    section's checks and shows you what passed and what didn't. Unit tests are

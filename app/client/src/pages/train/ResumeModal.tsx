@@ -19,7 +19,7 @@ export function ResumeModal({
         {confirming ? (
           <>
             <h2 id="resume-title">Start over?</h2>
-            <p>This clears which sections you have read and completed for this exam. Practice history and test results are kept.</p>
+            <p>This clears which sections you have read and completed and which hands-on notebooks you have opened for this exam, so assignments lock again. Your assignment notebooks, practice history, grades and test results are kept; each section has its own reset for the notebook.</p>
             <div className="modal-actions">
               <button
                 type="button"
