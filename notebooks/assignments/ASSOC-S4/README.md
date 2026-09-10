@@ -51,6 +51,10 @@ with its raw values preserved and the file it came from.
 
 ## Grading
 
+In the study app, open **Learn → ASSOC-S4** and press **Grade my assignment**: it
+runs this section's checks against the tables you produced and shows what
+passed and what didn't. The same job from a terminal:
+
 ```bash
 databricks bundle run grade_assoc_s4 -t free --profile FREE
 ```

@@ -7,6 +7,10 @@ The full objective list is in
 [associate-objectives.md](../exam-guides/associate-objectives.md). This page is
 about *sequence* — what to learn when, and where to spend your time.
 
+The study app follows this order: **Learn** walks the sections with their
+notes, notebooks and graded assignment; **Test** drills the questions and sits
+timed exams at the real length. This page is the map behind it.
+
 ---
 
 ## Where the marks actually are

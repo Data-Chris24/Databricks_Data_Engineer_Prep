@@ -149,5 +149,9 @@ non-negotiables:
 2. **Prove the anti-transplant property.** Paste the lesson's solution into the
    assignment and confirm the suite fails. If it passes, the dataset pairing is
    broken — fix the datasets, not the tests.
-3. **Fixtures are committed**, generated from the reference solution, so the tests
-   stand alone.
+3. **Fixtures are committed** (`grading/<SECTION>/expected.json`), generated from
+   the reference solution, so the tests stand alone.
+4. **The section declares its outputs and ships a starter.**
+   `grading/<SECTION>/outputs.json` is what *Reset* drops;
+   `notebooks/assignments/<SECTION>/assignment.py` is what each learner gets a
+   copy of. Without them the app can grade but cannot set up or reset the work.

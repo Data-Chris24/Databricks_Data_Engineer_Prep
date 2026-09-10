@@ -6,6 +6,10 @@ A study order for the **Databricks Certified Data Engineer Professional** exam
 Full objective list:
 [professional-objectives.md](../exam-guides/professional-objectives.md).
 
+The study app follows this order: **Learn** walks the sections with their
+notes, notebooks and graded assignment; **Test** drills the questions and sits
+timed exams at the real length. This page is the map behind it.
+
 ---
 
 ## Before you start

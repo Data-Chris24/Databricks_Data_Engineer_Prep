@@ -49,8 +49,12 @@ Configure it, exactly.
 
 ## Grading
 
+In the study app, open **Learn → PRO-S4** and press **Grade my assignment**: it
+runs this section's checks against the tables you produced and shows what
+passed and what didn't. The same job from a terminal:
+
 ```bash
-databricks bundle run grade_pro_s4 -t free
+databricks bundle run grade_pro_s4 -t free --profile FREE
 ```
 
 The tests read the live configuration — the share's contents and terms, the

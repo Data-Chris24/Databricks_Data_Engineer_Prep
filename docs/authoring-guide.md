@@ -64,6 +64,15 @@ questions always file under the section they actually test.
 
 IDs are never reused, even after a question is deleted.
 
+### Variants
+
+A concise, harder rewrite of an existing question gets its own ID and
+`variant_of: <source id>`. The two must share a primary objective, and a variant
+points at an original, never at another variant. The app treats a question and
+its variants as one *family*: a timed test draws one member per family, and the
+Professional test-mode gate counts families, so variants sharpen a bank without
+inflating it.
+
 ### Writing good ones
 
 - **Scenario-based beats recall.** Both real exams describe a situation and ask
@@ -200,6 +209,21 @@ can't be expected to guess it.
 2. **The lesson's own solution, pasted in, FAILS** on the assess-only hazards. If
    it passes, the dataset pairing is broken — fix the datasets, not the tests.
 3. Tier-1 tests alone produce a meaningful pass/fail, with no model attached.
-4. Fixtures are committed and the tests don't import the solution.
+4. Fixtures are committed to `grading/<SECTION>/expected.json` and the tests don't
+   import the solution.
+5. `grading/<SECTION>/outputs.json` lists every object the contract asks for and
+   nothing else, so the app's *Reset* drops exactly the learner's work.
+6. `notebooks/assignments/<SECTION>/assignment.py` exists, so the app can give
+   each learner their own copy, and the section's lesson notebooks end with a
+   link to it (`validate_content.py` checks this once the starter exists).
+
+Points 1 and 2 run in the maintainer `verify` target, the only one that deploys
+`solutions/`:
+
+```bash
+databricks bundle deploy -t verify --profile FREE
+databricks bundle run run_solution_<section> -t verify --profile FREE
+databricks bundle run transplant_check_<section> -t verify --profile FREE
+```
 
 Point 2 is the whole feature. Verify it, don't assume it.

@@ -68,8 +68,12 @@ delivered for that scan.
 
 ## Grading
 
+In the study app, open **Learn → PRO-S2** and press **Grade my assignment**: it
+runs this section's checks against the tables you produced and shows what
+passed and what didn't. The same job from a terminal:
+
 ```bash
-databricks bundle run grade_pro_s2 -t free
+databricks bundle run grade_pro_s2 -t free --profile FREE
 ```
 
 The tests are authoritative. The advisory AI review (`grading/rubrics/PRO-S2.yaml`)

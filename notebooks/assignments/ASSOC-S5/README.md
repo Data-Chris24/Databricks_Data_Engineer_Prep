@@ -46,6 +46,10 @@ production:
 
 ## Grading
 
+In the study app, open **Learn → ASSOC-S5** and press **Grade my assignment**: it
+runs this section's checks against the tables you produced and shows what
+passed and what didn't. The same job from a terminal:
+
 ```bash
 databricks bundle run grade_assoc_s5 -t free --profile FREE
 ```

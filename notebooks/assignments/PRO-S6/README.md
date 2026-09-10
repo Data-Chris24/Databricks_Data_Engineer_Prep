@@ -49,6 +49,10 @@ the evidence.
 
 ## Grading
 
+In the study app, open **Learn → PRO-S6** and press **Grade my assignment**: it
+runs this section's checks against the tables you produced and shows what
+passed and what didn't. The same job from a terminal:
+
 ```bash
 databricks bundle run grade_pro_s6 -t free --profile FREE
 ```
