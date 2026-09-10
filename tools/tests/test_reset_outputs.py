@@ -44,7 +44,7 @@ def test_reset_job_exists_and_is_bound_to_the_app():
     r = job["resources"]["jobs"]["reset_assignment"]
     assert r["parameters"][0]["name"] == "section"
     assert r["tasks"][0]["notebook_task"]["notebook_path"].endswith("grading/reset_assignment.py")
-    app = yaml.safe_load((REPO_ROOT / "bundle" / "resources" / "de_prep_study_app.app.yml").read_text())["resources"]["apps"]["study_app"]
+    app = yaml.safe_load((REPO_ROOT / "bundle" / "resources" / "de_prep_study_app.app.yml").read_text())["targets"]["free"]["resources"]["apps"]["study_app"]
     env = {e["name"]: e.get("value") for e in app["config"]["env"]}
     assert env["DATABRICKS_JOB_RESET_ASSIGNMENT"] == "${resources.jobs.reset_assignment.id}"
     assert any(x.get("name") == "job_reset_assignment" and x["job"]["permission"] == "CAN_MANAGE_RUN" for x in app["resources"])

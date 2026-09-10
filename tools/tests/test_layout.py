@@ -97,7 +97,7 @@ def test_graders_return_a_structured_result_to_the_app():
 
 def test_app_binds_every_grading_job():
     doc = yaml.safe_load((RESOURCES / "de_prep_study_app.app.yml").read_text())
-    app = doc["resources"]["apps"]["study_app"]
+    app = doc["targets"]["free"]["resources"]["apps"]["study_app"]
     env = {e["name"]: e.get("value") for e in app["config"]["env"]}
     jobs = {r["name"]: r["job"] for r in app["resources"] if "job" in r}
     # The plugin's registry requires the single-job variable even in multi-job mode.
