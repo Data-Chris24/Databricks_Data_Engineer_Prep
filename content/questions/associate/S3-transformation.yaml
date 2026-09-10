@@ -1,0 +1,722 @@
+# ASSOC-S3 — Data Transformation and Modeling (22%, the highest-weighted section)
+# Original questions written for this repo. Scenario-shaped rather than recall,
+# because that is how the exam asks: "what will happen when..." not "what is...".
+meta:
+  source: Original, written for this repository.
+  note: Covers ASSOC-S3-O1 through O7.
+
+questions:
+  # ---------------------------------------------------------------- O1 cleaning
+  - id: ASSOC-S3-Q001
+    objective_ids: [ASSOC-S3-O1]
+    difficulty: application
+    provenance: original
+    tags: [bronze, silver, casting, medallion]
+    stem: >-
+      A bronze table loaded from CSV stores every column as STRING. A data engineer
+      creates a silver table with CAST(quantity AS INT). Three source rows contain
+      the value "12 units" in that column. What happens to those three rows?
+    options:
+      A: The CREATE TABLE fails with a cast error and no silver table is produced.
+      B: The three rows appear in silver with quantity set to NULL.
+      C: The three rows are dropped from silver.
+      D: quantity is set to 12 for those rows, ignoring the trailing text.
+    correct: B
+    explanation: >-
+      Spark's CAST returns NULL when a value cannot be converted, rather than raising
+      or dropping the row. This is why counting nulls after a cast is a real quality
+      check - a silently growing null count is often the first sign that an upstream
+      format changed. Use try_cast() when you want to make that intent explicit.
+    distractor_rationale:
+      A: >-
+        CAST does not fail the query on a bad value. That behaviour would arguably be
+        safer, but it is not what Spark does.
+      C: >-
+        Rows are never dropped by a cast. The row survives with a null in that column,
+        which is why an unnoticed cast failure quietly corrupts downstream aggregates.
+      D: >-
+        Spark does not parse a leading number out of arbitrary text. That is a
+        regex/parsing job, not a cast.
+
+  - id: ASSOC-S3-Q002
+    objective_ids: [ASSOC-S3-O1]
+    difficulty: analysis
+    provenance: original
+    tags: [nulls, coalesce, data-quality]
+    stem: >-
+      A discount_pct column is NULL on 15% of order rows. The business confirms that a
+      NULL there means the order had no discount. A colleague proposes
+      COALESCE(discount_pct, 0.0). A second colleague objects that filling nulls
+      destroys information. Who is right, and why?
+    options:
+      A: >-
+        The first colleague. The null has a known business meaning - no discount - so
+        replacing it with 0.0 records that meaning rather than losing it.
+      B: >-
+        The second colleague. Filling any null loses the distinction between absent and
+        zero, so nulls should always be preserved.
+      C: >-
+        The second colleague. COALESCE will also overwrite legitimate zero discounts.
+      D: >-
+        Neither. discount_pct should be dropped entirely because it is incomplete.
+    correct: A
+    explanation: >-
+      The question to ask about a null is always "does this mean unknown, or does it
+      mean a specific value?". Here the business has answered it: absent means no
+      discount, so 0.0 is the faithful representation and arithmetic downstream becomes
+      correct. Filling an *unknown* with a default is the mistake - that invents data.
+      Same operation, opposite verdict, decided by meaning rather than by rule.
+    distractor_rationale:
+      B: >-
+        A reasonable instinct applied too broadly. Preserving nulls matters when they
+        mean unknown; here they do not.
+      C: >-
+        COALESCE only replaces NULL. An existing 0.0 is left untouched.
+      D: >-
+        The column is not incomplete - it is complete, with absence carrying meaning.
+
+  - id: ASSOC-S3-Q003
+    objective_ids: [ASSOC-S3-O1, ASSOC-S3-O7]
+    difficulty: application
+    provenance: original
+    tags: [try-cast, quality, silver]
+    stem: >-
+      Which approach lets a pipeline continue processing good rows while keeping bad
+      rows available for inspection, rather than failing the whole load?
+    options:
+      A: Cast with try_cast() and write rows whose result is NULL to a quarantine table.
+      B: Wrap the transformation in a try/except and skip the batch on any error.
+      C: Use CAST and rely on the job's retry policy to reprocess failures.
+      D: Filter out any row containing a NULL before writing to silver.
+    correct: A
+    explanation: >-
+      Quarantining is the standard pattern: good data flows on, bad data is retained
+      somewhere a human can look at it, and neither blocks the other. The key property
+      is that nothing is silently discarded - you can always count and inspect what did
+      not make it, which is what makes the pipeline trustworthy.
+    distractor_rationale:
+      B: >-
+        Skipping the batch throws away good records with the bad, and reprocessing will
+        hit the same bad row again.
+      C: >-
+        Retries help with transient failures. A malformed value is deterministic - it
+        will fail identically every time.
+      D: >-
+        This drops the evidence. You would see a shrinking row count with no way to
+        find out why.
+
+  # ---------------------------------------------------------------- O2 joins
+  - id: ASSOC-S3-Q004
+    objective_ids: [ASSOC-S3-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [join, fan-out, cardinality]
+    stem: >-
+      A fact table has 600 rows. It is joined to a dimension on plan_id with an inner
+      join, and the result has 870 rows. The engineer expected 600. What is the most
+      likely cause?
+    options:
+      A: The dimension contains more than one row per plan_id.
+      B: The join should have been a left join.
+      C: Some fact rows have a NULL plan_id.
+      D: The dimension contains plan_ids that do not appear in the fact table.
+    correct: A
+    explanation: >-
+      A join returns one row per matching pair. If a key appears twice in the
+      dimension, every fact row with that key comes back twice - the row count goes
+      *up*. This is fan-out, and it is dangerous precisely because it looks like
+      success: no error, just quietly inflated aggregates. Slowly-changing dimensions
+      cause it constantly, and the fix is to include the validity window in the join
+      condition so only one version matches.
+    distractor_rationale:
+      B: >-
+        A left join can only preserve or increase row count relative to the inner join
+        by keeping non-matching rows - it cannot explain rows already being too many.
+      C: >-
+        NULL keys do not match anything in an inner join, so they would reduce the
+        count, not raise it.
+      D: >-
+        Unmatched dimension rows are simply excluded by an inner join. They have no
+        effect on the count.
+
+  - id: ASSOC-S3-Q005
+    objective_ids: [ASSOC-S3-O2]
+    difficulty: application
+    provenance: original
+    tags: [left-join, referential-integrity, orphans]
+    stem: >-
+      Billing events reference plan_id. Twenty events point at a plan that does not
+      exist in the plans dimension. The requirement is that no billing event may be
+      lost, and unmatched events must be identifiable. Which approach satisfies it?
+    options:
+      A: >-
+        LEFT JOIN from events to plans, then flag rows where the joined plan columns
+        are NULL.
+      B: INNER JOIN, then compare row counts before and after to detect losses.
+      C: LEFT ANTI JOIN to select the events whose plan is missing.
+      D: FULL OUTER JOIN so that both unmatched events and unused plans are kept.
+    correct: A
+    explanation: >-
+      A left join keeps every row from the left side and fills the right side with
+      NULLs where nothing matched. That satisfies both halves of the requirement at
+      once: nothing is lost, and the NULLs identify exactly which rows had no plan.
+    distractor_rationale:
+      B: >-
+        The count tells you how many vanished but not which ones, and the rows are gone
+        from the output either way.
+      C: >-
+        A left anti join returns *only* the orphans and discards the matched events, so
+        the main output would be lost.
+      D: >-
+        A full outer join also keeps unused plans, adding rows that are not billing
+        events at all and corrupting the grain.
+
+  - id: ASSOC-S3-Q006
+    objective_ids: [ASSOC-S3-O2]
+    difficulty: application
+    provenance: original
+    tags: [broadcast-join, shuffle, performance]
+    stem: >-
+      A 500 GB fact table is joined to a 4 MB lookup table. What does a broadcast join
+      do differently, and why is it faster here?
+    options:
+      A: >-
+        The small table is copied to every executor, so the large table is never
+        shuffled across the network.
+      B: >-
+        Both tables are repartitioned on the join key so matching rows land on the same
+        executor.
+      C: The small table is cached in memory so repeated joins avoid re-reading it.
+      D: The join runs on the driver, avoiding executor coordination entirely.
+    correct: A
+    explanation: >-
+      A normal join shuffles both sides so matching keys meet on the same executor -
+      and shuffling 500 GB is expensive. Broadcasting sends the small side to every
+      executor instead, letting each one join its local slice of the big table with no
+      movement of the large dataset. Spark does this automatically below
+      spark.sql.autoBroadcastJoinThreshold (10 MB by default), which this table is
+      comfortably under.
+    distractor_rationale:
+      B: That describes an ordinary shuffle hash / sort-merge join - the thing being avoided.
+      C: >-
+        Caching is a separate concern. Broadcasting is about avoiding the shuffle, not
+        about re-reads.
+      D: >-
+        The join still runs distributed on the executors. Only the small table travels
+        via the driver.
+
+  - id: ASSOC-S3-Q007
+    objective_ids: [ASSOC-S3-O2]
+    difficulty: recall
+    provenance: original
+    tags: [union, union-all, duplicates]
+    stem: >-
+      In Spark SQL, what is the difference between UNION and UNION ALL?
+    options:
+      A: UNION removes duplicate rows; UNION ALL keeps every row from both inputs.
+      B: UNION requires identical column names; UNION ALL matches by position only.
+      C: UNION ALL removes duplicates; UNION keeps them.
+      D: They are identical in Spark; UNION ALL exists only for SQL compatibility.
+    correct: A
+    explanation: >-
+      UNION deduplicates, which means it must shuffle and compare every row - real cost
+      on a large dataset. UNION ALL simply concatenates. Reach for UNION ALL by default
+      and deduplicate deliberately when you actually need to, rather than paying for a
+      distinct you did not ask for.
+    distractor_rationale:
+      B: Both match by position in Spark, not by name. That trap belongs to unionByName().
+      C: Reversed.
+      D: The difference is real and has a significant performance cost.
+
+  - id: ASSOC-S3-Q008
+    objective_ids: [ASSOC-S3-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [scd, point-in-time, join-condition]
+    stem: >-
+      A plans dimension holds one row per plan version with valid_from and valid_to
+      dates. Billing events must be priced using the plan version that was in effect on
+      the event date. Which join condition is correct?
+    options:
+      A: >-
+        ON e.plan_id = p.plan_id AND e.event_date >= p.valid_from AND e.event_date <
+        p.valid_to
+      B: ON e.plan_id = p.plan_id, then take MAX(p.valid_from) per event
+      C: ON e.plan_id = p.plan_id AND p.valid_to IS NULL
+      D: ON e.plan_id = p.plan_id, then deduplicate the result on billing_id
+    correct: A
+    explanation: >-
+      A point-in-time join puts the validity window in the join condition itself, so
+      exactly one version matches each event and no fan-out ever occurs. Note the
+      asymmetric bounds - >= on the lower and < on the upper - which is what stops an
+      event on a boundary date matching two adjacent versions.
+    distractor_rationale:
+      B: >-
+        This fans out first and then repairs, which is both slower and wrong: MAX picks
+        the latest version, not the one in effect at the time.
+      C: >-
+        This uses the *current* version for every event, so historical events are priced
+        at today's price.
+      D: >-
+        Deduplicating after the fact keeps an arbitrary version. The row count is right
+        and the values are wrong, which is the worst outcome.
+
+  # ---------------------------------------------------------------- O3 structure
+  - id: ASSOC-S3-Q009
+    objective_ids: [ASSOC-S3-O3]
+    difficulty: application
+    provenance: original
+    tags: [explode, arrays, grain]
+    stem: >-
+      A JSON source has one document per device, each containing an array of readings.
+      An analyst needs one row per reading. Which operation produces that grain?
+    options:
+      A: explode() on the array column
+      B: flatten() on the DataFrame
+      C: selectExpr("readings.*")
+      D: A cross join between the documents and their readings
+    correct: A
+    explanation: >-
+      explode() turns each element of an array into its own row, carrying the parent
+      columns along. It is the standard move for changing grain from
+      one-row-per-container to one-row-per-item. Use explode_outer() when an empty or
+      null array should still produce a row rather than vanishing.
+    distractor_rationale:
+      B: >-
+        flatten() collapses an array of arrays into a single array. It does not create
+        rows.
+      C: >-
+        The star expansion works on a struct's fields, not on array elements, so this
+        gives one column per field of the array type rather than one row per element.
+      D: >-
+        The readings are nested inside the document, not a separate relation to join
+        against.
+
+  - id: ASSOC-S3-Q010
+    objective_ids: [ASSOC-S3-O3]
+    difficulty: recall
+    provenance: original
+    tags: [withcolumn, select, rename]
+    stem: >-
+      Which statement about DataFrame column operations in PySpark is correct?
+    options:
+      A: >-
+        withColumnRenamed() returns a new DataFrame; the original is unchanged, because
+        DataFrames are immutable.
+      B: withColumn() modifies the DataFrame in place and returns None.
+      C: drop() raises an error if the named column does not exist.
+      D: >-
+        Column operations are applied immediately, so each one triggers a separate job.
+    correct: A
+    explanation: >-
+      Spark DataFrames are immutable - every transformation returns a new one, and the
+      original is untouched. This is why transformations are chained or reassigned, and
+      why forgetting to reassign is a common source of "my change did nothing".
+      Transformations are also lazy: nothing executes until an action.
+    distractor_rationale:
+      B: >-
+        withColumn() returns a new DataFrame. Nothing in the DataFrame API mutates in
+        place.
+      C: drop() silently ignores column names that are not present.
+      D: >-
+        Transformations are lazy and only build a plan. An action such as count() or
+        write triggers execution.
+
+  - id: ASSOC-S3-Q011
+    objective_ids: [ASSOC-S3-O3]
+    difficulty: application
+    provenance: original
+    tags: [split, string-functions]
+    stem: >-
+      A column full_location holds values like "Boston, MA". An engineer needs separate
+      city and state columns. Which approach is correct in Spark SQL?
+    options:
+      A: >-
+        Use split(full_location, ', ') and index the resulting array: element 0 for
+        city, element 1 for state.
+      B: Use substring() with fixed offsets for each part.
+      C: Use explode(split(full_location, ', ')) to get city and state as columns.
+      D: Cast full_location to a STRUCT with city and state fields.
+    correct: A
+    explanation: >-
+      split() returns an array, and indexing it gives the parts. Be aware that Spark SQL
+      array indexing is 0-based while some other SQL dialects are 1-based - a common
+      slip. Guard against values that do not contain the separator, since the array will
+      be shorter than expected and the index returns NULL rather than erroring.
+    distractor_rationale:
+      B: >-
+        Fixed offsets break the moment a city name has a different length, which is
+        immediately.
+      C: >-
+        explode() would put city and state on separate *rows*, which is the wrong grain
+        entirely.
+      D: A cast cannot parse a delimited string into a struct.
+
+  # ---------------------------------------------------------------- O4 dedup/agg
+  - id: ASSOC-S3-Q012
+    objective_ids: [ASSOC-S3-O4]
+    difficulty: analysis
+    provenance: original
+    tags: [dedup, dropduplicates, business-key]
+    stem: >-
+      An events table should hold one row per event_id, but some events were redelivered
+      with identical values. An engineer writes df.dropDuplicates(). Later, a second
+      source starts redelivering events with a corrected timestamp but the same
+      event_id. What goes wrong?
+    options:
+      A: >-
+        dropDuplicates() with no columns compares entire rows, so the corrected version
+        differs and both rows survive.
+      B: dropDuplicates() fails because the DataFrame has no primary key defined.
+      C: >-
+        dropDuplicates() keeps the first row it encounters, which is non-deterministic
+        and may keep either.
+      D: Nothing goes wrong; the corrected row replaces the original.
+    correct: A
+    explanation: >-
+      dropDuplicates() with no arguments compares every column, so two rows that differ
+      in any field are both kept. Deduplicating on the *business key* -
+      dropDuplicates(["event_id"]) - is what the requirement actually calls for. When
+      versions genuinely differ, order by an ingestion timestamp and keep the newest
+      rather than letting Spark pick.
+    distractor_rationale:
+      B: Spark has no notion of a declared primary key; the call succeeds.
+      C: >-
+        True of dropDuplicates(["event_id"]) without ordering, but not the failure here -
+        with no columns specified, neither row is removed at all.
+      D: >-
+        Nothing about dropDuplicates prefers a corrected row. Both simply remain.
+
+  - id: ASSOC-S3-Q013
+    objective_ids: [ASSOC-S3-O4]
+    difficulty: application
+    provenance: original
+    tags: [approx-count-distinct, aggregation, performance]
+    stem: >-
+      A dashboard needs the number of distinct users per day across billions of rows,
+      refreshed hourly. A 1-2% error is acceptable. Which function suits it best, and
+      why?
+    options:
+      A: >-
+        approx_count_distinct(), because it uses HyperLogLog and avoids the expensive
+        exact shuffle.
+      B: count(distinct ...), because accuracy always matters more on a dashboard.
+      C: count() with a groupBy on user_id, then a second count of the groups.
+      D: collect_set() followed by size(), which computes distinct values in one pass.
+    correct: A
+    explanation: >-
+      Exact distinct counts require shuffling every value to compare them - the cost
+      grows with cardinality and it is often the slowest part of a dashboard query.
+      approx_count_distinct() uses HyperLogLog sketches for a bounded error (about 5% by
+      default, tunable) at a fraction of the cost. When the business has said 1-2% error
+      is fine, paying for exactness is a choice to be slower for no benefit.
+    distractor_rationale:
+      B: >-
+        Accuracy has already been scoped by the requirement. Treating "always" as an
+        argument ignores the stated tolerance.
+      C: >-
+        This produces the same exact count with an extra stage - more expensive, not
+        less.
+      D: >-
+        collect_set() materialises every distinct value in memory, which is far worse at
+        this cardinality and risks OOM.
+
+  - id: ASSOC-S3-Q014
+    objective_ids: [ASSOC-S3-O4]
+    difficulty: recall
+    provenance: original
+    tags: [aggregation, null-handling, count]
+    stem: >-
+      A column has 1,000 rows of which 150 are NULL. What do count(*), count(col) and
+      avg(col) each consider?
+    options:
+      A: >-
+        count(*) returns 1000; count(col) returns 850; avg(col) averages the 850
+        non-null values.
+      B: All three ignore NULLs, so all operate on 850 rows.
+      C: >-
+        count(*) returns 1000; count(col) returns 1000; avg(col) treats NULLs as zero.
+      D: count(*) returns 850 because NULL rows are excluded from row counts.
+    correct: A
+    explanation: >-
+      count(*) counts rows; count(col) counts non-null values in that column; and the
+      aggregates skip NULLs entirely. The consequence people get caught by is that avg()
+      divides by 850, not 1000 - so if a NULL genuinely means zero, the average comes
+      out too high unless you COALESCE first.
+    distractor_rationale:
+      B: count(*) counts rows regardless of any column's nullity.
+      C: >-
+        count(col) excludes nulls, and avg() skips them rather than treating them as
+        zero - the difference that shifts the result.
+      D: count(*) is a row count and is unaffected by nulls.
+
+  # ---------------------------------------------------------------- O5 tuning
+  - id: ASSOC-S3-Q015
+    objective_ids: [ASSOC-S3-O5]
+    difficulty: analysis
+    provenance: original
+    tags: [shuffle-partitions, tuning, small-files]
+    stem: >-
+      A job processes about 2 GB of data but takes far longer than expected. The Spark
+      UI shows a shuffle stage with 200 tasks, most finishing in well under a second.
+      Which change is most likely to help?
+    options:
+      A: Lower spark.sql.shuffle.partitions, so each task handles a worthwhile amount of data.
+      B: Raise spark.sql.shuffle.partitions to increase parallelism.
+      C: Increase spark.executor.memory so tasks have more headroom.
+      D: Enable broadcast joins by raising spark.sql.autoBroadcastJoinThreshold.
+    correct: A
+    explanation: >-
+      200 is the default for spark.sql.shuffle.partitions, and on 2 GB it gives roughly
+      10 MB per task. At that size the per-task overhead - scheduling, serialisation,
+      writing a shuffle file - dominates the actual work, and you also get 200 tiny
+      output files. Hundreds of very fast tasks is the signature of over-partitioning;
+      the fix is fewer, bigger partitions.
+    distractor_rationale:
+      B: >-
+        More partitions makes it worse. The tasks are already too small to justify their
+        own overhead.
+      C: >-
+        Nothing here suggests memory pressure. Tasks finishing quickly is the opposite of
+        the spill-and-GC pattern that memory fixes.
+      D: >-
+        Broadcast thresholds affect join strategy. The problem described is partition
+        sizing, not join choice.
+
+  - id: ASSOC-S3-Q016
+    objective_ids: [ASSOC-S3-O5]
+    difficulty: recall
+    provenance: original
+    tags: [autobroadcastjointhreshold, config]
+    stem: >-
+      What does spark.sql.autoBroadcastJoinThreshold control, and what does setting it
+      to -1 do?
+    options:
+      A: >-
+        The maximum size a table can be for Spark to broadcast it automatically;
+        -1 disables automatic broadcasting entirely.
+      B: >-
+        The number of executors a broadcast is sent to; -1 means all of them.
+      C: >-
+        The timeout in seconds before a broadcast is abandoned; -1 means no timeout.
+      D: >-
+        The memory reserved for broadcasts; -1 lets Spark choose dynamically.
+    correct: A
+    explanation: >-
+      The default is 10 MB. Below that, Spark broadcasts the smaller side automatically
+      rather than shuffling both. Setting -1 turns the automatic behaviour off - useful
+      when a mis-estimated table size is causing driver OOM during broadcast, which is
+      the usual reason anyone touches this setting.
+    distractor_rationale:
+      B: The broadcast always goes to all executors; there is no count to configure.
+      C: >-
+        The broadcast timeout is a separate setting, spark.sql.broadcastTimeout.
+      D: This is a size threshold for the decision, not a memory reservation.
+
+  - id: ASSOC-S3-Q017
+    objective_ids: [ASSOC-S3-O5]
+    difficulty: application
+    provenance: original
+    tags: [driver-memory, collect, oom]
+    stem: >-
+      A job fails with an out-of-memory error on the driver. The code ends with
+      result_df.collect() on a DataFrame of several million rows. What is the correct
+      fix?
+    options:
+      A: >-
+        Do not collect the whole result - write it to a table, or use limit()/take() if
+        only a sample is needed.
+      B: Increase spark.driver.memory until the collect fits.
+      C: Increase spark.executor.memory so the data is prepared before collection.
+      D: Repartition to fewer partitions before collecting.
+    correct: A
+    explanation: >-
+      collect() pulls every row to the driver, a single JVM. It does not matter how
+      large the cluster is - the driver is the bottleneck, and raising its memory only
+      moves the failure to a slightly larger dataset. The habit worth building: treat
+      collect() as something you do to a handful of rows, never to a result set.
+    distractor_rationale:
+      B: >-
+        A temporary reprieve that fails again as data grows, and wastes memory on the
+        driver that could be doing useful work.
+      C: Executor memory is irrelevant - the failure is on the driver.
+      D: >-
+        Partition count does not change the total volume arriving at the driver.
+
+  # ---------------------------------------------------------------- O6 gold objects
+  - id: ASSOC-S3-Q018
+    objective_ids: [ASSOC-S3-O6]
+    difficulty: analysis
+    provenance: original
+    tags: [view, materialized-view, gold]
+    stem: >-
+      A gold aggregate is queried by a BI dashboard several hundred times per hour, and
+      its source data changes once nightly. Which object suits it best?
+    options:
+      A: A materialized view, so the aggregate is computed once and each dashboard query reads stored results.
+      B: A view, so every dashboard query sees the freshest possible data.
+      C: A streaming table, so the aggregate updates continuously as data arrives.
+      D: A temporary view, so the result is cached for the session.
+    correct: A
+    explanation: >-
+      Match the object to the read/write ratio. Here it is hundreds of reads against one
+      write per day, so recomputing on every read wastes the same work hundreds of
+      times. A materialized view stores the computed result and refreshes on a schedule -
+      the freshness the data actually has, at a fraction of the query cost.
+    distractor_rationale:
+      B: >-
+        A view recomputes on every query. "Freshest possible" is worth nothing when the
+        source only changes nightly.
+      C: >-
+        Streaming tables suit continuously arriving data. A nightly batch does not need
+        one, and it keeps resources warm for no benefit.
+      D: >-
+        Temporary views vanish with the session and are not visible to a BI tool at all.
+
+  - id: ASSOC-S3-Q019
+    objective_ids: [ASSOC-S3-O6]
+    difficulty: recall
+    provenance: original
+    tags: [streaming-table, materialized-view, incremental]
+    stem: >-
+      What is the essential difference between a streaming table and a materialized view
+      in Databricks?
+    options:
+      A: >-
+        A streaming table processes each input row once, incrementally; a materialized
+        view holds the result of a query and refreshes it.
+      B: >-
+        A streaming table is always in memory; a materialized view is always on disk.
+      C: A materialized view can only be built from a single table; a streaming table can join many.
+      D: They are the same object with different syntax.
+    correct: A
+    explanation: >-
+      A streaming table is append-oriented and incremental - each source row is
+      processed once and never revisited, which is what makes it suit ingestion and
+      ever-growing sources. A materialized view represents the *result* of a query and
+      is refreshed, recomputing as needed. Incremental consumption versus a maintained
+      result is the distinction to hold on to.
+    distractor_rationale:
+      B: Both are persisted. Neither is defined by where it lives.
+      C: Materialized views can join freely.
+      D: >-
+        They have genuinely different semantics, and picking the wrong one shows up as
+        either stale results or needless recomputation.
+
+  - id: ASSOC-S3-Q020
+    objective_ids: [ASSOC-S3-O6]
+    difficulty: application
+    provenance: original
+    tags: [view, governance, unity-catalog]
+    stem: >-
+      An analytics team needs access to order data, but must not see the customer_email
+      column. The underlying table cannot be modified. What is the simplest approach
+      that satisfies this?
+    options:
+      A: >-
+        Create a view selecting only the permitted columns and grant the team SELECT on
+        the view rather than the table.
+      B: Create a copy of the table without the column and schedule a job to keep it in sync.
+      C: Grant SELECT on the table and ask the team not to query that column.
+      D: Add a column mask to customer_email that returns NULL for everyone.
+    correct: A
+    explanation: >-
+      A view is the standard governance boundary: it exposes exactly the columns you
+      choose, stores no duplicate data, and stays current automatically because it is
+      computed at query time. Grant on the view, withhold on the table, and the
+      restriction is structural rather than a matter of trust.
+    distractor_rationale:
+      B: >-
+        A synced copy is real duplication with real drift risk and an ongoing job to
+        maintain, for something a view does for free.
+      C: A request is not access control.
+      D: >-
+        A blanket mask hides the column from everyone including those who need it. A
+        mask is the right tool when *some* principals should see it.
+
+  # ---------------------------------------------------------------- O7 quality
+  - id: ASSOC-S3-Q021
+    objective_ids: [ASSOC-S3-O7]
+    difficulty: application
+    provenance: original
+    tags: [constraints, delta, quality]
+    stem: >-
+      A Delta table must never accept a row where quantity is less than 1. Which
+      approach enforces this at write time?
+    options:
+      A: >-
+        ALTER TABLE ... ADD CONSTRAINT valid_qty CHECK (quantity >= 1), which rejects
+        violating writes.
+      B: A scheduled job that deletes violating rows after each load.
+      C: A view that filters out rows where quantity < 1.
+      D: Documenting the rule in the table comment for downstream teams.
+    correct: A
+    explanation: >-
+      A CHECK constraint is enforced by Delta on write: a violating row fails the
+      transaction rather than landing and being cleaned up later. That is the difference
+      between a table that *cannot* hold bad data and one that merely usually does not.
+      Note that adding a constraint validates existing rows too, so it will fail if the
+      table already violates it.
+    distractor_rationale:
+      B: >-
+        The bad rows exist between the load and the cleanup, and anything reading in that
+        window sees them.
+      C: >-
+        A view hides the rows from that one path. The table still contains them and other
+        readers still see them.
+      D: A comment is documentation, not enforcement.
+
+  - id: ASSOC-S3-Q022
+    objective_ids: [ASSOC-S3-O7]
+    difficulty: analysis
+    provenance: original
+    tags: [quality, monitoring, silver]
+    stem: >-
+      Which of these is the strongest signal that a silver table's quality has silently
+      degraded, rather than failed outright?
+    options:
+      A: A sharp rise in the proportion of NULLs in a column that is normally populated.
+      B: The job's run duration increasing by 10%.
+      C: The table's storage size growing week on week.
+      D: An increase in the number of files in the table's directory.
+    correct: A
+    explanation: >-
+      A jump in nulls usually means a cast started failing or an upstream field was
+      renamed - the pipeline still succeeds, the row count still looks right, and the
+      data is quietly wrong. That combination is exactly what makes it dangerous, and it
+      is why null-rate is worth tracking as a metric rather than only checked when
+      something breaks.
+    distractor_rationale:
+      B: Runtime drifts for many benign reasons, including simply having more data.
+      C: Growth is expected for an accumulating table.
+      D: >-
+        File count relates to compaction and small-file management, which is a
+        performance concern rather than a correctness one.
+
+  - id: ASSOC-S3-Q023
+    objective_ids: [ASSOC-S3-O7, ASSOC-S3-O4]
+    difficulty: application
+    provenance: original
+    tags: [quality-check, row-count, validation]
+    stem: >-
+      After joining a fact table to a dimension, which single check most directly
+      catches an accidental fan-out?
+    options:
+      A: Assert that the output row count equals the input fact row count.
+      B: Assert that the output contains no NULLs.
+      C: Assert that the output row count is greater than zero.
+      D: Assert that every dimension row appears in the output.
+    correct: A
+    explanation: >-
+      When a join is meant to enrich a fact table without changing its grain, the row
+      count is the invariant - it should come out exactly as it went in. Asserting that
+      catches both fan-out (too many) and unintended inner-join drops (too few) with one
+      cheap check, which is why it belongs in the pipeline rather than in someone's head.
+    distractor_rationale:
+      B: >-
+        A fan-out produces duplicated rows that are perfectly non-null. This check would
+        pass.
+      C: A non-empty result says almost nothing; 870 rows is non-empty and wrong.
+      D: >-
+        Not every dimension row should appear - only those referenced. This asserts the
+        wrong thing entirely.

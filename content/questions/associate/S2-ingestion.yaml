@@ -1,0 +1,323 @@
+# ASSOC-S2 — Data Ingestion and Loading (21%)
+# Several of these mirror failures the S2 lessons cause on purpose; see
+# content/lessons/associate/S2/errors-worth-meeting.md.
+meta:
+  source: Original, written for this repository.
+  note: Covers ASSOC-S2-O1 through O7.
+
+questions:
+  - id: ASSOC-S2-Q002
+    objective_ids: [ASSOC-S2-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [copy-into, idempotency, incremental]
+    stem: >-
+      A COPY INTO statement loading a directory of CSV files is run twice in a row, with
+      no new files added between runs. What does the second run do?
+    options:
+      A: Nothing - it skips files already recorded as loaded, so the row count is unchanged.
+      B: It loads every file again, doubling the row count.
+      C: It fails, because the target table already contains those records.
+      D: It reloads only files whose modification time changed.
+    correct: A
+    explanation: >-
+      COPY INTO tracks which files it has ingested in the table's metadata, so re-running
+      it is a no-op. That idempotence is what makes it safe to schedule and safe to retry
+      after a failure - the property the exam keeps probing, because it is what separates
+      an incremental load from a bulk insert.
+    distractor_rationale:
+      B: That would be an INSERT INTO with a file read - COPY INTO exists to avoid it.
+      C: Re-running is expected and supported, not an error.
+      D: >-
+        Tracking is by file identity, not modification time. A modified file that was
+        already loaded is not reloaded by default.
+
+  - id: ASSOC-S2-Q003
+    objective_ids: [ASSOC-S2-O2]
+    difficulty: application
+    provenance: original
+    tags: [copy-into, schema, csv, types]
+    stem: >-
+      An engineer creates a target table with unit_price DOUBLE, then runs COPY INTO
+      from CSV files. The load fails with DELTA_FAILED_TO_MERGE_FIELDS. Why?
+    options:
+      A: >-
+        CSV delivers every field as text and COPY INTO will not silently coerce it into
+        the declared numeric type.
+      B: The CSV files contain a header row that conflicts with the schema.
+      C: DOUBLE is not a supported column type for COPY INTO.
+      D: The table must be empty before COPY INTO can run.
+    correct: A
+    explanation: >-
+      CSV has no type information - every field is a string until something interprets
+      it. Rather than coerce silently, which is where numbers quietly change, COPY INTO
+      refuses. The usual fix is also better medallion practice: make bronze all STRING,
+      faithful to the source, and cast on the way to silver where a bad value becomes a
+      countable null instead of a failed load.
+    distractor_rationale:
+      B: A header is handled by FORMAT_OPTIONS ('header' = 'true') and causes a different error.
+      C: DOUBLE is perfectly supported as a target type.
+      D: COPY INTO appends to a table that already has data; that is its purpose.
+
+  - id: ASSOC-S2-Q004
+    objective_ids: [ASSOC-S2-O3]
+    difficulty: analysis
+    provenance: original
+    tags: [auto-loader, checkpoint, schema-location]
+    stem: >-
+      An Auto Loader stream uses both a checkpointLocation and a
+      cloudFiles.schemaLocation. An engineer deletes the checkpoint directory and
+      restarts the stream. What happens?
+    options:
+      A: Every file in the source is processed again, because the record of what was consumed is gone.
+      B: Only the schema is re-inferred; file tracking is unaffected.
+      C: The stream fails to start until the checkpoint is restored.
+      D: Nothing changes - the schema location also tracks processed files.
+    correct: A
+    explanation: >-
+      The two locations do different jobs and confusing them is a classic trap. The
+      checkpoint records which files have been consumed - delete it and the stream has no
+      memory, so it reprocesses everything and duplicates data unless the sink can absorb
+      it. The schema location holds the inferred schema and its versions, which is what
+      makes evolution possible.
+    distractor_rationale:
+      B: Reversed - the schema location holds the schema; the checkpoint holds progress.
+      C: The stream starts happily. It simply believes it has never seen any of the files.
+      D: They are separate. Neither substitutes for the other.
+
+  - id: ASSOC-S2-Q005
+    objective_ids: [ASSOC-S2-O3]
+    difficulty: analysis
+    provenance: original
+    tags: [schema-evolution, addnewcolumns, retry]
+    stem: >-
+      An Auto Loader stream with schemaEvolutionMode = addNewColumns fails when a new
+      column appears, reporting "which can be fixed by an automatic retry: true". What
+      is the correct response?
+    options:
+      A: >-
+        Restart the stream - the new schema has been recorded and the next run succeeds.
+        Configure job retries so this is handled automatically.
+      B: Change schemaEvolutionMode to none so the stream stops failing.
+      C: Delete the schema location so the schema is re-inferred from scratch.
+      D: Manually ALTER TABLE to add the column, then restart.
+    correct: A
+    explanation: >-
+      The failure is the mechanism, not a fault. Auto Loader records the wider schema,
+      stops so a human learns the source changed, and succeeds on restart. In production
+      a retry policy absorbs this and evolution looks seamless; with retries disabled,
+      the pipeline simply stops the first time upstream adds a field. Remember the writer
+      also needs mergeSchema, or the restart fails again with DELTA_METADATA_MISMATCH.
+    distractor_rationale:
+      B: >-
+        That silences the signal and drops the new data into _rescued_data or discards
+        it - fixing the alarm rather than the fire.
+      C: >-
+        Destroys the recorded schema and any version history, and does not address the
+        restart that was needed anyway.
+      D: >-
+        Unnecessary - the whole point of evolution is that Auto Loader handles the schema
+        change for you.
+
+  - id: ASSOC-S2-Q006
+    objective_ids: [ASSOC-S2-O3, ASSOC-S2-O7]
+    difficulty: recall
+    provenance: original
+    tags: [rescued-data, malformed, auto-loader]
+    stem: >-
+      What is the purpose of the _rescued_data column in Auto Loader?
+    options:
+      A: >-
+        It captures values that could not be parsed into the expected schema, so
+        malformed input costs you a column to inspect rather than lost records.
+      B: It stores rows rejected by table constraints for later reprocessing.
+      C: It holds a copy of the raw file path each record came from.
+      D: It records rows that failed to write due to transient storage errors.
+    correct: A
+    explanation: >-
+      Anything Auto Loader cannot fit into the schema - a type mismatch, an unexpected
+      field - lands in _rescued_data instead of being dropped. That turns silent data
+      loss into a visible column you can query, which is why it is worth enabling as a
+      matter of routine rather than only when something goes wrong.
+    distractor_rationale:
+      B: Constraint violations are a Delta write concern, unrelated to this column.
+      C: >-
+        That is _metadata.file_path, a different and also useful column.
+      D: Write failures raise errors; they are not captured in a data column.
+
+  - id: ASSOC-S2-Q007
+    objective_ids: [ASSOC-S2-O6]
+    difficulty: analysis
+    provenance: original
+    tags: [auto-loader, copy-into, choosing]
+    stem: >-
+      Which situation most clearly calls for Auto Loader rather than COPY INTO?
+    options:
+      A: >-
+        Millions of files arriving continuously into cloud storage, with a schema that
+        occasionally gains columns.
+      B: A single well-known CSV dropped once a day into a fixed location.
+      C: A one-off backfill of a directory that will never receive new files.
+      D: Loading a table from another Unity Catalog table.
+    correct: A
+    explanation: >-
+      Auto Loader is built for scale and for change: it tracks files efficiently at very
+      high volume and can evolve the schema as sources drift. COPY INTO is simpler and
+      entirely appropriate for predictable, bounded loads into a known schema. Choose by
+      volume and volatility rather than by which is newer.
+    distractor_rationale:
+      B: A predictable daily file into a known schema is exactly COPY INTO's case.
+      C: A one-off load needs neither incremental tracking nor evolution.
+      D: >-
+        Table-to-table work is a plain INSERT or CTAS. Neither ingestion tool is
+        involved.
+
+  - id: ASSOC-S2-Q008
+    objective_ids: [ASSOC-S2-O1]
+    difficulty: recall
+    provenance: original
+    tags: [ingestion-patterns, batch, streaming, incremental]
+    stem: >-
+      What distinguishes incremental ingestion from a full batch reload?
+    options:
+      A: >-
+        Incremental ingestion processes only data not yet consumed, tracking progress so
+        reruns do not reprocess everything.
+      B: Incremental ingestion always runs continuously, while batch runs on a schedule.
+      C: Incremental ingestion writes only to streaming tables.
+      D: Incremental ingestion requires the source to be a message bus.
+    correct: A
+    explanation: >-
+      The defining property is bookkeeping - a record of what has already been consumed,
+      whether that is COPY INTO's file list or a streaming checkpoint. Note that
+      incremental is not the same as continuous: Auto Loader with trigger availableNow is
+      incremental and batch at the same time, processing what is there and stopping.
+    distractor_rationale:
+      B: >-
+        Conflates incremental with continuous. Scheduled incremental loads are extremely
+        common.
+      C: Incremental ingestion writes to ordinary tables perfectly well.
+      D: Cloud storage is the most common incremental source of all.
+
+  - id: ASSOC-S2-Q009
+    objective_ids: [ASSOC-S2-O7]
+    difficulty: application
+    provenance: original
+    tags: [json, nested, schema]
+    stem: >-
+      JSON files are ingested where one field is an array of nested objects. The target
+      table must have one row per nested object. Where should that reshaping happen?
+    options:
+      A: >-
+        Downstream of ingestion - land the nested structure in bronze, then explode it on
+        the way to silver.
+      B: During ingestion, by configuring Auto Loader to flatten arrays automatically.
+      C: In the source system, before the files are written.
+      D: It cannot be done; nested data must be queried in place.
+    correct: A
+    explanation: >-
+      Bronze should stay faithful to what arrived, nesting included, so you can always
+      reprocess from the original if a transformation turns out to be wrong. Changing
+      grain is a transformation concern, and explode() on the way to silver is where it
+      belongs.
+    distractor_rationale:
+      B: >-
+        Auto Loader preserves the structure it reads; it has no automatic array
+        flattening.
+      C: >-
+        Rarely available, and it discards the original shape - you cannot recover what the
+        source never sent.
+      D: >-
+        Nested data is entirely queryable, and explode() is the standard way to change its
+        grain.
+
+  - id: ASSOC-S2-Q010
+    objective_ids: [ASSOC-S2-O5]
+    difficulty: application
+    provenance: original
+    tags: [jdbc, secrets, credentials]
+    stem: >-
+      A notebook reads from an external database over JDBC. How should the password be
+      supplied?
+    options:
+      A: >-
+        From a secret scope via dbutils.secrets.get(), which Databricks redacts from
+        notebook output.
+      B: As a plain string variable at the top of the notebook, for easy rotation.
+      C: In the JDBC URL, which is not displayed in query results.
+      D: As a job parameter, which is stored encrypted at rest.
+    correct: A
+    explanation: >-
+      Secrets keep the credential out of the notebook source, out of version control, and
+      out of any output - printing one shows "REDACTED". That redaction matters more than
+      it first appears: it protects against the credential leaking into exported HTML,
+      logs and screen-shares, which is how these usually escape.
+    distractor_rationale:
+      B: >-
+        A plaintext credential in a notebook is a credential in your git history the
+        moment it is committed.
+      C: >-
+        Connection strings appear in logs, error messages and query plans. This is not
+        concealment.
+      D: >-
+        Job parameters are visible in the run configuration and run history to anyone who
+        can see the job.
+
+  - id: ASSOC-S2-Q011
+    objective_ids: [ASSOC-S2-O4, ASSOC-S2-O6]
+    difficulty: recall
+    provenance: original
+    tags: [lakeflow-connect, connectors, managed, standard]
+    stem: >-
+      Lakeflow Connect offers standard and managed connectors. What distinguishes them?
+    options:
+      A: >-
+        Standard connectors read from sources you can reach directly, such as cloud
+        storage or a message bus; managed connectors are fully governed pipelines for
+        enterprise applications and databases, with Databricks handling extraction and
+        scheduling.
+      B: Standard connectors are open source; managed connectors are proprietary.
+      C: Standard connectors write to Delta; managed connectors write to Parquet.
+      D: Standard connectors are batch only; managed connectors are streaming only.
+    correct: A
+    explanation: >-
+      Standard connectors cover sources your workspace can read from itself - object
+      storage via Auto Loader, Kafka, Kinesis. Managed connectors handle systems like
+      Salesforce, Workday or SQL Server, where Databricks manages the connection,
+      incremental extraction and scheduling for you. Choose by what the source is and how
+      much of the pipeline you want to own.
+    distractor_rationale:
+      B: Licensing is not the distinction.
+      C: Both land data in Unity Catalog-governed Delta tables.
+      D: >-
+        Both support incremental ingestion; the split is about the source and who
+        operates the pipeline.
+
+  - id: ASSOC-S2-Q012
+    objective_ids: [ASSOC-S2-O4]
+    difficulty: application
+    provenance: original
+    tags: [lakeflow-connect, ingestion-gateway, cdc]
+    stem: >-
+      A managed connector ingesting change data from an operational database uses an
+      ingestion gateway. What is the gateway's role?
+    options:
+      A: >-
+        It connects to the source database and captures changes, staging them for the
+        ingestion pipeline to load into Unity Catalog.
+      B: It authenticates users querying the resulting tables.
+      C: It converts the source schema into Delta format on the client side.
+      D: It rate-limits queries against the source to protect it from load.
+    correct: A
+    explanation: >-
+      Change-data-capture ingestion is two components: a gateway that talks to the source
+      and captures its change stream into a staging area, and a pipeline that applies
+      those changes to Unity Catalog tables. Splitting them means the source connection
+      runs continuously while the loading pipeline can be scheduled and scaled
+      independently.
+    distractor_rationale:
+      B: Query authorisation is Unity Catalog's job, not the gateway's.
+      C: Conversion happens in the ingestion pipeline, not on the source side.
+      D: >-
+        Reducing source load is a benefit of CDC generally, but it is not what the
+        gateway component *is*.

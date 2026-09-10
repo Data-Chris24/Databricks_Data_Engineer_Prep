@@ -1,0 +1,56 @@
+# Advisory AI review for ASSOC-S3. Never overturns the unit tests.
+assignment: ASSOC-S3
+objective_ids: [ASSOC-S3-O1, ASSOC-S3-O2, ASSOC-S3-O4, ASSOC-S3-O6, ASSOC-S3-O7]
+
+context: >-
+  The learner enriched billing events with plan details from a slowly-changing
+  dimension. plan_id repeats with validity windows, some events reference a missing
+  plan, and amounts arrive as integer minor units.
+
+criteria:
+  - id: point_in_time_join
+    weight: high
+    asks: Did they join on the validity window, or fan out and repair afterwards?
+    good: The window is in the join condition, so exactly one version ever matches.
+    poor: >-
+      An equi-join followed by dropDuplicates or a row_number filter - right count,
+      arbitrary version, so historical events get today's price.
+
+  - id: orphan_handling
+    weight: high
+    asks: Are events with a missing plan kept and flagged, or quietly dropped?
+    good: A left join with plan_missing derived from the join result.
+    poor: An inner join plus a separate union of the orphans bolted back on.
+
+  - id: minor_units
+    weight: high
+    asks: Was the currency conversion reasoned about, or discovered by matching a number?
+    good: Divides by 100 with the intent visible, ideally named or commented.
+    poor: A magic 0.01 factor, or a value tuned until the total matched.
+
+  - id: gaming
+    weight: critical
+    asks: Would this work on more data of the same shape?
+    good: A general transformation.
+    poor: >-
+      Hardcoded values for the probed billing_ids, a LIMIT producing exactly 600 rows,
+      or literals matching the fixtures.
+
+  - id: boundary_semantics
+    weight: medium
+    asks: Did they get the validity bounds right?
+    good: >-
+      Asymmetric bounds - >= valid_from and < valid_to - so an event on a boundary date
+      matches exactly one version.
+    poor: BETWEEN, which is inclusive at both ends and double-matches on boundaries.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues: [{severity: high | medium | low, location: string, note: string}]
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail. Say so if you disagree, but they stand.
+  - Judge the approach, not formatting or naming.
+  - A different but sound solution is not worse for differing from the reference.

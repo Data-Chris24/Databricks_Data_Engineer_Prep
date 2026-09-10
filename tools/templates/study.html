@@ -1,0 +1,617 @@
+<title>Databricks DE Readiness</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+  :root {
+    --ground:  #FBF9F7;
+    --surface: #FFFFFF;
+    --raised:  #F4F0EC;
+    --ink:     #1C1917;
+    --ink-dim: #6B635C;
+    --ink-mute:#928982;
+    --line:    #E6E0DA;
+    --accent:  #B4471F;
+    --accent-soft: #F6E7E0;
+    --good:    #0F766E;
+    --good-soft:#DFF2EF;
+    --bad:     #9F1239;
+    --bad-soft:#FBE4E9;
+    --shadow:  0 1px 2px rgba(28,25,23,.05), 0 8px 24px -12px rgba(28,25,23,.18);
+
+    --sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    --cond: "IBM Plex Sans Condensed", "IBM Plex Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:  #15120F;
+      --surface: #1E1A16;
+      --raised:  #272119;
+      --ink:     #F3EEE8;
+      --ink-dim: #ADA49C;
+      --ink-mute:#7C736B;
+      --line:    #332C25;
+      --accent:  #E8763F;
+      --accent-soft: #3A2117;
+      --good:    #35C7B4;
+      --good-soft:#12302C;
+      --bad:     #F2637E;
+      --bad-soft:#3A1620;
+      --shadow:  0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:  #15120F; --surface: #1E1A16; --raised:  #272119;
+    --ink:     #F3EEE8; --ink-dim: #ADA49C; --ink-mute:#7C736B;
+    --line:    #332C25; --accent:  #E8763F; --accent-soft: #3A2117;
+    --good:    #35C7B4; --good-soft:#12302C; --bad: #F2637E; --bad-soft:#3A1620;
+    --shadow:  0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 24px 20px 80px; }
+
+  /* ---------- header ---------- */
+  header { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;
+           justify-content: space-between; padding-bottom: 18px;
+           border-bottom: 1px solid var(--line); }
+  h1 { font-family: var(--cond); font-weight: 700; font-size: 27px; margin: 0;
+       letter-spacing: -.01em; text-wrap: balance; }
+  .sub { color: var(--ink-dim); font-size: 13.5px; margin-top: 2px; }
+  .exam-switch { display: flex; gap: 2px; background: var(--raised);
+                 border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+  .exam-switch button { font-family: var(--cond); font-weight: 600; font-size: 13.5px;
+    border: 0; background: transparent; color: var(--ink-dim); cursor: pointer;
+    padding: 7px 14px; border-radius: 6px; }
+  .exam-switch button[aria-pressed="true"] { background: var(--surface); color: var(--ink);
+    box-shadow: 0 1px 2px rgba(0,0,0,.10); }
+
+  /* ---------- readiness rail: bar widths ARE the exam weightings ---------- */
+  .rail { margin: 22px 0 8px; }
+  .rail-head { display: flex; justify-content: space-between; align-items: baseline;
+               gap: 12px; margin-bottom: 8px; }
+  .rail-title { font-family: var(--cond); font-weight: 600; font-size: 13px;
+                text-transform: uppercase; letter-spacing: .08em; color: var(--ink-mute); }
+  .rail-note { font-size: 12.5px; color: var(--ink-mute); }
+  .bars { display: flex; gap: 3px; height: 62px; }
+  .bar { position: relative; background: var(--raised); border-radius: 5px;
+         overflow: hidden; cursor: pointer; border: 1px solid transparent;
+         min-width: 0; display: flex; align-items: flex-end; }
+  .bar:hover, .bar:focus-visible { border-color: var(--accent); outline: none; }
+  .bar[aria-pressed="true"] { border-color: var(--accent); }
+  .bar .fill { width: 100%; background: var(--accent); opacity: .85;
+               transition: height .35s ease; }
+  .bar .tag { position: absolute; inset: 0; display: flex; flex-direction: column;
+              justify-content: space-between; padding: 6px 7px; }
+  .bar .code { font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+               color: var(--ink); mix-blend-mode: normal; }
+  .bar .pct { font-family: var(--mono); font-size: 10.5px; color: var(--ink-dim);
+              font-variant-numeric: tabular-nums; }
+
+  /* ---------- question ---------- */
+  .card { background: var(--surface); border: 1px solid var(--line);
+          border-radius: 12px; box-shadow: var(--shadow); padding: 26px 26px 22px;
+          margin-top: 22px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+          margin-bottom: 14px; }
+  .chip { font-family: var(--mono); font-size: 11px; letter-spacing: .02em;
+          padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line);
+          color: var(--ink-dim); background: var(--raised); }
+  .chip.obj { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+  .stem { font-size: 17px; line-height: 1.62; margin: 0 0 16px; text-wrap: pretty; }
+  pre { background: var(--raised); border: 1px solid var(--line); border-radius: 8px;
+        padding: 13px 15px; overflow-x: auto; margin: 0 0 16px;
+        font-family: var(--mono); font-size: 13px; line-height: 1.55; }
+  .opts { display: flex; flex-direction: column; gap: 8px; }
+  .opt { display: flex; gap: 12px; text-align: left; width: 100%; cursor: pointer;
+         background: var(--surface); border: 1px solid var(--line); border-radius: 9px;
+         padding: 12px 14px; font: inherit; color: inherit; line-height: 1.5; }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt .key { font-family: var(--mono); font-weight: 600; font-size: 13px;
+              color: var(--ink-mute); flex: none; padding-top: 1px; }
+  .opt.correct { border-color: var(--good); background: var(--good-soft); }
+  .opt.correct .key { color: var(--good); }
+  .opt.wrong  { border-color: var(--bad); background: var(--bad-soft); }
+  .opt.wrong .key { color: var(--bad); }
+
+  .feedback { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .verdict { font-family: var(--cond); font-weight: 700; font-size: 15px;
+             letter-spacing: .01em; margin-bottom: 8px; }
+  .verdict.ok { color: var(--good); }
+  .verdict.no { color: var(--bad); }
+  .why { margin: 0 0 12px; }
+  .why h4 { font-family: var(--cond); font-size: 12px; text-transform: uppercase;
+            letter-spacing: .08em; color: var(--ink-mute); margin: 14px 0 6px; }
+  .why dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 5px 11px; }
+  .why dt { font-family: var(--mono); font-size: 12.5px; color: var(--bad); font-weight: 500; }
+  .why dd { margin: 0; font-size: 14.5px; color: var(--ink-dim); }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px;
+             align-items: center; }
+  button.primary { font-family: var(--cond); font-weight: 600; font-size: 14.5px;
+    background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+    padding: 10px 20px; cursor: pointer; }
+  button.ghost { font-family: var(--cond); font-weight: 600; font-size: 13.5px;
+    background: transparent; color: var(--ink-dim); border: 1px solid var(--line);
+    border-radius: 8px; padding: 9px 15px; cursor: pointer; }
+  button:focus-visible, .opt:focus-visible, .bar:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px; }
+  .grade { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .grade span { font-size: 12.5px; color: var(--ink-mute); }
+
+  .advance { margin-top: 18px; padding-top: 15px; border-top: 1px dashed var(--line); }
+  .advance-label { font-family: var(--cond); font-weight: 600; font-size: 13px;
+    text-transform: uppercase; letter-spacing: .07em; color: var(--ink-dim);
+    margin-bottom: 10px; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+  .kbd-hint { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0;
+    text-transform: none; color: var(--ink-mute); border: 1px solid var(--line);
+    border-radius: 4px; padding: 1px 6px; }
+  .grade { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .rate { display: flex; flex-direction: column; align-items: center; gap: 2px;
+    font: inherit; cursor: pointer; padding: 10px 6px; border-radius: 9px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+  .rate b { font-family: var(--cond); font-weight: 600; font-size: 14.5px; }
+  .rate i { font-family: var(--mono); font-style: normal; font-size: 10.5px;
+    color: var(--ink-mute); }
+  .rate:hover { border-color: var(--accent); background: var(--raised); }
+  .rate.again:hover { border-color: var(--bad); }
+  .rate.good:hover, .rate.easy:hover { border-color: var(--good); }
+  .skip { margin-top: 10px; font-family: var(--sans); font-size: 13px;
+    background: none; border: 0; color: var(--ink-mute); cursor: pointer;
+    padding: 4px 0; text-decoration: underline; text-underline-offset: 3px; }
+  .skip:hover { color: var(--ink); }
+  .opt .key.hot { color: var(--accent); }
+
+  .head-controls { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* ---------- reading mode ---------- */
+  .note { background: var(--surface); border: 1px solid var(--line);
+          border-radius: 12px; box-shadow: var(--shadow); padding: 30px 32px;
+          margin-top: 22px; }
+  .note > *:first-child { margin-top: 0; }
+  .note h1 { font-family: var(--cond); font-weight: 700; font-size: 25px;
+             margin: 0 0 4px; letter-spacing: -.01em; }
+  .note h2 { font-family: var(--cond); font-weight: 600; font-size: 19px;
+             margin: 30px 0 8px; padding-top: 16px; border-top: 1px solid var(--line);
+             letter-spacing: -.005em; }
+  .note h3 { font-family: var(--cond); font-weight: 600; font-size: 15.5px;
+             margin: 20px 0 6px; }
+  .note p, .note li { max-width: 68ch; }
+  .note p { margin: 0 0 12px; }
+  .note ul { margin: 0 0 12px; padding-left: 20px; }
+  .note li { margin-bottom: 5px; }
+  .note code { font-family: var(--mono); font-size: 13px; background: var(--raised);
+               border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .note pre { margin: 0 0 14px; }
+  .note pre code { background: none; border: 0; padding: 0; font-size: 13px; }
+  .note strong { font-weight: 600; }
+  .note blockquote { margin: 0 0 14px; padding: 11px 15px; border-left: 3px solid var(--accent);
+                     background: var(--accent-soft); border-radius: 0 7px 7px 0; }
+  .note blockquote p:last-child { margin-bottom: 0; }
+  .note table { border-collapse: collapse; width: 100%; margin: 0 0 16px;
+                font-size: 14.5px; display: block; overflow-x: auto; }
+  .note th, .note td { border: 1px solid var(--line); padding: 7px 11px;
+                       text-align: left; vertical-align: top; }
+  .note th { font-family: var(--cond); font-weight: 600; background: var(--raised);
+             white-space: nowrap; }
+  .note a { color: var(--accent); }
+  .note-nav { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 20px; }
+  .note-nav button { font-family: var(--mono); font-size: 12px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink-dim);
+    border-radius: 7px; padding: 7px 11px; }
+  .note-nav button[aria-pressed="true"] { border-color: var(--accent);
+    color: var(--accent); background: var(--accent-soft); }
+  .note-nav button:hover { border-color: var(--accent); }
+  .drill-cta { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }
+
+  .empty { text-align: center; padding: 40px 20px; color: var(--ink-dim); }
+  .empty strong { display: block; font-family: var(--cond); font-size: 19px;
+                  color: var(--ink); margin-bottom: 6px; }
+
+  footer { margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--line);
+           display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between;
+           font-size: 12.5px; color: var(--ink-mute); }
+  footer code { font-family: var(--mono); font-size: 11.5px; }
+  .sync { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-mute); }
+  .dot.on { background: var(--good); }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 18px 14px 60px; }
+    h1 { font-size: 23px; }
+    .bars { height: 54px; }
+    .bar .code { font-size: 9.5px; }
+    .bar .pct { display: none; }
+    .card { padding: 20px 17px 18px; }
+    .grade { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Databricks DE Readiness</h1>
+      <div class="sub" id="sub"></div>
+    </div>
+    <div class="head-controls">
+      <div class="exam-switch" id="modeSwitch">
+        <button data-mode="drill" aria-pressed="true">Drill</button>
+        <button data-mode="read" aria-pressed="false">Read</button>
+      </div>
+      <div class="exam-switch" id="examSwitch"></div>
+    </div>
+  </header>
+
+  <section class="rail">
+    <div class="rail-head">
+      <span class="rail-title">Readiness by section</span>
+      <span class="rail-note">Bar width = share of the real exam. Fill = your accuracy. Click one to focus.</span>
+    </div>
+    <div class="bars" id="bars"></div>
+  </section>
+
+  <main id="main"></main>
+
+  <footer>
+    <span id="progress"></span>
+    <span class="sync"><span class="dot" id="dot"></span><span id="syncLabel">local only</span></span>
+  </footer>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+
+/* ---------------- storage: shared db when available, localStorage otherwise ---- */
+const LS_KEY = "dbx-de-readiness-v1";
+let db = null, remoteDoc = null;
+
+function loadLocal() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; }
+}
+function saveLocal(s) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(s)); } catch {}
+}
+
+let state = loadLocal();          // { [questionId]: {n, ease, due, last, right, wrong} }
+let saveTimer = null;
+
+function persist() {
+  saveLocal(state);
+  if (!remoteDoc) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    remoteDoc.set({ state, updated: Date.now() }).catch(() => {});
+  }, 600);
+}
+
+/* ---------------- SM-2 lite ---------------------------------------------------- */
+const DAY = 86400000;
+function schedule(id, quality) {   // quality: 0 again, 1 hard, 2 good, 3 easy
+  const s = state[id] || { n: 0, ease: 2.5, due: 0, right: 0, wrong: 0 };
+  if (quality === 0) { s.n = 0; s.ease = Math.max(1.3, s.ease - 0.2); s.wrong++; }
+  else {
+    s.n = (s.n || 0) + 1;
+    s.ease = Math.min(2.8, Math.max(1.3, s.ease + (quality - 2) * 0.15));
+    s.right++;
+  }
+  const gap = s.n === 0 ? 0 : s.n === 1 ? 1 : s.n === 2 ? 3 : Math.round((s.n - 1) * s.ease * 1.6);
+  s.due = Date.now() + gap * DAY;
+  s.last = Date.now();
+  state[id] = s;
+  persist();
+}
+
+/* ---------------- selection ---------------------------------------------------- */
+let examId = "associate";
+let mode = "drill";
+let sectionFilter = null;
+let current = null, answered = false;
+
+function pool() {
+  return DATA.questions.filter(q =>
+    q.exam === examId && (!sectionFilter || q.section === sectionFilter));
+}
+function due(q) { const s = state[q.id]; return !s || (s.due || 0) <= Date.now(); }
+
+function pick() {
+  const p = pool();
+  if (!p.length) return null;
+  const ready = p.filter(due);
+  const from = ready.length ? ready : p;
+  // Prefer never-seen, then most-overdue; break ties randomly so order varies.
+  const unseen = from.filter(q => !state[q.id]);
+  const bucket = unseen.length ? unseen : from;
+  bucket.sort((a, b) => ((state[a.id]?.due) || 0) - ((state[b.id]?.due) || 0));
+  const head = bucket.slice(0, Math.max(1, Math.ceil(bucket.length * 0.35)));
+  return head[Math.floor(Math.random() * head.length)];
+}
+
+/* ---------------- accuracy ------------------------------------------------------ */
+function sectionAccuracy(sid) {
+  const qs = DATA.questions.filter(q => q.section === sid);
+  let right = 0, total = 0;
+  for (const q of qs) {
+    const s = state[q.id];
+    if (!s) continue;
+    right += s.right || 0; total += (s.right || 0) + (s.wrong || 0);
+  }
+  return { pct: total ? right / total : 0, seen: qs.filter(q => state[q.id]).length, n: qs.length };
+}
+
+/* ---------------- a small markdown renderer -----------------------------------
+   Only the subset the lesson notes actually use: headings, tables, fenced code,
+   blockquotes, lists, inline code, bold. Loading a library for this would cost
+   more than it saves. ------------------------------------------------------- */
+function md(src) {
+  const esc = t => t.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const inline = t => esc(t)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+
+  const lines = src.split("\n");
+  let out = "", i = 0, listOpen = false, quote = [];
+  const closeList = () => { if (listOpen) { out += "</ul>"; listOpen = false; } };
+  const flushQuote = () => {
+    if (!quote.length) return;
+    out += "<blockquote>" + quote.map(q => `<p>${inline(q)}</p>`).join("") + "</blockquote>";
+    quote = [];
+  };
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (line.startsWith("```")) {
+      closeList(); flushQuote();
+      const lang = line.slice(3).trim();
+      const buf = [];
+      i++;
+      while (i < lines.length && !lines[i].startsWith("```")) buf.push(lines[i++]);
+      i++;
+      out += `<pre><code data-lang="${lang}">${esc(buf.join("\n"))}</code></pre>`;
+      continue;
+    }
+
+    if (line.startsWith("|") && lines[i + 1] && /^\|[\s:|-]+\|$/.test(lines[i + 1].trim())) {
+      closeList(); flushQuote();
+      const cells = r => r.split("|").slice(1, -1).map(c => c.trim());
+      const head = cells(line);
+      i += 2;
+      const rows = [];
+      while (i < lines.length && lines[i].startsWith("|")) rows.push(cells(lines[i++]));
+      out += "<table><thead><tr>" + head.map(h => `<th>${inline(h)}</th>`).join("") +
+             "</tr></thead><tbody>" +
+             rows.map(r => "<tr>" + r.map(c => `<td>${inline(c)}</td>`).join("") + "</tr>").join("") +
+             "</tbody></table>";
+      continue;
+    }
+
+    if (line.startsWith("> ")) { closeList(); quote.push(line.slice(2)); i++; continue; }
+    if (quote.length && !line.startsWith(">")) flushQuote();
+
+    const h = line.match(/^(#{1,4})\s+(.*)$/);
+    if (h) { closeList(); flushQuote(); out += `<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`; i++; continue; }
+
+    if (/^[-*]\s+/.test(line)) {
+      flushQuote();
+      if (!listOpen) { out += "<ul>"; listOpen = true; }
+      out += `<li>${inline(line.replace(/^[-*]\s+/, ""))}</li>`;
+      i++; continue;
+    }
+
+    if (!line.trim()) { closeList(); flushQuote(); i++; continue; }
+
+    closeList();
+    const buf = [line]; i++;
+    while (i < lines.length && lines[i].trim() && !/^[#>|`]|^[-*]\s/.test(lines[i])) buf.push(lines[i++]);
+    out += `<p>${inline(buf.join(" "))}</p>`;
+  }
+  closeList(); flushQuote();
+  return out;
+}
+
+/* ---------------- render -------------------------------------------------------- */
+const el = id => document.getElementById(id);
+
+function renderHeader() {
+  const exam = DATA.exams.find(e => e.id === examId);
+  el("sub").textContent =
+    `${exam.name.replace("Databricks Certified ", "")} — ${exam.items} items, ${exam.minutes} min · guide ${exam.guide}`;
+  el("examSwitch").innerHTML = DATA.exams.map(e =>
+    `<button data-exam="${e.id}" aria-pressed="${e.id === examId}">${e.short}</button>`).join("");
+  el("examSwitch").querySelectorAll("button").forEach(b =>
+    b.onclick = () => { examId = b.dataset.exam; sectionFilter = null; next(); });
+  el("modeSwitch").querySelectorAll("button").forEach(b => {
+    b.setAttribute("aria-pressed", String(b.dataset.mode === mode));
+    b.onclick = () => { mode = b.dataset.mode; next(); };
+  });
+}
+
+function renderBars() {
+  const exam = DATA.exams.find(e => e.id === examId);
+  el("bars").innerHTML = exam.sections.map(s => {
+    const a = sectionAccuracy(s.id);
+    const h = a.seen ? Math.max(6, Math.round(a.pct * 100)) : 0;
+    const on = sectionFilter === s.id;
+    return `<button class="bar" style="flex:${s.weight}" data-sec="${s.id}"
+              aria-pressed="${on}" title="${s.title} — ${s.weight}% of the exam, ${a.n} questions">
+              <div class="fill" style="height:${h}%"></div>
+              <span class="tag"><span class="code">${s.id.split("-")[1]}</span>
+              <span class="pct">${s.weight}%</span></span></button>`;
+  }).join("");
+  el("bars").querySelectorAll(".bar").forEach(b =>
+    b.onclick = () => {
+      sectionFilter = (mode === "read") ? b.dataset.sec
+                    : (sectionFilter === b.dataset.sec ? null : b.dataset.sec);
+      next();
+    });
+}
+
+function renderProgress() {
+  const p = pool();
+  const seen = p.filter(q => state[q.id]).length;
+  const readyNow = p.filter(due).length;
+  el("progress").textContent = sectionFilter
+    ? `${sectionFilter} · ${seen}/${p.length} seen · ${readyNow} due`
+    : `${seen}/${p.length} seen · ${readyNow} due now`;
+}
+
+function esc(s) { return String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+
+function renderQuestion() {
+  if (!current) {
+    const filtered = sectionFilter ? ` in ${sectionFilter}` : "";
+    el("main").innerHTML = `<div class="card empty"><strong>No questions here yet</strong>
+      The bank is still being written${filtered}. Pick another section, or switch exam.</div>`;
+    return;
+  }
+  const q = current;
+  const objs = q.objectives.map(o => `<span class="chip obj">${o}</span>`).join("");
+  el("main").innerHTML = `
+    <div class="card">
+      <div class="meta">${objs}<span class="chip">${q.difficulty}</span>
+        ${q.provenance === "official-sample" ? '<span class="chip">official sample</span>' : ""}</div>
+      <p class="stem">${esc(q.stem)}</p>
+      ${q.code ? `<pre>${esc(q.code)}</pre>` : ""}
+      <div class="opts" id="opts">
+        ${Object.entries(q.options).map(([k, v]) =>
+          `<button class="opt" data-k="${k}"><span class="key hot">${k}</span><span>${esc(v)}</span></button>`).join("")}
+      </div>
+      <div id="fb"></div>
+    </div>`;
+  document.querySelectorAll(".opt").forEach(b => b.onclick = () => answer(b.dataset.k));
+}
+
+function answer(k) {
+  if (answered) return;
+  answered = true;
+  const q = current, ok = k === q.correct;
+  document.querySelectorAll(".opt").forEach(b => {
+    b.disabled = true;
+    if (b.dataset.k === q.correct) b.classList.add("correct");
+    else if (b.dataset.k === k) b.classList.add("wrong");
+  });
+  const wrongs = Object.entries(q.why).filter(([kk]) => kk !== q.correct);
+  el("fb").innerHTML = `
+    <div class="feedback">
+      <div class="verdict ${ok ? "ok" : "no"}">${ok ? "Correct" : `Not quite — the answer is ${q.correct}`}</div>
+      <p class="why">${esc(q.explanation)}</p>
+      ${wrongs.length ? `<h4>Why the others are wrong</h4><dl>${wrongs.map(([kk, vv]) =>
+        `<dt>${kk}</dt><dd>${esc(vv)}</dd>`).join("")}</dl>` : ""}
+      <div class="advance">
+        <div class="advance-label">Rate your recall to see the next question
+          <span class="kbd-hint">keys 1&ndash;4</span></div>
+        <div class="grade">
+          <button class="rate again" data-q="0"><b>Again</b><i>1</i></button>
+          <button class="rate hard"  data-q="1"><b>Hard</b><i>2</i></button>
+          <button class="rate good"  data-q="2"><b>Good</b><i>3</i></button>
+          <button class="rate easy"  data-q="3"><b>Easy</b><i>4</i></button>
+        </div>
+        <button class="skip" data-skip="1">Skip without rating &rarr;</button>
+      </div>
+    </div>`;
+  el("fb").querySelectorAll("[data-q]").forEach(b => b.onclick = () => {
+    schedule(q.id, Number(b.dataset.q));
+    next();
+  });
+  const skip = el("fb").querySelector("[data-skip]");
+  if (skip) skip.onclick = () => next();
+}
+
+function renderRead() {
+  const exam = DATA.exams.find(e => e.id === examId);
+  const withNotes = exam.sections.filter(s => DATA.notes && DATA.notes[s.id]);
+
+  if (!withNotes.length) {
+    el("main").innerHTML = `<div class="card empty"><strong>No notes yet for this exam</strong>
+      Section notes are still being written. Switch to Drill, or try the other exam.</div>`;
+    return;
+  }
+  const sid = (sectionFilter && DATA.notes[sectionFilter]) ? sectionFilter : withNotes[0].id;
+  const nav = withNotes.map(s =>
+    `<button data-note="${s.id}" aria-pressed="${s.id === sid}">${s.id.split("-")[1]} &middot; ${s.weight}%</button>`).join("");
+
+  const qCount = DATA.questions.filter(q => q.section === sid).length;
+  el("main").innerHTML = `
+    <div class="note-nav">${nav}</div>
+    <article class="note">${md(DATA.notes[sid])}
+      <div class="drill-cta">
+        <button class="primary" id="drillThis">Drill ${sid} &rarr; ${qCount} questions</button>
+      </div>
+    </article>`;
+
+  el("main").querySelectorAll("[data-note]").forEach(b =>
+    b.onclick = () => { sectionFilter = b.dataset.note; renderRead(); renderBars(); });
+  const cta = el("drillThis");
+  if (cta) cta.onclick = () => { sectionFilter = sid; mode = "drill"; next(); };
+}
+
+function next() {
+  answered = false;
+  renderHeader(); renderBars();
+  if (mode === "read") { renderRead(); renderProgress(); return; }
+  current = pick();
+  renderQuestion(); renderProgress();
+}
+
+/* ---------------- keyboard: letters answer, 1-4 grade, Enter = Good ------------ */
+document.addEventListener("keydown", e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (mode !== "drill") return;
+  const k = e.key.toUpperCase();
+  if (!answered) {
+    if (current && current.options[k]) { e.preventDefault(); answer(k); }
+    return;
+  }
+  const map = { "1": 0, "2": 1, "3": 2, "4": 3, ENTER: 2 };
+  if (k in map) {
+    e.preventDefault();
+    if (current) { schedule(current.id, map[k]); next(); }
+  }
+});
+
+next();
+
+/* ---------------- cross-device sync, if the viewer can ------------------------- */
+(async () => {
+  try {
+    db = await claude.use("db");
+    if (!db) return;
+    remoteDoc = db.doc("progress/readiness");
+    const snap = await remoteDoc.get();
+    if (snap && snap.state) {
+      // Merge: keep whichever record for a question was touched most recently.
+      const remote = snap.state;
+      for (const [id, r] of Object.entries(remote)) {
+        const l = state[id];
+        if (!l || (r.last || 0) > (l.last || 0)) state[id] = r;
+      }
+      saveLocal(state);
+      renderBars(); renderProgress();
+    }
+    el("dot").classList.add("on");
+    el("syncLabel").textContent = "synced across devices";
+    remoteDoc.onSnapshot?.(doc => {
+      if (!doc || !doc.state) return;
+      let changed = false;
+      for (const [id, r] of Object.entries(doc.state)) {
+        const l = state[id];
+        if (!l || (r.last || 0) > (l.last || 0)) { state[id] = r; changed = true; }
+      }
+      if (changed) { saveLocal(state); renderBars(); renderProgress(); }
+    });
+  } catch { /* stay on localStorage */ }
+})();
+</script>

@@ -1,0 +1,228 @@
+# ASSOC-S1 Platform (6%), S5 CI/CD (10%), S6 Troubleshooting (10%)
+meta:
+  source: Original, written for this repository.
+
+questions:
+  # ---------------------------------------------------------------- S1 platform
+  - id: ASSOC-S1-Q002
+    objective_ids: [ASSOC-S1-O1]
+    difficulty: recall
+    provenance: original
+    tags: [delta-lake, transaction-log, time-travel]
+    stem: >-
+      What does the Delta transaction log make possible that plain Parquet files in
+      object storage do not?
+    options:
+      A: >-
+        ACID transactions, time travel to earlier versions, and readers never seeing a
+        half-finished write.
+      B: Columnar storage and compression.
+      C: Predicate pushdown when filtering.
+      D: Storing data across multiple cloud providers.
+    correct: A
+    explanation: >-
+      Delta is Parquet plus an ordered transaction log. The log is what makes a write
+      atomic, gives every version a number you can query with time travel, and lets
+      concurrent readers see a consistent snapshot rather than a directory mid-update.
+      The columnar benefits come from Parquet underneath; the guarantees come from the
+      log.
+    distractor_rationale:
+      B: Parquet already provides these; Delta inherits rather than adds them.
+      C: Also a Parquet capability, though Delta's statistics improve the skipping.
+      D: Unrelated to the format.
+
+  - id: ASSOC-S1-Q003
+    objective_ids: [ASSOC-S1-O2]
+    difficulty: application
+    provenance: original
+    tags: [serverless, job-compute, cost]
+    stem: >-
+      A nightly ETL job runs for 12 minutes. Which compute choice is most cost-effective,
+      and why?
+    options:
+      A: >-
+        Job compute, which is created for the run and terminated afterwards, so you pay
+        for the work rather than the day.
+      B: An all-purpose cluster left running, to avoid startup time each night.
+      C: A SQL warehouse, since the transformations are expressible in SQL.
+      D: A single-node cluster, because the dataset is small.
+    correct: A
+    explanation: >-
+      Job compute exists for exactly this shape of work: it spins up, runs, and stops, so
+      a 12-minute job costs 12 minutes rather than 24 hours. It is also billed at a lower
+      DBU rate than all-purpose compute. When a question pairs a scheduled workload with
+      "lowest cost", this is nearly always the answer.
+    distractor_rationale:
+      B: >-
+        Paying for 24 hours to save a few minutes of startup, at the higher all-purpose
+        rate.
+      C: >-
+        Warehouses are built for serving queries, not for orchestrated ETL, and one left
+        warm costs more than a job cluster that terminates.
+      D: >-
+        Node count is a separate decision from compute *type* - a single-node all-purpose
+        cluster still runs when nothing is happening.
+
+  # ---------------------------------------------------------------- S5 CI/CD
+  - id: ASSOC-S5-Q002
+    objective_ids: [ASSOC-S5-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [dabs, targets, variables, promotion]
+    stem: >-
+      A bundle must write to a dev catalog in development and a prod catalog in
+      production, from one codebase. What is the intended mechanism?
+    options:
+      A: A bundle variable for the catalog, overridden per target.
+      B: Two copies of the bundle, one per environment.
+      C: An if statement in each notebook checking an environment variable.
+      D: Editing databricks.yml before each deployment.
+    correct: A
+    explanation: >-
+      Declare the variable once and override it in each target's block. One definition
+      gets promoted across environments with only its configuration differing - which is
+      the whole point of bundles, and the thing that makes a dev deployment genuinely
+      representative of prod.
+    distractor_rationale:
+      B: Two copies diverge. The moment they do, dev stops predicting prod.
+      C: >-
+        This scatters environment logic across every notebook instead of keeping it in one
+        declarative place.
+      D: Hand-editing before deploying is the manual step CI/CD exists to remove.
+
+  - id: ASSOC-S5-Q003
+    objective_ids: [ASSOC-S5-O4]
+    difficulty: recall
+    provenance: original
+    tags: [databricks-cli, bundle-validate, ci]
+    stem: >-
+      In a CI pipeline, what does `databricks bundle validate` check before a deployment
+      is attempted?
+    options:
+      A: >-
+        That the bundle configuration parses and resolves - syntax, references, variables
+        and target overrides.
+      B: That the notebooks in the bundle run without error.
+      C: That the target workspace has enough compute quota available.
+      D: That the deployed resources match what is already in the workspace.
+    correct: A
+    explanation: >-
+      Validation is a configuration check: it catches a malformed YAML, an unresolved
+      variable or a bad reference before anything is uploaded. It does not execute your
+      code, so a bundle can validate cleanly and still fail at runtime - which is why a
+      pipeline usually runs tests as well as validation.
+    distractor_rationale:
+      B: Validation never runs notebooks.
+      C: Quota problems surface at deploy or run time, not validation.
+      D: >-
+        That is closer to what deploy computes when it works out what to change.
+
+  - id: ASSOC-S5-Q004
+    objective_ids: [ASSOC-S5-O1]
+    difficulty: application
+    provenance: original
+    tags: [git-folders, branches, collaboration]
+    stem: >-
+      Two engineers are working on the same pipeline in Databricks Git folders. What is
+      the recommended way to avoid overwriting each other's work?
+    options:
+      A: Each works in their own branch and integrates through pull requests.
+      B: They coordinate verbally so only one edits at a time.
+      C: They share one Git folder and commit frequently to reduce conflicts.
+      D: Each keeps a personal copy of the notebooks outside Git.
+    correct: A
+    explanation: >-
+      Branch-per-change with review is the standard workflow, and Git folders support it
+      directly. Beyond avoiding collisions, it gives every change a review point and a
+      revert path - the things you want on the day something breaks in production.
+    distractor_rationale:
+      B: Verbal coordination is not a mechanism; it fails the first time someone forgets.
+      C: >-
+        Frequent commits to one branch make conflicts more likely, not less, and there is
+        no review.
+      D: Copies outside Git have no history and no way back.
+
+  # ---------------------------------------------------------------- S6 troubleshooting
+  - id: ASSOC-S6-Q003
+    objective_ids: [ASSOC-S6-O4]
+    difficulty: analysis
+    provenance: original
+    tags: [liquid-clustering, partitioning, layout]
+    stem: >-
+      Why does Databricks now recommend liquid clustering over partitioning for most
+      tables?
+    options:
+      A: >-
+        Clustering keys can be changed later without rewriting the table, and it avoids
+        the skew and small-file problems a badly chosen partition column causes.
+      B: Liquid clustering compresses data more effectively than partitioning.
+      C: Partitioning is deprecated and will be removed.
+      D: Liquid clustering removes the need for statistics on the table.
+    correct: A
+    explanation: >-
+      A partition column is a decision you are stuck with - changing it means rewriting
+      the table - and choosing badly gives you either enormous skewed partitions or
+      millions of tiny files. Liquid clustering lets you change keys with ALTER TABLE and
+      adapts the layout incrementally, which removes the up-front bet.
+    distractor_rationale:
+      B: Compression is a Parquet-level concern and unchanged by either.
+      C: Partitioning still works and remains sensible for some tables.
+      D: Statistics are still collected and still drive data skipping.
+
+  - id: ASSOC-S6-Q004
+    objective_ids: [ASSOC-S6-O1, ASSOC-S6-O2]
+    difficulty: application
+    provenance: original
+    tags: [run-history, monitoring, baseline]
+    stem: >-
+      A nightly job that normally finishes in 20 minutes took 90 last night but reported
+      success. Where should investigation start?
+    options:
+      A: >-
+        The Lakeflow Jobs run history, comparing this run's task durations against
+        previous runs to find which task changed.
+      B: The cluster event log, since a successful run cannot have a data problem.
+      C: The table's history, to see whether anyone changed the schema.
+      D: Nowhere - a successful run needs no investigation.
+    correct: A
+    explanation: >-
+      Run history gives you the comparison that localises the problem: if one task went
+      from 2 minutes to 70 while the rest held steady, you know where to look before
+      opening a single log. Starting from the narrowest signal is what stops an
+      investigation sprawling.
+    distractor_rationale:
+      B: >-
+        A run can succeed and still be unhealthy - a data volume spike or growing skew
+        will do it.
+      C: Worth checking eventually, but only once you know which task slowed down.
+      D: >-
+        A 4.5x slowdown is a warning. Left alone it becomes a missed SLA or a quota
+        breach.
+
+  - id: ASSOC-S6-Q005
+    objective_ids: [ASSOC-S6-O3]
+    difficulty: analysis
+    provenance: original
+    tags: [spill, spark-ui, memory]
+    stem: >-
+      A Spark stage shows significant "spill (disk)" in the Spark UI. What does that
+      indicate?
+    options:
+      A: >-
+        Task working sets exceeded available memory and were written to disk, which is
+        correct but far slower than staying in memory.
+      B: The job failed and Spark is writing an error dump.
+      C: Data is being cached to disk deliberately for reuse.
+      D: The shuffle files are being compacted.
+    correct: A
+    explanation: >-
+      Spill is Spark surviving rather than failing - it moves data to disk instead of
+      raising an out-of-memory error. The result is correct and slow. The usual causes
+      are partitions that are too large or a skewed key sending disproportionate data to
+      one task, so the fixes are more partitions, less data per task, or addressing the
+      skew.
+    distractor_rationale:
+      B: Spill is a normal memory-management event, not a failure artifact.
+      C: >-
+        That is caching, which is deliberate and shown separately. Spill is involuntary.
+      D: Compaction is a table maintenance operation, unrelated to stage-level spill.

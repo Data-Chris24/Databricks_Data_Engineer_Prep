@@ -1,0 +1,20 @@
+resources:
+  jobs:
+    grade_assoc_s3:
+      name: "[DE prep] Grade ASSOC-S3"
+      tasks:
+        - task_key: grade
+          notebook_task:
+            notebook_path: ../../notebooks/assignments/ASSOC-S3/grade.py
+      queue:
+        enabled: true
+
+    transplant_check_assoc_s3:
+      name: "[DE prep] Anti-transplant check ASSOC-S3"
+      description: Asserts the lesson's own approach FAILS the graded suite.
+      tasks:
+        - task_key: check
+          notebook_task:
+            notebook_path: ../../solutions/ASSOC-S3/transplant_check.py
+      queue:
+        enabled: true
