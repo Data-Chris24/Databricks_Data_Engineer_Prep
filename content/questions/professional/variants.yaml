@@ -1,0 +1,484 @@
+# Concise, harder variants of existing Professional questions. Each carries
+# variant_of; a timed test draws one member per family.
+meta:
+  source: Original, written for this repository.
+  note: Two variants per section, all with variant_of.
+
+questions:
+  - id: PRO-S1-Q023
+    objective_ids: [PRO-S1-O7]
+    variant_of: PRO-S1-Q014
+    difficulty: analysis
+    provenance: original
+    tags: [auto-cdc, sequence-by, resurrection]
+    stem: >-
+      Under AUTO CDC with SEQUENCE BY seq_num and APPLY AS DELETE WHEN op = 'delete',
+      key K receives: update seq 5, delete seq 7, update seq 6. What is in the target?
+    options:
+      A: No row for K; the delete at seq 7 is the highest sequence, so the later-arriving update at seq 6 is ignored.
+      B: A row for K from the seq 6 update, because it arrived last.
+      C: A row for K from the seq 5 update, because the delete removed only the later state.
+      D: An error, because a delete cannot be followed by an update.
+    correct: A
+    explanation: >-
+      Arrival order is irrelevant; sequence decides. The highest sequence for K is
+      the delete, so K is absent. Had the update carried seq 8, K would be present
+      again: deleted-then-resurrected keys are exactly what sequencing gets right.
+    distractor_rationale:
+      B: Arrival order is what SEQUENCE BY exists to override.
+      C: Deletes remove the key; there is no partial state to fall back to.
+      D: Out-of-order and post-delete events are normal in a change feed.
+
+  - id: PRO-S1-Q024
+    objective_ids: [PRO-S1-O6]
+    variant_of: PRO-S1-Q012
+    difficulty: application
+    provenance: original
+    tags: [streaming-table, materialized-view, decision-rule]
+    stem: >-
+      In one sentence: what property of the source decides between a streaming table
+      and a materialized view?
+    options:
+      A: Whether rows already loaded can change; if they can, a streaming table will not see the change.
+      B: Whether the source is large; large sources need streaming tables.
+      C: Whether the source is a file location or a table.
+      D: Whether the refresh is scheduled or continuous.
+    correct: A
+    explanation: >-
+      A streaming table consumes each row once; a materialized view recomputes.
+      Append-only sources suit the first; sources whose old rows are updated or
+      deleted need the second.
+    distractor_rationale:
+      B: Size affects cost, not correctness; a large mutable source still needs the view.
+      C: Both objects can read tables and files.
+      D: Both can be scheduled or continuous.
+
+  - id: PRO-S2-Q005
+    objective_ids: [PRO-S2-O1]
+    variant_of: PRO-S2-Q002
+    difficulty: analysis
+    provenance: original
+    tags: [unionByName, types, schema-drift]
+    stem: >-
+      After unionByName of five sources, the revision column is BIGINT although the
+      contract says INT, and no source declared BIGINT. What happened?
+    options:
+      A: One source's inference produced a wider type and the union kept the widest; the types must be cast explicitly before or after the union.
+      B: unionByName always widens integer columns for safety.
+      C: Delta stores every integer as BIGINT.
+      D: The contract is wrong; INT cannot hold revision numbers.
+    correct: A
+    explanation: >-
+      A union takes the widest compatible type among its inputs. Inference is not
+      declaration: one source inferring a long is enough to change the table's
+      schema, which is why types are pinned rather than accepted.
+    distractor_rationale:
+      B: The union widens only when an input is wider.
+      C: Delta stores the type it is given.
+      D: The contract is the specification; the pipeline must meet it.
+
+  - id: PRO-S2-Q006
+    objective_ids: [PRO-S2-O2]
+    variant_of: PRO-S2-Q004
+    difficulty: application
+    provenance: original
+    tags: [checkpoint, double-load, no-error]
+    stem: >-
+      A bronze table has exactly twice the expected rows after a deploy, with no
+      error in any run. Which change in the deploy is the most likely cause?
+    options:
+      A: The stream's checkpoint path changed.
+      B: The trigger changed from availableNow to a processing-time interval.
+      C: The output mode changed from append to update.
+      D: The source folder was renamed.
+    correct: A
+    explanation: >-
+      A new checkpoint has no memory of consumed files, so the stream re-ingests
+      everything and an append sink faithfully appends it again. Nothing raises;
+      the count is the only evidence.
+    distractor_rationale:
+      B: Trigger cadence changes when data is processed, not whether it is reprocessed.
+      C: Update mode on a file source would fail or change semantics loudly, not double rows.
+      D: A renamed source is an empty source, which loads nothing.
+
+  - id: PRO-S3-Q005
+    objective_ids: [PRO-S3-O1]
+    variant_of: PRO-S3-Q001
+    difficulty: analysis
+    provenance: original
+    tags: [rowsBetween, rangeBetween, irregular-series]
+    stem: >-
+      A window frame must cover the previous 30 minutes of an irregular sensor
+      series. Which frame is correct?
+    options:
+      A: RANGE BETWEEN INTERVAL 30 MINUTES PRECEDING AND CURRENT ROW, ordered by the timestamp.
+      B: ROWS BETWEEN 30 PRECEDING AND CURRENT ROW, ordered by the timestamp.
+      C: ROWS BETWEEN 2 PRECEDING AND CURRENT ROW, assuming 15-minute cadence.
+      D: RANGE BETWEEN 30 PRECEDING AND CURRENT ROW on the row number.
+    correct: A
+    explanation: >-
+      Time is a value of the ordering column, so the frame must be a range over it.
+      Row counts assume a cadence the series does not keep; on an irregular series
+      the difference is not subtle.
+    distractor_rationale:
+      B: Thirty rows back is thirty readings, not thirty minutes.
+      C: The cadence assumption is exactly what irregular data violates.
+      D: A range over row numbers is a row frame in disguise.
+
+  - id: PRO-S3-Q006
+    objective_ids: [PRO-S3-O2]
+    variant_of: PRO-S3-Q003
+    difficulty: application
+    provenance: original
+    tags: [expectations, on-violation, semantics]
+    stem: >-
+      Match each expectation action to its effect: EXPECT alone; ON VIOLATION DROP
+      ROW; ON VIOLATION FAIL UPDATE.
+    options:
+      A: Count and keep the row; remove the row and continue; stop the update.
+      B: Remove the row; count and keep; stop the update.
+      C: Stop the update; remove the row; count and keep.
+      D: Count and keep; stop the update; remove the row.
+    correct: A
+    explanation: >-
+      A bare expectation records violations and lets the row through; DROP ROW
+      removes it and continues; FAIL UPDATE halts the pipeline. Quarantine is the
+      fourth option, built from DROP ROW plus a second table selecting the inverse.
+    distractor_rationale:
+      B: Reversed for the first two.
+      C: Every action mismatched.
+      D: The last two are swapped.
+
+  - id: PRO-S4-Q007
+    objective_ids: [PRO-S4-O1]
+    variant_of: PRO-S4-Q002
+    difficulty: analysis
+    provenance: original
+    tags: [delta-sharing, without-history, reorg]
+    stem: >-
+      ALTER SHARE s ADD TABLE t WITHOUT HISTORY is refused. Which two statements, in
+      order, make it succeed?
+    options:
+      A: ALTER TABLE t SET TBLPROPERTIES (delta.enableDeletionVectors = false); then REORG TABLE t APPLY (PURGE).
+      B: VACUUM t; then OPTIMIZE t.
+      C: ALTER TABLE t SET TBLPROPERTIES (delta.enableChangeDataFeed = false); then ALTER SHARE s REMOVE TABLE t.
+      D: DROP SHARE s; then CREATE SHARE s WITHOUT HISTORY.
+    correct: A
+    explanation: >-
+      Current-state sharing needs the data files alone to represent the table, which
+      deletion vectors prevent. Turning the property off stops new vectors; the
+      purge rewrites the files that still carry them.
+    distractor_rationale:
+      B: Neither touches deletion vectors.
+      C: Change data feed is unrelated, and removing the table undoes the goal.
+      D: History is a per-object choice at ADD TABLE, not a share-level one.
+
+  - id: PRO-S4-Q008
+    objective_ids: [PRO-S4-O2]
+    variant_of: PRO-S4-Q003
+    difficulty: application
+    provenance: original
+    tags: [federation, validation, query-path]
+    stem: >-
+      What is the only reliable proof that a newly configured foreign catalog works?
+    options:
+      A: A query against a foreign table returning rows.
+      B: CREATE FOREIGN CATALOG succeeding.
+      C: The connection appearing in system.information_schema.connections.
+      D: bundle validate passing on the resource definitions.
+    correct: A
+    explanation: >-
+      Federation DDL is lazy; every step up to the first data access is metadata.
+      Only touching the source exercises the credential and the network path.
+    distractor_rationale:
+      B: Succeeds against a host that does not exist.
+      C: Lists the metadata that was accepted without validation.
+      D: Validates configuration, never connectivity.
+
+  - id: PRO-S5-Q013
+    objective_ids: [PRO-S5-O5]
+    variant_of: PRO-S5-Q009
+    difficulty: analysis
+    provenance: original
+    tags: [sql-alerts, baseline, same-day-type]
+    stem: >-
+      Weekend volume is a third of weekday volume. A degradation lowers weekday
+      volume by 20%. Which comparison detects the degradation without firing on
+      weekends?
+    options:
+      A: Each day against a rolling baseline of the same day type, alerting on a sustained shortfall.
+      B: Each day against the previous day.
+      C: Each day against a fixed floor set just below the weekday minimum.
+      D: Each day against the 7-day overall average.
+    correct: A
+    explanation: >-
+      Like with like. A same-day-type baseline compares Saturday to recent
+      Saturdays, so weekends are normal and a 20% weekday shortfall stands out.
+      Any comparison that mixes day types either fires on weekends or hides the
+      weekday drop.
+    distractor_rationale:
+      B: Every Saturday looks like a collapse against Friday.
+      C: A floor below the weekday minimum is above the weekend maximum, so it fires every weekend.
+      D: The overall average sits between the two regimes; weekdays 20% down can still clear it.
+
+  - id: PRO-S5-Q014
+    objective_ids: [PRO-S5-O1]
+    variant_of: PRO-S5-Q001
+    difficulty: recall
+    provenance: original
+    tags: [system-tables, which-table]
+    stem: >-
+      Which system table answers "how many DBUs did each job consume last week"?
+    options:
+      A: system.billing.usage
+      B: system.access.audit
+      C: system.access.table_lineage
+      D: system.compute.clusters
+    correct: A
+    explanation: >-
+      Usage is the billing table: consumption per SKU with the workload identifiers
+      and tags to group by. Audit is actions, lineage is data flow, clusters is
+      compute configuration.
+    distractor_rationale:
+      B: Records who did what, not what it cost.
+      C: Records which tables fed which.
+      D: Describes compute resources, not their consumption.
+
+  - id: PRO-S6-Q012
+    objective_ids: [PRO-S6-O3]
+    variant_of: PRO-S6-Q006
+    difficulty: analysis
+    provenance: original
+    tags: [data-skipping, statistics, locality]
+    stem: >-
+      Data skipping needs two things. A table has one of them and still reads every
+      file for a selective filter. Which is missing, and what supplies it?
+    options:
+      A: Locality; statistics exist, but values are scattered across files. Clustering on the filter column supplies it.
+      B: Statistics; clustering exists, but min/max were never collected. ANALYZE TABLE supplies them.
+      C: A partition; skipping only works on partition columns.
+      D: A ZORDER; statistics require a sort.
+    correct: A
+    explanation: >-
+      Delta collects min/max per file automatically; what it cannot do is make those
+      ranges narrow. Locality comes from layout, and liquid clustering is how you
+      give a column narrow per-file ranges without partitioning.
+    distractor_rationale:
+      B: File statistics are collected on write, not by ANALYZE.
+      C: Skipping uses file statistics on any column with locality.
+      D: ZORDER is one way to get locality, and not the recommended one.
+
+  - id: PRO-S6-Q013
+    objective_ids: [PRO-S6-O5]
+    variant_of: PRO-S6-Q010
+    difficulty: application
+    provenance: original
+    tags: [query-profile, broadcast-threshold]
+    stem: >-
+      A 40 MB dimension is shuffled in a join. Which single setting explains why the
+      optimiser did not broadcast it, and what is its default?
+    options:
+      A: spark.sql.autoBroadcastJoinThreshold, default 10 MB.
+      B: spark.sql.shuffle.partitions, default 200.
+      C: spark.sql.adaptive.enabled, default true.
+      D: spark.databricks.io.cache.enabled, default false.
+    correct: A
+    explanation: >-
+      Tables under the threshold are broadcast automatically; 40 MB is above the
+      default, so the planner chose a shuffle join. Raise the threshold or broadcast
+      explicitly.
+    distractor_rationale:
+      B: Controls shuffle parallelism, not the join strategy.
+      C: Adaptive execution can convert to broadcast at runtime, but the threshold still gates it.
+      D: The disk cache is unrelated to join planning.
+
+  - id: PRO-S7-Q012
+    objective_ids: [PRO-S7-O5]
+    variant_of: PRO-S7-Q010
+    difficulty: analysis
+    provenance: original
+    tags: [erasure, vacuum, retention]
+    stem: >-
+      After DELETE, which two settings or commands make an erasure final, and what
+      do they cost?
+    options:
+      A: Shorten delta.deletedFileRetentionDuration and run VACUUM; time travel over that window is gone and concurrent readers may be disrupted.
+      B: OPTIMIZE and REORG; nothing, they are routine maintenance.
+      C: DROP TABLE and recreate it; the whole history is lost.
+      D: Disable change data feed and OPTIMIZE; the feed stops.
+    correct: A
+    explanation: >-
+      Deleted rows live on in earlier versions until the files are unreferenced and
+      vacuumed. Retaining zero hours is right for an erasure request and wrong as a
+      default; the cost is the loss of time travel for that window.
+    distractor_rationale:
+      B: Neither removes files still referenced by retained history.
+      C: Destroys every row, not just the erased subject's.
+      D: CDF is unrelated to file retention.
+
+  - id: PRO-S7-Q013
+    objective_ids: [PRO-S7-O3]
+    variant_of: PRO-S7-Q006
+    difficulty: application
+    provenance: original
+    tags: [salt, hashing, entropy]
+    stem: >-
+      Which of these values needs a salt before hashing, and why?
+    options:
+      A: A postcode; the input space is small enough to enumerate and match.
+      B: A UUID; hashes of random values are weak.
+      C: An email address; hashing strips the domain.
+      D: None; SHA-256 is irreversible for any input.
+    correct: A
+    explanation: >-
+      Irreversible is not the same as unguessable. A few thousand postcodes can all
+      be hashed and compared; a salt kept out of the dataset makes that table
+      useless. High-entropy values like UUIDs or emails do not need it.
+    distractor_rationale:
+      B: Random 128-bit values cannot be enumerated.
+      C: Hashing does nothing to the domain; and email space is too large to enumerate.
+      D: Irreversibility does not protect a small input space.
+
+  - id: PRO-S8-Q006
+    objective_ids: [PRO-S8-O2]
+    variant_of: PRO-S8-Q004
+    difficulty: analysis
+    provenance: original
+    tags: [inherited_from, revoke, audit]
+    stem: >-
+      Which column tells an auditor where a SELECT on a table was actually granted,
+      and what value means "on this table"?
+    options:
+      A: information_schema.table_privileges.inherited_from; NONE.
+      B: information_schema.table_privileges.grantor; the table owner.
+      C: SHOW GRANTS' Principal column; the table name.
+      D: information_schema.tables.table_owner; NONE.
+    correct: A
+    explanation: >-
+      inherited_from records SCHEMA or CATALOG for an inherited privilege and NONE
+      for one granted directly. The obvious three-column query omits it, and the
+      result looks complete without it.
+    distractor_rationale:
+      B: The grantor is who granted it, not at which level.
+      C: SHOW GRANTS carries the level in ObjectType, not Principal.
+      D: Ownership is a different fact, and the column has no NONE value.
+
+  - id: PRO-S8-Q007
+    objective_ids: [PRO-S8-O1]
+    variant_of: PRO-S8-Q002
+    difficulty: application
+    provenance: original
+    tags: [tags, column_tags, pii]
+    stem: >-
+      Complete the query that lists PII columns across a catalog: SELECT table_name,
+      column_name FROM cat.information_schema.___ WHERE tag_name = 'pii'.
+    options:
+      A: column_tags
+      B: columns
+      C: table_tags
+      D: column_masks
+    correct: A
+    explanation: >-
+      Column tags live in their own view. columns has comments and types, table_tags
+      is table-level, and column_masks records mask functions rather than
+      classifications.
+    distractor_rationale:
+      B: No tag columns there; only comments, which are prose.
+      C: Table-level tags cannot name a column.
+      D: Records which mask applies, not why.
+
+  - id: PRO-S9-Q011
+    objective_ids: [PRO-S9-O2]
+    variant_of: PRO-S9-Q003
+    difficulty: analysis
+    provenance: original
+    tags: [repair, idempotence, re-execution]
+    stem: >-
+      During a repair, which tasks execute, and from where?
+    options:
+      A: The failed tasks and their dependants, each from its own start; earlier successful tasks are not re-run.
+      B: Every task in the job, from the start.
+      C: Only the failed tasks, resuming from the failing statement.
+      D: The failed tasks and every task that ran before them.
+    correct: A
+    explanation: >-
+      Repair is selective and tasks are atomic units: a repaired task starts over,
+      which is why it must be idempotent, and successful upstream commits are left
+      standing.
+    distractor_rationale:
+      B: That is a fresh run, not a repair.
+      C: Tasks have no resumable statements.
+      D: Upstream successes are precisely what repair skips.
+
+  - id: PRO-S9-Q012
+    objective_ids: [PRO-S9-O4]
+    variant_of: PRO-S9-Q007
+    difficulty: recall
+    provenance: original
+    tags: [dabs, validate, deploy, run]
+    stem: >-
+      Which bundle command uploads files and creates or updates resources without
+      running anything?
+    options:
+      A: databricks bundle deploy
+      B: databricks bundle validate
+      C: databricks bundle run
+      D: databricks bundle sync --dry-run
+    correct: A
+    explanation: >-
+      validate checks configuration; deploy makes the workspace match it; run
+      triggers a job or starts an app; a dry-run sync lists what would upload and
+      changes nothing.
+    distractor_rationale:
+      B: Creates nothing.
+      C: Executes a resource that deploy created.
+      D: Reports; does not upload.
+
+  - id: PRO-S10-Q009
+    objective_ids: [PRO-S10-O4]
+    variant_of: PRO-S10-Q005
+    difficulty: analysis
+    provenance: original
+    tags: [scd2, boundary, asymmetric]
+    stem: >-
+      A point-in-time join uses valid_from <= d AND d <= valid_to. On changeover
+      dates the fact count rises. Which single character fixes it?
+    options:
+      A: Change the second <= to <, so a date matches exactly one version.
+      B: Change the first <= to <, so the first version is excluded.
+      C: Change AND to OR, so any version matches.
+      D: Change <= to = on both sides.
+    correct: A
+    explanation: >-
+      Validity windows are half-open: a version ends the instant the next begins.
+      With inclusive bounds on both ends, an order on the changeover date matches
+      the old and the new version.
+    distractor_rationale:
+      B: Excludes the version that starts on the date, leaving those orders unmatched.
+      C: Matches every version of every customer, a far worse fan-out.
+      D: Matches only orders exactly on a boundary, dropping almost everything.
+
+  - id: PRO-S10-Q010
+    objective_ids: [PRO-S10-O3]
+    variant_of: PRO-S10-Q008
+    difficulty: application
+    provenance: original
+    tags: [partitioning, replace-where, clustering-limits]
+    stem: >-
+      Name the one operation that keeps partitioning preferable to liquid
+      clustering for a table that overwrites whole date slices nightly.
+    options:
+      A: REPLACE WHERE on the partition column, a metadata-level slice swap with no clustering equivalent.
+      B: OPTIMIZE, which is only incremental on partitioned tables.
+      C: VACUUM, which cannot run on clustered tables.
+      D: MERGE, which requires partition pruning.
+    correct: A
+    explanation: >-
+      Clustering wins on almost everything except cheap slice replacement. When the
+      workload is "drop this month and write it again" and the slices are large,
+      partitioning is still the honest choice.
+    distractor_rationale:
+      B: >-
+        The opposite; OPTIMIZE is incremental on clustered tables.
+      C: VACUUM runs on any Delta table.
+      D: MERGE works on clustered tables and benefits from file skipping.

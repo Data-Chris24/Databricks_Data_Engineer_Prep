@@ -320,3 +320,17 @@ def test_lesson_notebook_link_check_warns_when_no_starter_exists(tmp_path, monke
     assert vc.errors == []
     assert any("no assignment.py starter" in w for w in vc.warnings)
     vc.warnings.clear()
+
+
+def test_every_section_has_a_concise_variant():
+    """Each section keeps at least one variant_of question so timed tests can vary
+    wording per family; a section with none would always show the same phrasing."""
+    sections_with_variant = set()
+    all_sections = set()
+    for _path, q in all_questions():
+        section = "-".join(q["id"].split("-")[:2])
+        all_sections.add(section)
+        if q.get("variant_of"):
+            sections_with_variant.add(section)
+    missing = sorted(all_sections - sections_with_variant)
+    assert not missing, f"sections without a variant question: {missing}"
