@@ -1,0 +1,17 @@
+resources:
+  jobs:
+    run_lessons_assoc_s4:
+      name: "[DE prep] Run ASSOC-S4 lessons"
+      description: >-
+        A deliberately linear chain - extract, then transform and publish - so the
+        lesson can be read as a job graph. The assignment breaks this shape on purpose.
+      tasks:
+        - task_key: extract
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/associate/S4/01_tasks_and_dependencies.py
+        - task_key: transform_publish
+          depends_on: [{task_key: extract}]
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/associate/S4/02_transform_and_publish.py
+      queue:
+        enabled: true

@@ -1,0 +1,60 @@
+# Advisory AI review for ASSOC-S4. Never overturns the unit tests.
+assignment: ASSOC-S4
+objective_ids: [ASSOC-S4-O1, ASSOC-S4-O2, ASSOC-S4-O3, ASSOC-S4-O4]
+
+context: >-
+  The learner built a pipeline over regional order files where one region's file
+  contains a value that will not cast, and a separate subdirectory holds late
+  arrivals. Good data must publish, bad rows must be quarantined, and the job must be
+  idempotent because the grader runs it twice.
+
+criteria:
+  - id: failure_isolation
+    weight: high
+    asks: >-
+      Does one bad row stop only itself, or does it take a region - or the job - with
+      it?
+    good: Reads as text and separates good from bad with try_cast, so nothing is blocked.
+    poor: >-
+      Skips the whole poisoned file, losing 89 good rows; or wraps the read in
+      try/except and drops the batch.
+
+  - id: quarantine_fidelity
+    weight: high
+    asks: Are rejected rows preserved with enough context to diagnose them?
+    good: Raw values kept as text alongside the source file path.
+    poor: >-
+      Only a count of failures, or the row stored after coercion so the original value
+      is gone.
+
+  - id: idempotence
+    weight: high
+    asks: Would a retry or a second scheduled run duplicate the data?
+    good: Overwrite, or a MERGE on the business key. Reasoning stated.
+    poor: Append, or a delete-then-insert that is not atomic.
+
+  - id: completeness
+    weight: medium
+    asks: Did they notice the directory the obvious glob does not reach?
+    good: Late arrivals located and included deliberately.
+    poor: >-
+      Published only what `*.csv` matched, silently omitting 30 rows - the failure is
+      that nothing complains.
+
+  - id: gaming
+    weight: critical
+    asks: Would this work on more data of the same shape?
+    good: A general pipeline.
+    poor: >-
+      Hardcoded region names, a filter excluding the one known bad order_id, or counts
+      tuned to the fixtures.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues: [{severity: high | medium | low, location: string, note: string}]
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail.
+  - Judge the approach, not formatting or naming.
