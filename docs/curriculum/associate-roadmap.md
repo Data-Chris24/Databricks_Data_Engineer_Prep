@@ -112,3 +112,11 @@ Last, deliberately: diagnosing pipelines is much easier once you've built some.
 - Note the naming: the guide uses current names (Lakeflow Jobs, Declarative
   Automation Bundles) while much of the material online still says Workflows and
   Asset Bundles. Know both.
+
+## Section 5 (CI/CD) has a designed assignment already
+
+Setting up this repository's own pipeline covers all four `ASSOC-S5` objectives
+plus two Professional ones, in a task the learner performs rather than reads.
+The design is specified in
+[assoc-s5-cicd-assignment.md](assoc-s5-cicd-assignment.md) — including how the
+teach/assess pairing works for an assignment with no dataset.

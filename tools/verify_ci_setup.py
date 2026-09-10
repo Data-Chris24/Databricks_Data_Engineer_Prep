@@ -84,6 +84,16 @@ def check_repo_settings(slug):
         else:
             record(OK, "repo", "squash is the only merge method")
 
+    ok, labels = gh(f"repos/{slug}/labels")
+    if ok:
+        names = {l["name"] for l in labels}
+        if "no-tests-needed" in names:
+            record(OK, "repo", "'no-tests-needed' label exists (test-gate escape hatch)")
+        else:
+            record(FAIL, "repo", "'no-tests-needed' label is missing",
+                   "The test-presence gate names it as the only way to merge a "
+                   "docs-only PR: gh label create \"no-tests-needed\" --color 0E8A16")
+
     if data.get("delete_branch_on_merge"):
         record(OK, "repo", "merged branches are deleted automatically")
     else:
@@ -174,7 +184,7 @@ def check_ruleset(slug):
         return
     if not rulesets:
         record(FAIL, "ruleset", f"no ruleset protecting '{DEFAULT_BRANCH}'",
-               "Settings > Rules > Rulesets > New branch ruleset (see docs/ci-cd.md step 5)")
+               "Settings > Rules > Rulesets > New branch ruleset (see docs/ci-cd.md step 6)")
         return
 
     for rs in rulesets:

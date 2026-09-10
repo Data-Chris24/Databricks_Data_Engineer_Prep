@@ -57,6 +57,29 @@ def test_auto_merge_disabled_fails(monkeypatch):
     assert any(s == v.FAIL and "auto-merge" in f for s, f in verdicts())
 
 
+def test_missing_no_tests_needed_label_fails(monkeypatch):
+    """Without the label the test-presence gate has no escape hatch at all."""
+    stub(monkeypatch, {
+        f"repos/{SLUG}": {"allow_auto_merge": True, "allow_squash_merge": True,
+                          "allow_merge_commit": False, "allow_rebase_merge": False,
+                          "delete_branch_on_merge": True},
+        f"repos/{SLUG}/labels": [{"name": "bug"}],
+    })
+    v.check_repo_settings(SLUG)
+    assert any(s == v.FAIL and "no-tests-needed" in f for s, f in verdicts())
+
+
+def test_present_no_tests_needed_label_passes(monkeypatch):
+    stub(monkeypatch, {
+        f"repos/{SLUG}": {"allow_auto_merge": True, "allow_squash_merge": True,
+                          "allow_merge_commit": False, "allow_rebase_merge": False,
+                          "delete_branch_on_merge": True},
+        f"repos/{SLUG}/labels": [{"name": "no-tests-needed"}],
+    })
+    v.check_repo_settings(SLUG)
+    assert v.FAIL not in statuses()
+
+
 def test_squash_only_passes(monkeypatch):
     stub(monkeypatch, {f"repos/{SLUG}": {
         "allow_auto_merge": True, "allow_squash_merge": True,
