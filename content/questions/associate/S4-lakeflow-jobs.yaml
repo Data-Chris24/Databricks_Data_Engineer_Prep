@@ -1,0 +1,264 @@
+# ASSOC-S4 — Working with Lakeflow Jobs (16%)
+meta:
+  source: Original, written for this repository.
+  note: Covers ASSOC-S4-O1 through O4.
+
+questions:
+  # ---------------------------------------------------------------- O1 control flow
+  - id: ASSOC-S4-Q001
+    objective_ids: [ASSOC-S4-O1]
+    difficulty: analysis
+    provenance: original
+    tags: [retries, idempotency, failure]
+    stem: >-
+      A job task writes to a Delta table and is configured with max_retries = 3. The
+      task fails partway through its third write, then succeeds on retry. What must be
+      true of the task for the final table to be correct?
+    options:
+      A: >-
+        The task must be idempotent - rerunning it from the start must not duplicate
+        work already committed.
+      B: >-
+        Nothing extra. Databricks rolls back everything a failed attempt wrote before
+        retrying.
+      C: The task must write with mode("append") so the retry adds only new rows.
+      D: The retry count must be 1, because higher values risk duplication.
+    correct: A
+    explanation: >-
+      A retry reruns the task from the beginning. Delta gives ACID guarantees per write
+      operation, not across a whole task - so writes the failed attempt already
+      committed are still there. If the retry blindly appends the same data again, you
+      get duplicates. Idempotent design (overwrite a partition, MERGE on a key, or a
+      checkpoint) is what makes retries safe, and it is the reason retries are a design
+      decision rather than a checkbox.
+    distractor_rationale:
+      B: >-
+        There is no task-level transaction. Individual writes committed before the
+        failure remain committed.
+      C: >-
+        Append is precisely the mode that duplicates on retry. It is the problem, not the
+        fix.
+      D: >-
+        Reducing retries does not make a non-idempotent task safe - a single retry can
+        duplicate just as thoroughly.
+
+  - id: ASSOC-S4-Q002
+    objective_ids: [ASSOC-S4-O1]
+    difficulty: application
+    provenance: original
+    tags: [conditional, if-else, control-flow]
+    stem: >-
+      A pipeline should run an expensive reprocessing task only when an upstream check
+      reports that data drifted. Which Lakeflow Jobs feature expresses this directly?
+    options:
+      A: An If/else condition task that branches on a value the check task returns.
+      B: A task with a retry policy that fails until the condition is met.
+      C: Two separate jobs, with the second triggered manually when needed.
+      D: A single task containing an if statement in its notebook.
+    correct: A
+    explanation: >-
+      Conditional task branching is built into Lakeflow Jobs: a condition evaluates a
+      value - often a task value set by an earlier task - and downstream tasks run or
+      are skipped accordingly. Keeping the branch in the job graph rather than inside a
+      notebook means the decision is visible in the run history, so you can see which
+      path a given run took.
+    distractor_rationale:
+      B: Retries handle failure, not choice. Deliberately failing to express a condition is a misuse.
+      C: Manual triggering removes the automation the requirement asks for.
+      D: >-
+        This works but hides the decision. The task always shows as run, and the skipped
+        path leaves no trace in the run graph.
+
+  - id: ASSOC-S4-Q003
+    objective_ids: [ASSOC-S4-O1]
+    difficulty: recall
+    provenance: original
+    tags: [for-each, loops, parameters]
+    stem: >-
+      A job must run the same notebook once for each of twelve source regions. Which
+      approach uses Lakeflow Jobs as intended?
+    options:
+      A: A For each task that iterates over the list of regions, passing each as a parameter.
+      B: Twelve separate tasks, each hardcoding one region.
+      C: One task whose notebook loops over regions internally.
+      D: Twelve separate jobs on the same schedule.
+    correct: A
+    explanation: >-
+      A For each task runs one iteration per input value, giving per-region visibility in
+      the run graph, per-iteration retries, and controllable concurrency - without
+      twelve copies of the same definition to keep in step. Adding a thirteenth region
+      becomes a data change rather than a job change.
+    distractor_rationale:
+      B: >-
+        Twelve near-identical tasks drift apart the moment one is edited, and adding a
+        region means editing the job.
+      C: >-
+        An internal loop works but is opaque: one region failing fails the whole task,
+        and a retry redoes all twelve.
+      D: Twelve jobs multiplies the maintenance without adding anything.
+
+  # ---------------------------------------------------------------- O2 tasks/DAG
+  - id: ASSOC-S4-Q004
+    objective_ids: [ASSOC-S4-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [dag, dependencies, failure-propagation]
+    stem: >-
+      A job has tasks A, B, C and D. B and C both depend on A. D depends on both B and
+      C. Task C fails and has no retries. What is the resulting state?
+    options:
+      A: A and B complete successfully; C fails; D is skipped because a dependency failed.
+      B: A completes; B, C and D all fail.
+      C: A and B complete; C fails; D runs anyway using B's output.
+      D: The whole job is rolled back, leaving no changes committed.
+    correct: A
+    explanation: >-
+      Dependencies control ordering and propagation, not atomicity. B has no relationship
+      with C so it completes normally, while D cannot run because one of the tasks it
+      depends on did not succeed - it is marked skipped, not failed. Anything A and B
+      committed to the lakehouse stays committed; the job is not a transaction.
+    distractor_rationale:
+      B: B does not depend on C and is unaffected by its failure.
+      C: >-
+        D depends on both. A task runs only when all of its dependencies have succeeded.
+      D: >-
+        There is no job-level rollback. This is the most consequential misconception in
+        this section - each write committed independently.
+
+  - id: ASSOC-S4-Q005
+    objective_ids: [ASSOC-S4-O2]
+    difficulty: recall
+    provenance: original
+    tags: [task-types, sql-task, pipeline-task]
+    stem: >-
+      Which of these is NOT something a single Lakeflow Jobs task can be configured to
+      run directly?
+    options:
+      A: An arbitrary shell script on the driver node.
+      B: A notebook.
+      C: A SQL query, alert or dashboard refresh.
+      D: A Lakeflow Declarative Pipeline.
+    correct: A
+    explanation: >-
+      Task types cover notebooks, Python scripts and wheels, SQL (queries, alerts,
+      dashboard refreshes), declarative pipelines, dbt, JARs and nested jobs. There is no
+      "run this shell command" task type - shell work happens inside a notebook or
+      script task. Knowing the available types matters because choosing the right one
+      gives you the right monitoring for free.
+    distractor_rationale:
+      B: Notebook is the most common task type.
+      C: SQL tasks cover queries, alerts and dashboard refreshes.
+      D: A pipeline task orchestrates a declarative pipeline as a step in a larger job.
+
+  - id: ASSOC-S4-Q006
+    objective_ids: [ASSOC-S4-O2]
+    difficulty: application
+    provenance: original
+    tags: [task-values, parameters, passing-data]
+    stem: >-
+      Task A computes a row count that task B needs. What is the intended way to pass it?
+    options:
+      A: Task values - A sets a value, B reads it via the task's output reference.
+      B: Write the count to a global temporary view that B queries.
+      C: Save the count to a file in DBFS and have B read the file.
+      D: Pass it as a job parameter set before the run begins.
+    correct: A
+    explanation: >-
+      Task values exist for exactly this: small pieces of data handed from one task to
+      the next, visible in the run history so you can see what was passed. They also make
+      conditional branching possible, since a condition can test a task value.
+    distractor_rationale:
+      B: >-
+        Tasks may run on different compute, and a temporary view does not survive across
+        them.
+      C: >-
+        This works but reinvents task values with a file to clean up and no visibility in
+        the run history.
+      D: >-
+        Job parameters are fixed before the run starts, so they cannot carry something
+        computed during it.
+
+  # ---------------------------------------------------------------- O3/O4 triggers
+  - id: ASSOC-S4-Q007
+    objective_ids: [ASSOC-S4-O3, ASSOC-S4-O4]
+    difficulty: analysis
+    provenance: original
+    tags: [file-arrival-trigger, scheduling, cost]
+    stem: >-
+      A partner drops a file into cloud storage at an unpredictable time, usually
+      between 01:00 and 06:00. Downstream reports must be ready as soon as possible
+      after it lands. Which trigger fits best?
+    options:
+      A: A file arrival trigger on the landing location.
+      B: A scheduled run every 15 minutes from 01:00 to 07:00.
+      C: A scheduled run at 06:00, after the file is certain to have arrived.
+      D: A continuous job that polls the directory.
+    correct: A
+    explanation: >-
+      When the requirement is "as soon as the data lands" and arrival time is
+      unpredictable, a file arrival trigger matches the event directly - the job runs
+      once, promptly, and only when there is something to process. Polling schedules
+      trade latency against wasted runs, and a fixed time forces you to plan for the
+      worst case every day.
+    distractor_rationale:
+      B: >-
+        Up to 24 empty runs a night, and still up to 15 minutes of latency after the file
+        arrives.
+      C: >-
+        Guarantees the reports are late whenever the file lands early, which is most of
+        the time.
+      D: A continuous job keeps compute alive all night to watch a directory.
+
+  - id: ASSOC-S4-Q008
+    objective_ids: [ASSOC-S4-O4]
+    difficulty: application
+    provenance: original
+    tags: [table-update-trigger, dependencies, data-driven]
+    stem: >-
+      A gold aggregation job must run whenever an upstream silver table is updated, but
+      the upstream job's schedule changes often. Which trigger avoids re-coordinating the
+      two schedules every time?
+    options:
+      A: A table update trigger on the silver table.
+      B: A cron schedule offset to run shortly after the upstream job usually finishes.
+      C: Merging both jobs into one so the dependency is a task dependency.
+      D: A file arrival trigger on the silver table's storage location.
+    correct: A
+    explanation: >-
+      A table update trigger reacts to the data actually changing, so the downstream job
+      no longer cares when the upstream one runs. That decoupling is the point: the
+      schedules can drift independently and the dependency still holds.
+    distractor_rationale:
+      B: >-
+        This is the coupling the requirement asks you to remove - every upstream schedule
+        change means re-tuning the offset.
+      C: >-
+        Valid when both are owned by one team, but it forces a single schedule and
+        couples their failure domains.
+      D: >-
+        Delta writes produce many file operations including compaction, so file arrival
+        is a noisy and unreliable proxy for "the table was updated".
+
+  - id: ASSOC-S4-Q009
+    objective_ids: [ASSOC-S4-O3]
+    difficulty: recall
+    provenance: original
+    tags: [scheduling, cron, concurrency]
+    stem: >-
+      A job is scheduled hourly but sometimes takes longer than an hour. By default,
+      what happens at the next scheduled time?
+    options:
+      A: The scheduled run is skipped while the previous run is still active.
+      B: A second run starts concurrently with the first.
+      C: The running job is cancelled and restarted.
+      D: The run is queued and starts as soon as the previous one finishes.
+    correct: A
+    explanation: >-
+      Concurrent runs default to 1, so an overlapping scheduled trigger is skipped rather
+      than piling up. That is usually what you want - two runs writing the same table
+      simultaneously is rarely safe - but it means a job that consistently overruns
+      silently halves its frequency. Queueing can be enabled if runs must not be lost.
+    distractor_rationale:
+      B: Only if max concurrent runs is deliberately raised above 1.
+      C: Databricks never cancels a running job to start a scheduled one.
+      D: That is queueing behaviour, which is available but not the default.

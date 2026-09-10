@@ -1,0 +1,265 @@
+# ASSOC-S7 — Governance and Security (15%)
+meta:
+  source: Original, written for this repository.
+  note: Covers ASSOC-S7-O1 through O4.
+
+questions:
+  # ---------------------------------------------------------------- O1 managed/external
+  - id: ASSOC-S7-Q001
+    objective_ids: [ASSOC-S7-O1]
+    difficulty: analysis
+    provenance: original
+    tags: [managed-table, external-table, drop]
+    stem: >-
+      Two Unity Catalog tables are dropped: one managed, one external. What happens to
+      the underlying data files in each case?
+    options:
+      A: >-
+        The managed table's files are deleted; the external table's files are left in
+        place and only the catalog entry is removed.
+      B: Both tables' files are deleted, since Unity Catalog governs both.
+      C: Neither table's files are deleted; DROP only ever removes metadata.
+      D: >-
+        The managed table's files are retained for the retention period; the external
+        table's are deleted immediately.
+    correct: A
+    explanation: >-
+      This is the defining difference. A managed table's lifecycle is owned by Unity
+      Catalog, so dropping it deletes the data. An external table points at storage you
+      manage, so dropping it removes only the registration and the files remain. Worth
+      knowing that a dropped managed table can still be recovered with UNDROP within the
+      retention window - but that is a safety net, not a reason to be casual.
+    distractor_rationale:
+      B: External tables exist precisely so that Databricks does not own the files.
+      C: Managed tables do delete their data.
+      D: Reversed on both counts.
+
+  - id: ASSOC-S7-Q002
+    objective_ids: [ASSOC-S7-O1]
+    difficulty: application
+    provenance: original
+    tags: [managed-table, best-practice]
+    stem: >-
+      A team is creating a new table that only Databricks workloads will read or write.
+      Why does Databricks recommend a managed table here?
+    options:
+      A: >-
+        Unity Catalog owns the layout, so predictive optimization can compact, cluster
+        and vacuum it automatically.
+      B: Managed tables are the only kind that can be governed by Unity Catalog.
+      C: Managed tables support ACID transactions; external tables do not.
+      D: Managed tables can be queried by external engines; external tables cannot.
+    correct: A
+    explanation: >-
+      When Unity Catalog owns the storage layout it can maintain the table for you -
+      automatic compaction, liquid clustering and vacuuming - which is exactly the
+      operational overhead teams otherwise carry themselves. External tables are for when
+      something outside Databricks also needs to own those files.
+    distractor_rationale:
+      B: Unity Catalog governs external tables too, including permissions and lineage.
+      C: Both are Delta tables with the same ACID guarantees.
+      D: >-
+        Backwards, and in any case external access is a matter of protocols and
+        credential vending rather than table type.
+
+  # ---------------------------------------------------------------- O2 grants
+  - id: ASSOC-S7-Q003
+    objective_ids: [ASSOC-S7-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [grants, privilege-inheritance, unity-catalog]
+    stem: >-
+      A group is granted SELECT on a catalog. A new schema and table are later created
+      inside it. What can the group read?
+    options:
+      A: >-
+        The new table, because privileges granted at the catalog level are inherited by
+        objects created within it.
+      B: Nothing new - the grant applied only to objects that existed at the time.
+      C: The schema but not the table, because table access must be granted explicitly.
+      D: Nothing, because SELECT is not a valid privilege at catalog level.
+    correct: A
+    explanation: >-
+      Unity Catalog privileges flow down the hierarchy - metastore, catalog, schema,
+      table - and inheritance is dynamic, so objects created later are covered too. This
+      is powerful and worth respecting: a broad grant at catalog level silently covers
+      everything anyone adds afterwards, which is why least privilege usually means
+      granting at schema or table level.
+    distractor_rationale:
+      B: >-
+        Inheritance is evaluated at query time, not frozen when the grant was made.
+      C: >-
+        A table inherits from its schema, which inherits from its catalog. No separate
+        grant is needed.
+      D: SELECT is valid at catalog and schema level and means exactly this.
+
+  - id: ASSOC-S7-Q004
+    objective_ids: [ASSOC-S7-O2]
+    difficulty: application
+    provenance: original
+    tags: [grants, use-catalog, troubleshooting]
+    stem: >-
+      A user has been granted SELECT on a table but still cannot query it. What is the
+      most likely missing privilege?
+    options:
+      A: USE CATALOG on the catalog and USE SCHEMA on the schema containing the table.
+      B: MODIFY on the table, which is required alongside SELECT.
+      C: Ownership of the table.
+      D: SELECT on the metastore.
+    correct: A
+    explanation: >-
+      Reaching an object requires traversal privileges on every container above it: USE
+      CATALOG, then USE SCHEMA, then SELECT. A grant on the table alone leaves the user
+      unable to get to it. This is the single most common Unity Catalog permission
+      puzzle, and the error message rarely names the missing traversal privilege
+      directly.
+    distractor_rationale:
+      B: MODIFY grants writes. Reading needs only SELECT plus traversal.
+      C: Ownership is not needed to read.
+      D: There is no SELECT at metastore level.
+
+  - id: ASSOC-S7-Q005
+    objective_ids: [ASSOC-S7-O2]
+    difficulty: recall
+    provenance: original
+    tags: [service-principal, grants, automation]
+    stem: >-
+      Why is a service principal, rather than a personal account, the recommended
+      identity for a production pipeline?
+    options:
+      A: >-
+        The pipeline keeps working when the person leaves, and its access can be scoped
+        to exactly what the job needs.
+      B: Service principals can be granted privileges that users cannot.
+      C: Service principals bypass Unity Catalog permission checks for automation.
+      D: Only service principals can run scheduled jobs.
+    correct: A
+    explanation: >-
+      Two reasons that matter in practice: continuity, because a pipeline tied to a
+      person breaks when that person's account is disabled; and least privilege, because
+      a service principal holds only the access the job needs rather than everything its
+      author happens to have. Audit logs also attribute the work to the pipeline rather
+      than to a human who was asleep at the time.
+    distractor_rationale:
+      B: The privilege model is the same for both principal types.
+      C: >-
+        Service principals are subject to exactly the same checks. Anything else would
+        make them a security hole.
+      D: Users can own and run scheduled jobs; it is just a worse idea.
+
+  # ---------------------------------------------------------------- O3 masking/RLS
+  - id: ASSOC-S7-Q006
+    objective_ids: [ASSOC-S7-O3]
+    difficulty: analysis
+    provenance: original
+    tags: [column-mask, row-filter, dynamic-views]
+    stem: >-
+      A table must show full email addresses to the support group and a redacted value
+      to everyone else, from the same table name. Which mechanism does this?
+    options:
+      A: >-
+        A column mask on the email column whose function returns the value or a redacted
+        string depending on group membership.
+      B: Two copies of the table with different columns, and grants directing each group to one.
+      C: A row filter on the email column.
+      D: Revoking SELECT on the email column for non-support users.
+    correct: A
+    explanation: >-
+      A column mask attaches a function to a column that is evaluated per querying user -
+      typically with is_account_group_member() - so one table name serves both audiences
+      and the policy travels with the column rather than living in whichever view someone
+      happened to query.
+    distractor_rationale:
+      B: >-
+        Two copies means duplication and drift, and the requirement explicitly says the
+        same table name.
+      C: >-
+        Row filters remove *rows*. Hiding part of a column's value is a mask, not a
+        filter.
+      D: >-
+        Unity Catalog grants SELECT at table level, not per column, so this is not
+        available as stated.
+
+  - id: ASSOC-S7-Q007
+    objective_ids: [ASSOC-S7-O3]
+    difficulty: application
+    provenance: original
+    tags: [row-filter, multi-tenant, regional]
+    stem: >-
+      Regional managers must each see only their own region's rows from a shared orders
+      table. Which approach fits, and what does it attach to?
+    options:
+      A: A row filter function on the table, matching the querying user's region against the row.
+      B: A column mask on the region column.
+      C: Separate tables per region with grants per group.
+      D: A view per region, with each manager granted access to their own.
+    correct: A
+    explanation: >-
+      Row filters restrict which rows a user sees, evaluated per query against their
+      identity or group membership. Attaching it to the table means every path to the
+      data - notebook, SQL editor, dashboard, someone else's view built on top - inherits
+      the restriction, which is what makes it a governance control rather than a
+      convention.
+    distractor_rationale:
+      B: A mask changes a value within a row; it cannot remove the row.
+      C: >-
+        Physically splitting the data multiplies maintenance and breaks any query that
+        needs the whole picture.
+      D: >-
+        Workable but it does not scale - a new region means a new view and new grants,
+        and anyone reaching the base table bypasses it entirely.
+
+  # ---------------------------------------------------------------- O4 ABAC
+  - id: ASSOC-S7-Q008
+    objective_ids: [ASSOC-S7-O4]
+    difficulty: analysis
+    provenance: original
+    tags: [abac, tags, policy, scale]
+    stem: >-
+      An organisation must mask every column containing PII across hundreds of tables,
+      and new tables appear weekly. Why is an attribute-based policy preferable to
+      attaching a column mask to each column?
+    options:
+      A: >-
+        A policy applies wherever a tag appears, so newly created columns tagged as PII
+        are covered automatically without anyone remembering.
+      B: Attribute-based policies are evaluated faster than column masks.
+      C: Column masks cannot be applied to more than one column per table.
+      D: Only attribute-based policies can distinguish between user groups.
+    correct: A
+    explanation: >-
+      Per-object masks scale linearly with objects and depend on someone applying them
+      every time. An ABAC policy binds the rule to a *tag*, so governance follows the
+      data as it is created - the failure mode it removes is the one that actually
+      happens, which is a new table shipping unprotected because a step was forgotten.
+    distractor_rationale:
+      B: Performance is not the argument; consistency at scale is.
+      C: A table can have masks on many columns.
+      D: Column masks can test group membership perfectly well.
+
+  - id: ASSOC-S7-Q009
+    objective_ids: [ASSOC-S7-O4, ASSOC-S7-O3]
+    difficulty: recall
+    provenance: original
+    tags: [abac, governance, tags]
+    stem: >-
+      In an attribute-based access control model on Unity Catalog, what determines
+      whether a policy applies to a given column?
+    options:
+      A: A tag on the column, which the policy targets.
+      B: The column's data type.
+      C: The column's position in the table schema.
+      D: Whether the column is part of the table's primary key.
+    correct: A
+    explanation: >-
+      ABAC works by binding rules to attributes - tags - rather than to named objects.
+      Tag a column as containing PII and every policy targeting that tag applies to it
+      immediately, wherever it lives. The governance question shifts from "did someone
+      protect this table" to "is the data classified correctly", which is a much easier
+      thing to audit.
+    distractor_rationale:
+      B: >-
+        Data type is far too blunt - not every STRING is sensitive and not all sensitive
+        data is a STRING.
+      C: Position carries no meaning.
+      D: Key membership is unrelated to sensitivity.
