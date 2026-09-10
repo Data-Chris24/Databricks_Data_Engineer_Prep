@@ -346,5 +346,450 @@
    }
   ],
   "subpages": []
+ },
+ "PRO-S1": {
+  "section_id": "PRO-S1",
+  "exam": "professional",
+  "title": "Developing Code for Data Processing",
+  "weight": 22,
+  "markdown": "# Developing Code for Data Processing — 22%\n\nThe heaviest Professional section, and the one that assumes the most. It is less\nabout syntax than about *choosing the right level of abstraction*: built-in versus\nUDF, streaming table versus materialized view, Structured Streaming versus a\ndeclarative pipeline, and knowing what each choice costs.\n\n## A project shaped for bundles — `PRO-S1-O1`\n\nA Declarative Automation Bundle is a folder with a `databricks.yml` at its root and\nresource definitions under it. The layout the exam expects separates three things:\n\n| Folder | Holds | Why separate |\n|---|---|---|\n| `resources/*.yml` | jobs, pipelines, apps, one resource per file | reviewable, diffable, `include`-able |\n| `src/` or a package | reusable Python (transformations, helpers) | importable and unit-testable without Spark |\n| notebooks | thin entry points that call the package | the notebook is the *task*, not the logic |\n\nTwo rules carry the marks. **Targets, not copies:** one job definition, deployed to\n`dev`, `staging` and `prod` by switching `-t <target>`; anything that differs per\nenvironment is a variable the target overrides. **Nothing environment-specific in\ncode:** the notebook receives its catalog and schema as parameters. Development\nmode prefixes resource names with `[dev <user>]` and pauses schedules, so several\npeople can deploy the same bundle to one workspace without colliding.\n\n## Third-party libraries — `PRO-S1-O2`\n\n| Where the code comes from | Install with | Scope |\n|---|---|---|\n| PyPI | `%pip install pkg==1.2.3` in a notebook, or a `pypi` library on the task | notebook session / task |\n| A local wheel | upload to a volume, `%pip install /Volumes/.../pkg.whl`, or a `whl` task library | same |\n| Source archive / git | `%pip install git+https://...` | same |\n\n`%pip` changes the Python environment of *that notebook's* session and needs a\n`%restart_python` (or `dbutils.library.restartPython()`) before the new version is\nimportable. Task libraries install before the task starts. The classic failure\nis **two libraries pinning incompatible versions of a shared dependency**; the fix\nis to pin explicitly rather than hope resolution goes your way. On serverless\ncompute you declare an *environment* (dependencies plus an environment version)\nrather than installing on a cluster.\n\n## UDFs: last resort, and vectorised when you must — `PRO-S1-O3`\n\nA built-in runs inside the JVM and the optimiser can see through it. A Python UDF\nserialises every row out to a Python process and back, and is opaque to the\noptimiser: same result, very different cost.\n\n| | Runs | Optimiser sees it | Use when |\n|---|---|---|---|\n| Built-in | JVM | yes | almost always |\n| pandas UDF | Python, vectorised via Arrow | no | a UDF is needed and volume matters |\n| Python UDF | Python, row at a time | no | logic that will not vectorise |\n\nA pandas UDF receives a whole batch as a `pandas.Series` and returns one, so the\nper-row serialisation cost is amortised. Preference order: built-in, then pandas\nUDF, then a scalar Python UDF. The exam likes \"which is slowest and why\".\n\n## Pipelines and Auto Loader — `PRO-S1-O4`\n\nLakeflow Spark Declarative Pipelines describe *what* tables exist and how each is\nderived; the platform derives the dependency graph, orchestrates it, and applies\nyour **expectations** (declarative quality rules) as data flows. Auto Loader\n(`cloudFiles`) is the ingestion source for files: it tracks what it has already\nconsumed, so a pipeline over a landing folder processes each file exactly once\nand picks up new ones incrementally. Together they are the production shape for\n\"files land in storage, tables stay current\".\n\n## Streaming tables vs materialized views — `PRO-S1-O6`\n\n| | Streaming table | Materialized view |\n|---|---|---|\n| Processes | each input row **once**, incrementally | the whole query, on refresh |\n| Suits | append-only, ever-growing sources | aggregates over data that changes |\n| Handles updates to old rows | no: a consumed row is not revisited | yes, recomputed |\n| Cost profile | proportional to new data | proportional to the query |\n\nThe decision rule: **does old data change?** If yes, a streaming table will not\nsee it and you want a materialized view. If the source only ever appends, a\nstreaming table is far cheaper.\n\n## Jobs from the UI, the API and the CLI — `PRO-S1-O5`\n\nThe same job can be created three ways and the exam expects you to recognise all\nthree: the Jobs UI, `POST /api/2.2/jobs/create` with a JSON settings document\n(tasks, `depends_on`, schedule, notifications), and `databricks jobs create\n--json`. Runs are triggered with `run-now`, which accepts job parameters that\noverride the defaults; `runs/get` returns per-task state and `runs/get-output`\nthe notebook's exit value. In a bundle the definition lives in YAML and\n`databricks bundle run <key>` triggers it, but it is the same API underneath.\n\n## AUTO CDC — `PRO-S1-O7`\n\nWhen the source is a **change feed** rather than a snapshot, rows are *events\nabout* rows. `AUTO CDC` (formerly `APPLY CHANGES`) reduces them to current state,\nand the three things it handles are the three things people get wrong by hand:\n\n1. **Sequencing.** `SEQUENCE BY` decides which event wins, not arrival order.\n2. **Deletes.** `APPLY AS DELETE WHEN` removes the key rather than keeping a row\n   that says \"deleted\".\n3. **Out-of-order arrival.** A late event with a lower sequence is ignored.\n\n```sql\nCREATE OR REFRESH STREAMING TABLE customers;\n\nAPPLY CHANGES INTO live.customers\nFROM STREAM(live.customer_changes)\nKEYS (customer_id)\nAPPLY AS DELETE WHEN op = 'delete'\nSEQUENCE BY seq_num\nCOLUMNS * EXCEPT (op, seq_num);\n```\n\nThe same by hand is a window over the key ordered by the sequence, keep the latest\nevent, drop keys whose latest event is a delete. A key that was deleted and then\nupdated again is *present*, because its highest sequence is the update. That is\nexactly the trap in this section's assignment.\n\n## Structured Streaming vs declarative pipelines — `PRO-S1-O8`\n\n| | Structured Streaming | Lakeflow Declarative Pipelines |\n|---|---|---|\n| You write | the how: `readStream`, checkpoints, triggers | the what: table definitions and dependencies |\n| Orchestration | yours | derived from the dependency graph |\n| Quality rules | hand-rolled | declarative expectations |\n| Best when | you need precise control over state and triggers | the mechanics are incidental |\n\nDeclarative pipelines are not \"streaming made easy\"; they are a different level of\nabstraction. Reach for Structured Streaming when you need the mechanics.\n\n## Control flow in jobs — `PRO-S1-O9`\n\nJobs have control-flow tasks: an **If/else** task branches on a condition\n(typically a task value or parameter), and a **For each** task runs a nested task\nonce per element of a list, with a concurrency setting. Tasks pass small values\ndownstream with `dbutils.jobs.taskValues.set(...)` and read them with\n`taskValues.get(...)`, and `depends_on` can carry a `run_if` rule\n(`ALL_SUCCESS`, `AT_LEAST_ONE_FAILED`, ...) so a cleanup task runs even when an\nupstream one fails.\n\n## Configuring tasks sensibly — `PRO-S1-O10`\n\n- **Environments and dependencies** are declared per task (serverless\n  environment or task libraries), not installed ad hoc mid-run.\n- **High memory** is a task-level choice for notebook tasks that genuinely need\n  it; it is not a substitute for fixing a `collect()`.\n- **Retries** are for transient failures. A task whose work is *not idempotent*\n  must not retry blindly, or a retry duplicates its output; either make the write\n  idempotent (overwrite, MERGE) or disallow retries. The exam phrases this as\n  \"auto-optimization to disallow retries\".\n\n## Testing transformations — `PRO-S1-O11`\n\n`DataFrame.transform(fn)` lets a transformation be a named function, which is what\nmakes it testable in isolation. Then:\n\n- `assertDataFrameEqual(actual, expected)` compares content and reports the\n  differing rows.\n- `assertSchemaEqual(actual.schema, expected.schema)` compares structure,\n  including column order.\n\nTest against a **tiny hand-built DataFrame**, not against production data: a test\nwhose expected values come from the same pipeline it is testing proves nothing.\nRun the suite with pytest; on Databricks that means in-process (a subprocess\ncannot reach the Spark session), which is exactly how this repo's graders work.\nThe notebook debugger and `breakpoint()` are for stepping through the Python\nhalf; the Spark half is diagnosed from the query plan and the Spark UI.\n",
+  "toc": [
+   {
+    "level": 2,
+    "text": "A project shaped for bundles",
+    "anchor": "a-project-shaped-for-bundles--pro-s1-o1",
+    "objective_ids": [
+     "PRO-S1-O1"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Third-party libraries",
+    "anchor": "third-party-libraries--pro-s1-o2",
+    "objective_ids": [
+     "PRO-S1-O2"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "UDFs: last resort, and vectorised when you must",
+    "anchor": "udfs-last-resort-and-vectorised-when-you-must--pro-s1-o3",
+    "objective_ids": [
+     "PRO-S1-O3"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Pipelines and Auto Loader",
+    "anchor": "pipelines-and-auto-loader--pro-s1-o4",
+    "objective_ids": [
+     "PRO-S1-O4"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Streaming tables vs materialized views",
+    "anchor": "streaming-tables-vs-materialized-views--pro-s1-o6",
+    "objective_ids": [
+     "PRO-S1-O6"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Jobs from the UI, the API and the CLI",
+    "anchor": "jobs-from-the-ui-the-api-and-the-cli--pro-s1-o5",
+    "objective_ids": [
+     "PRO-S1-O5"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "AUTO CDC",
+    "anchor": "auto-cdc--pro-s1-o7",
+    "objective_ids": [
+     "PRO-S1-O7"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Structured Streaming vs declarative pipelines",
+    "anchor": "structured-streaming-vs-declarative-pipelines--pro-s1-o8",
+    "objective_ids": [
+     "PRO-S1-O8"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Control flow in jobs",
+    "anchor": "control-flow-in-jobs--pro-s1-o9",
+    "objective_ids": [
+     "PRO-S1-O9"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Configuring tasks sensibly",
+    "anchor": "configuring-tasks-sensibly--pro-s1-o10",
+    "objective_ids": [
+     "PRO-S1-O10"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Testing transformations",
+    "anchor": "testing-transformations--pro-s1-o11",
+    "objective_ids": [
+     "PRO-S1-O11"
+    ]
+   }
+  ],
+  "subpages": []
+ },
+ "PRO-S10": {
+  "section_id": "PRO-S10",
+  "exam": "professional",
+  "title": "Data Modeling",
+  "weight": 6,
+  "markdown": "# Data Modeling — 6%\n\nA small section with two ideas the exam returns to: **state the grain before you\nwrite code**, and **a natural key identifies an entity only while nothing about\nit changes**. The rest is layout, where liquid clustering replaces the decisions\npartitioning forced you to make once.\n\n## Scalable models on Delta — `PRO-S10-O1`\n\nDelta gives a model ACID writes, schema enforcement, time travel and concurrent\nreaders, so the modelling decisions are about **grain and keys**, not storage\nmechanics. State the fact's grain in words first: \"one row per sale\" is a grain;\n\"sales data\" is not. Design so a rebuild is deterministic: a surrogate key derived\nfrom a hash of the natural key and validity start survives a rebuild;\n`monotonically_increasing_id()` does not, and every fact already published then\npoints somewhere else. Keep bronze append-only and raw, silver conformed, gold\nmodelled; the model is the gold layer.\n\n## Dimensional models — `PRO-S10-O4`\n\n| | Holds | Grain | Grows |\n|---|---|---|---|\n| **Fact** | measurements and foreign keys | one row per event | continuously |\n| **Dimension** | descriptive attributes | one row per entity (or version) | slowly |\n\n| | |\n|---|---|\n| **Natural key** | the business identifier, `customer_id` |\n| **Surrogate key** | a model-generated key identifying **one version** of a row |\n\nA **star** keeps dimension attributes denormalised in one table: fewer joins,\nsome redundancy. A **snowflake** normalises them into sub-dimensions: less\nredundancy, more joins. Star is the default for analytics; storage is cheap and\na four-join \"revenue by region\" is not.\n\n**When the dimension changes, the natural key stops identifying a row.** A Type\n2 dimension keeps one row per *version* with `valid_from` (inclusive) and\n`valid_to` (exclusive), a surrogate key per version, and `is_current`. The fact\njoins to the version in effect on its own date:\n\n```sql\nON  f.customer_id = d.customer_id\nAND f.ordered_on >= d.valid_from\nAND f.ordered_on <  d.valid_to\n```\n\nThe bounds are asymmetric on purpose: an order on a changeover date matches\nexactly one version. **A dimension join must not change the fact's row count.**\nMore rows means the windows overlap; fewer means a gap. And the wrong answer here\nis not an error: joining on `customer_id` to the current version returns every\norder, no nulls, and a revenue-by-segment breakdown that quietly attributes\nJanuary's revenue to the segment the customer moved into in June.\n\n## Layout with liquid clustering — `PRO-S10-O2`\n\n`CLUSTER BY (col, ...)` records the keys on the table. There are no directories:\nthe engine groups rows into files by those columns and file-level statistics let\nit skip the files that cannot match. Cluster a fact on what it is filtered by,\nusually the date and the highest-traffic dimension key. `CLUSTER BY AUTO` lets\nDatabricks choose and revise keys from the query history, the honest default\nwhen you do not yet know the access pattern.\n\nOn a clustered table, `OPTIMIZE` clusters **new data only**, so runs stay cheap\nas the table grows. `ZORDER` is not incremental: it re-sorts everything it\ntouches every time. A table is partitioned or clustered, never both.\n\n## Clustering over partitioning and ZORDER — `PRO-S10-O3`\n\n| | Partitioning | ZORDER | Liquid clustering |\n|---|---|---|---|\n| Set at | create time, fixed | each `OPTIMIZE` | any time, `ALTER TABLE` |\n| Physical form | directories | sort order within files | file grouping |\n| Incremental | n/a | **no** | **yes**, new data only |\n| Skew | one big partition | tolerated | spread across files |\n| Small files | the classic cause | does not fix the layout | targets file size |\n| Change your mind | rewrite the table | free, but pay the sort | metadata change |\n\nPartitioning splits the table into one directory per distinct value, a good\ntrade only when each directory holds enough data to be worth opening (rule of\nthumb: not below about 1 GB per partition). A hot key becomes a straggler\ndirectory; a fine-grained key becomes thousands of tiny files. Clustering keys\ncan be changed later; a partition column cannot without rewriting the table, and\non a fact table that grows for years that difference compounds.\n\nPartitioning still wins when partitions are large, when you need to **drop or\noverwrite whole slices cheaply** (`REPLACE WHERE` on a partition column is a\nmetadata operation with no clustering equivalent), or when an external consumer\ndepends on the directory layout. \"Always cluster\" is not the lesson; \"cluster\nunless you can name the reason to partition\" is.\n",
+  "toc": [
+   {
+    "level": 2,
+    "text": "Scalable models on Delta",
+    "anchor": "scalable-models-on-delta--pro-s10-o1",
+    "objective_ids": [
+     "PRO-S10-O1"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Dimensional models",
+    "anchor": "dimensional-models--pro-s10-o4",
+    "objective_ids": [
+     "PRO-S10-O4"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Layout with liquid clustering",
+    "anchor": "layout-with-liquid-clustering--pro-s10-o2",
+    "objective_ids": [
+     "PRO-S10-O2"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Clustering over partitioning and ZORDER",
+    "anchor": "clustering-over-partitioning-and-zorder--pro-s10-o3",
+    "objective_ids": [
+     "PRO-S10-O3"
+    ]
+   }
+  ],
+  "subpages": []
+ },
+ "PRO-S2": {
+  "section_id": "PRO-S2",
+  "exam": "professional",
+  "title": "Data Ingestion & Acquisition",
+  "weight": 7,
+  "markdown": "# Data Ingestion & Acquisition — 7%\n\nA small section with one organising question: **does the file tell you its own\nschema?** Cost, safety and which reader options you must supply all follow from\nthe answer. The second objective is the shape of a landing table that batch and\nstreaming writers can share.\n\n## Reading the formats the exam names — `PRO-S2-O1`\n\n| Format | Schema in the file? | Reader needs |\n|---|---|---|\n| Delta | yes, plus a transaction log | nothing |\n| Parquet / ORC | yes | nothing |\n| Avro | yes | nothing |\n| JSON | names only | an inference pass, or `.schema()` |\n| XML | names only | `rowTag`, and dotted paths for nesting |\n| CSV | nothing | `header`, and `inferSchema` or `.schema()` |\n| text | nothing | nothing: one `value` column per line |\n| binaryFile | not applicable | nothing: you decode the bytes yourself |\n\n**Self-describing formats** (Parquet, ORC, Avro, Delta) carry their types; you\nsupply a path. Parquet and ORC are columnar, so a query reads only the columns it\nasks for and skips row groups by statistics. Avro is row-oriented: whole-record\nreads, streaming, schema evolution carried in the file, and column pruning buys\nnothing. **Delta is Parquet plus a `_delta_log`**, and the log is what turns a\npile of files into a table with ACID, time travel and concurrent writers. A bare\nParquet directory has no log, so a partial write is a partial read.\n\n**JSON and XML** describe structure but not types. Spark infers types, which means\n**reading the data twice**: once for the schema, once to load. Supplying a schema\nskips the inference pass. XML has no notion of a row; `rowTag` makes it tabular,\nand nested elements come back as structs reached with dotted paths.\n\n**CSV** is text with commas. Every column is a string until you say otherwise:\n`inferSchema` (a second pass), an explicit `.schema()`, or cast afterwards. Dates\nand times are where CSV bites: an explicit schema only parses what the built-in\nparser recognises; anything else needs `to_timestamp` with a pattern or a\n`timestampFormat` option.\n\n**text** gives one `value` column per line. **binaryFile** hands you the file and\nits metadata, which is the reader for PDFs, images and proprietary formats you\ndecode yourself; `pathGlobFilter` and `recursiveFileLookup` pick one file type\nout of a mixed drop zone.\n\nTwo traps that produce no error:\n\n- **ANSI mode raises on a bad cast, but only if the cast runs.** A projection\n  nothing consumes is pruned first, so a query that returned a number without\n  complaining is not evidence that your casts are valid. Only materialising the\n  values proves it.\n- **`union` is positional.** Two DataFrames of the same width union whatever\n  their column names say. Line sources up with `unionByName` (with\n  `allowMissingColumns` when one source lacks a column), and **pin your types**\n  afterwards: a union keeps the widest type it is given, so one source inferring\n  a `BIGINT` silently changes the table's schema.\n\nMessage buses (Kafka and the like) are the other source family: the `kafka`\nsource yields `key`, `value` and metadata columns as bytes; the payload is decoded\nwith `from_json` or `from_avro` against a schema you supply.\n\n## One append-only table, fed by batch and stream — `PRO-S2-O2`\n\nAppend-only is not a limitation you tolerate. It is the property that lets a batch\njob and a stream write to the same table without coordinating, and it is what\nmakes the table readable *as* a stream downstream.\n\n- The **batch half** writes with `mode(\"append\")`. `DESCRIBE HISTORY` records the\n  operation, and an append is the one a downstream stream can follow.\n- The **streaming half** is Auto Loader over the same location with\n  `outputMode(\"append\")`, so it only ever adds rows and never fights the batch\n  writer. `trigger(availableNow=True)` processes everything waiting and stops,\n  which is what a job wants.\n- The **checkpoint** is the stream's memory: it records which files were\n  consumed, so a restart resumes rather than reprocesses. Delete it and the\n  stream consumes everything again. Same data, twice, no error anywhere.\n\nTag every record with its source (`source_format`, the file it came from). It\ncosts one column and repays it every time something looks wrong.\n\n**Idempotence is your job, not the table's.** An append-only table faithfully\nkeeps everything it was given, duplicates included. If a source can re-deliver,\nsilver needs a rule for which copy wins: `dropDuplicates` on the business key\nfor exact repeats, or a window over the key ordered by a revision number or\narrival time for corrections. Bronze keeps the history; silver answers the\nquestion.\n\n**Why append-only, specifically.** A Delta table can be read as a stream only if\nits history is append-only. An update or delete produces a version the reader\ncannot express as new rows, and it fails with\n`DELTA_SOURCE_TABLE_IGNORE_CHANGES` rather than silently skipping. The escape\nhatches cost something: `skipChangeCommits` steps over such versions (the\ndownstream never learns about the update); `ignoreChanges` re-emits the\nrewritten files as if new (the downstream must be idempotent to survive it).\nKeeping bronze append-only means never making that choice under pressure.\n",
+  "toc": [
+   {
+    "level": 2,
+    "text": "Reading the formats the exam names",
+    "anchor": "reading-the-formats-the-exam-names--pro-s2-o1",
+    "objective_ids": [
+     "PRO-S2-O1"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "One append-only table, fed by batch and stream",
+    "anchor": "one-append-only-table-fed-by-batch-and-stream--pro-s2-o2",
+    "objective_ids": [
+     "PRO-S2-O2"
+    ]
+   }
+  ],
+  "subpages": []
+ },
+ "PRO-S3": {
+  "section_id": "PRO-S3",
+  "exam": "professional",
+  "title": "Data Transformation, Cleansing and Quality",
+  "weight": 10,
+  "markdown": "# Data Transformation, Cleansing and Quality — 10%\n\nTwo objectives, and the exam's angle on both is *between rows*: window functions\nthat compute across neighbours without collapsing them, and quality processes\nthat keep the evidence instead of deleting it.\n\n## Advanced transformations — `PRO-S3-O1`\n\nA `groupBy` collapses rows; a **window** computes across rows and keeps them.\n\n| Function | Gives you |\n|---|---|\n| `lag` / `lead` | the neighbouring row's value |\n| `row_number` | position in the ordered partition (ties broken arbitrarily) |\n| `rank` / `dense_rank` | position with ties kept, with or without gaps |\n| an aggregate `over` a frame | a rolling calculation |\n\n**Frames are where the quiet bugs live.** `rowsBetween` counts *rows*;\n`rangeBetween` counts *values of the ordering column*. On an irregular time series\nthey differ sharply: five rows back is not five minutes back. Choosing the wrong\none produces a plausible number and no error.\n\nThe patterns the exam asks for by scenario:\n\n- **Latest record per key:** `row_number()` over the key ordered by the sequence,\n  keep `rn = 1`. Not `dropDuplicates`, which keeps an arbitrary row.\n- **Change from the previous row:** `lag(col)` over the key ordered by time, then\n  subtract. A cumulative meter that goes backwards, a balance that jumps, a gap\n  longer than the cadence are all one `lag` away.\n- **Running totals and moving averages:** an aggregate over\n  `rowsBetween(Window.unboundedPreceding, 0)` or a bounded frame.\n- **Joins at scale:** broadcast the small side deliberately; know that a join is\n  one row per matching *pair*, so a duplicate key on the dimension fans out the\n  fact table without an error (the Associate S3 trap, still true here).\n\n## Quarantining bad data — `PRO-S3-O2`\n\nFiltering bad rows away loses the evidence. **Quarantine** keeps it somewhere a\nhuman can look, and lets the good data flow on, so neither blocks the other. Two\nrules make a quarantine useful:\n\n1. **Keep the raw values.** A quarantine row that has already been through the\n   transformation you are debugging is not evidence. `try_cast` decides good from\n   bad without raising; the original strings ride along.\n2. **Record why.** A `reason` or the source file turns a pile of rejects into a\n   list of things to fix upstream.\n\nIn a **declarative pipeline** the same idea is an expectation:\n\n```sql\nCONSTRAINT valid_reading EXPECT (reading >= 0) ON VIOLATION DROP ROW\n```\n\n`EXPECT` alone records violations in the event log and keeps the row; `ON\nVIOLATION DROP ROW` removes it; `ON VIOLATION FAIL UPDATE` stops the pipeline.\nThe quarantine pattern in a pipeline is two tables from one source: the clean one\nwith drop-row expectations, and a quarantine table selecting the inverse\ncondition. With **Auto Loader in a classic job**, malformed records land in\n`_rescued_data` rather than being dropped, and a bad-records path or `try_cast`\nplus a split does the same job.\n\n**Row-level rules are not the whole story.** Every rule above checks one row at a\ntime. A dataset where every value casts, nothing is null and nothing is negative\ncan still be wrong *between* rows: a cumulative value that decreases, a 15-minute\ncadence with a gap, two readings at the same instant. Those are window checks,\nand they are what this section's assignment is about.\n",
+  "toc": [
+   {
+    "level": 2,
+    "text": "Advanced transformations",
+    "anchor": "advanced-transformations--pro-s3-o1",
+    "objective_ids": [
+     "PRO-S3-O1"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Quarantining bad data",
+    "anchor": "quarantining-bad-data--pro-s3-o2",
+    "objective_ids": [
+     "PRO-S3-O2"
+    ]
+   }
+  ],
+  "subpages": []
+ },
+ "PRO-S4": {
+  "section_id": "PRO-S4",
+  "exam": "professional",
+  "title": "Data Sharing and Federation",
+  "weight": 5,
+  "markdown": "# Data Sharing and Federation — 5%\n\nTwo features that move data across a boundary **without copying it**. Delta\nSharing sends your tables out; Lakehouse Federation brings someone else's in.\nBoth are governed by Unity Catalog like anything else, and both have the same\nfailure mode: the DDL succeeds and tells you nothing about whether it works.\n\n## Delta Sharing — `PRO-S4-O1`, `PRO-S4-O3`\n\nThree nouns carry the whole model:\n\n| Noun | Is | Analogy |\n|---|---|---|\n| **Share** | a named collection of tables, views and volumes | a playlist |\n| **Recipient** | who you are sharing with | the person you sent it to |\n| **Grant** | `GRANT SELECT ON SHARE ... TO RECIPIENT ...` | pressing send |\n\nUntil the grant runs, the share exists and reaches nobody. `SELECT` is the only\nprivilege a share takes.\n\n| Want | Statement |\n|---|---|\n| A container | `CREATE SHARE s` |\n| Add a table | `ALTER SHARE s ADD TABLE c.s.t` |\n| Current state only | `... WITHOUT HISTORY` |\n| Rename for the recipient | `... AS alias.name` |\n| Share files | `ALTER SHARE s ADD VOLUME c.s.v` |\n| Send it | `GRANT SELECT ON SHARE s TO RECIPIENT r` |\n| Check it | `SHOW ALL IN SHARE s` **and** `SHOW GRANTS ON SHARE s` |\n\nThe things that go wrong silently:\n\n- **History is shared by default.** The shortest `ADD TABLE` gives the recipient\n  time travel over your table, including versions you may not have meant to\n  publish. `WITHOUT HISTORY` shares only current state.\n- **`WITHOUT HISTORY` needs deletion vectors off.** With deletion vectors the\n  current state is not reconstructable from data files alone, so sharing refuses.\n  Turning the property off stops *new* vectors; `REORG TABLE t APPLY (PURGE)`\n  removes the existing ones, and that is the step people miss.\n- **The recipient sees your names** unless you alias: `AS partner.customers`\n  hides your catalog and schema, and lets you reorganise your side without\n  breaking theirs. Set it when you add the object: `REMOVE TABLE` takes the\n  *shared* name, so it cannot be fixed later from the source path.\n- **Change data feed follows the table.** `cdf_shared` reflects the table's own\n  `delta.enableChangeDataFeed`; turn it on at the table and share normally. The\n  explicit `WITH CHANGE DATA FEED` clause is refused on tables encrypted with\n  Databricks-managed keys.\n- **Adding to a share checks traversal.** `ALTER SHARE ... ADD TABLE` needs\n  `USE CATALOG` and `USE SCHEMA`; a `PERMISSION_DENIED` there is almost never\n  about the share.\n- **A share is a dependency.** An object in a share cannot be dropped\n  (`DELTA_SHARING_SECURABLE_DELETE_BLOCKED.BY_SHARES`), because dropping it would\n  break a recipient you may not be in contact with.\n\n**Two kinds of recipient**, and the difference decides the setup:\n\n| | Databricks-to-Databricks (D2D) | Open protocol (D2O) |\n|---|---|---|\n| Recipient is | another Databricks metastore | anyone with a Delta Sharing client |\n| Identified by | their sharing identifier (`cloud:region:metastore-id`) | a credential file you send them |\n| Auth | `DATABRICKS` | `TOKEN` |\n| They read with | a catalog mounted from the share | pandas, Spark, Power BI, anything speaking the protocol |\n\nOn the consumer side a D2D share arrives as a **provider**: `SHOW PROVIDERS`,\n`CREATE CATALOG partner_data USING SHARE provider.share`, and from there it is an\nordinary catalog with live data and no copy step. Open sharing must be enabled on\nthe metastore (`INTERNAL_AND_EXTERNAL`), a metastore-admin setting.\n\n**Audit both halves.** \"What is in the share\" and \"who has been granted the\nshare\" are two questions; a sharing review needs `SHOW ALL IN SHARE` *and*\n`SHOW GRANTS ON SHARE`. And the requirement that is easiest to miss is the one\nwith nothing to write: the table that must *not* be shared.\n\n## Lakehouse Federation — `PRO-S4-O2`\n\n| Noun | Is |\n|---|---|\n| **Connection** | credentials plus an address for a foreign system, stored once in Unity Catalog |\n| **Foreign catalog** | one database on that system, mounted into UC |\n\n```sql\nCREATE CONNECTION pg TYPE postgresql OPTIONS (host '...', port '5432', user '...', password '...');\nCREATE FOREIGN CATALOG crm USING CONNECTION pg OPTIONS (database 'crm');\nGRANT USE CONNECTION ON CONNECTION pg TO `analysts`;      -- may build a foreign catalog over it\nGRANT USE CATALOG, SELECT ON CATALOG crm TO `analysts`;    -- may read through it\n```\n\nSupported sources include PostgreSQL, MySQL, SQL Server, Redshift, Snowflake,\nBigQuery, Oracle, Teradata, Hive Metastore and another Databricks workspace.\n\nThe governance point: **the credential lives once, inside UC**, owned by whoever\ncreated the connection. Nobody who queries through it sees it, and error messages\nredact it. Foreign schemas and tables are discovered on demand and follow the\nsource as it changes; grants on the foreign catalog inherit to every foreign\ntable under it, exactly as in the `PRO-S8` model. A connection cannot be dropped\nwhile a foreign catalog is built on it.\n\n**Federation DDL is lazy.** A connection to a host that does not exist is\naccepted; so is a foreign catalog over it. The first statement to touch the\nsource is the first to fail, with `FAILED_JDBC.CONNECTION`. A green deployment\nproves nothing; only a query does.\n\n| | Federation | Ingest a copy |\n|---|---|---|\n| Freshness | live, always | as fresh as the last run |\n| Load on the source | every query hits it | one read per run |\n| Performance | bounded by the source and the network | Delta-native |\n| Good for | exploration, small dimensions, joins against something you do not own | anything hot, big, or repeatedly scanned |\n\nFederate to discover; ingest to serve. A foreign catalog is a live connection to\nsomebody's production database, and a careless join can put your job in their\nincident review.\n\n> Free Edition runs the provider side of sharing and all federation DDL, but has\n> no second metastore, no open-protocol sharing and no outbound JDBC path, so the\n> consumer side and the federated query path are theory here.\n",
+  "toc": [
+   {
+    "level": 2,
+    "text": "Delta Sharing",
+    "anchor": "delta-sharing--pro-s4-o1-pro-s4-o3",
+    "objective_ids": [
+     "PRO-S4-O1",
+     "PRO-S4-O3"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Lakehouse Federation",
+    "anchor": "lakehouse-federation--pro-s4-o2",
+    "objective_ids": [
+     "PRO-S4-O2"
+    ]
+   }
+  ],
+  "subpages": []
+ },
+ "PRO-S5": {
+  "section_id": "PRO-S5",
+  "exam": "professional",
+  "title": "Monitoring and Alerting",
+  "weight": 10,
+  "markdown": "# Monitoring and Alerting — 10%\n\nTwo halves. First, **which source answers which question**: that is what the\nexam tests, more than syntax. Second, **designing an alert people will still\nbelieve in a month**, which is a data question, not a tooling one.\n\n## Where the signals live — `PRO-S5-O1`, `PRO-S5-O2`, `PRO-S5-O4`\n\n| Source | Answers | Reach it with |\n|---|---|---|\n| System tables (`system.*`) | cost, usage, audit, lineage, workload | SQL |\n| Job run history | which task, how long, how often it fails | Jobs UI, REST API, CLI |\n| `DESCRIBE HISTORY` | what a table did and when | SQL, on any tier |\n| Query profile | where time and bytes went in one query | SQL editor |\n| Spark UI | stages, tasks, skew, spill, shuffle | the run's Spark UI |\n| Pipeline event log | pipeline state, expectations, data quality counts | SQL on the event log |\n\n**System tables** are Unity Catalog-governed, read-only tables that the platform\nmaintains: `system.billing.usage` (DBUs by SKU, workspace, tag), `system.access.audit`\n(who did what), `system.access.table_lineage` and `column_lineage`,\n`system.compute.*` (clusters, warehouses, node timelines) and\n`system.lakeflow.*` (jobs, job runs, pipelines). The shape of the two questions\nthe exam asks most:\n\n```sql\n-- what is this costing, by SKU, this month\nSELECT sku_name, sum(usage_quantity) AS dbus\nFROM system.billing.usage\nWHERE usage_date >= date_trunc('month', current_date())\nGROUP BY sku_name ORDER BY dbus DESC;\n\n-- who read this table in the last week\nSELECT user_identity.email, count(*) AS reads\nFROM system.access.audit\nWHERE action_name = 'getTable' AND event_date >= current_date() - 7\nGROUP BY 1 ORDER BY reads DESC;\n```\n\n**Query profile** is per query: which operator took the time, how many bytes were\nread versus pruned, whether a join broadcast or shuffled. **Spark UI** is per job\nrun: the stage whose one task is far slower than the rest (skew), \"spill (disk)\"\n(working set exceeded memory), hundreds of sub-second tasks (over-partitioned).\n\n**Pipeline event logs** record every update of a declarative pipeline: which\nflows ran, how many rows each expectation dropped or flagged, and pipeline-level\nerrors. Query them as a table to trend data-quality counts over time rather than\nreading one run's page.\n\n> Free Edition exposes few `system.*` schemas. The exam asks which table answers\n> which question, not whether your workspace shows it. `DESCRIBE HISTORY` works\n> everywhere.\n\n## Monitoring through the API and CLI — `PRO-S5-O3`\n\n```bash\ndatabricks jobs list-runs --job-id <id> --limit 25\ndatabricks jobs get-run <run-id>\ndatabricks jobs get-run-output <task-run-id>\ndatabricks pipelines get <pipeline-id>\n```\n\nThe same calls exist as REST endpoints (`/api/2.2/jobs/runs/list`,\n`/runs/get`, `/runs/get-output`). The API is how monitoring outlives a person\nwatching a dashboard: run durations pulled on a schedule become a trend you can\nalert on, and `runs/get-output` returns a notebook's exit value, which is how\nthis repo's app reads a grade.\n\n## SQL Alerts on data quality — `PRO-S5-O5`\n\nA SQL Alert is a saved query plus a condition on its result, evaluated on a\nschedule, notifying a destination when the condition holds.\n\n```sql\n-- the query behind an alert\nSELECT count(*) AS breaches\nFROM metrics\nWHERE run_date = current_date() AND rows_processed < 880;\n```\n\nFire when `breaches > 0`. A **fixed threshold is honest only when the metric is\nstationary**. When it has a cycle or drifts, the design rules below apply.\n\nFour rules for an alert worth keeping:\n\n1. **Compare like with like.** A rolling baseline moves with the metric and\n   survives a level shift. On a seasonal metric, compare the same day of week; a\n   Saturday against a Friday is a weekend against a weekday.\n2. **Alert on direction, not deviation.** A campaign doubling volume is not an\n   incident; the same deviation downward usually is.\n3. **Require persistence.** One low day is noise, three consecutive low days is\n   a trend. You trade a day of latency for an alert people believe.\n4. **Notify a channel, not a person.** People go on holiday.\n\n```sql\n-- fire only when the last 3 days are all below their baseline\nSELECT count(*) AS consecutive_low\nFROM (\n  SELECT run_date, rows_processed,\n         avg(rows_processed) OVER (\n           PARTITION BY day_type ORDER BY run_date\n           ROWS BETWEEN 6 PRECEDING AND 1 PRECEDING\n         ) AS baseline\n  FROM typed_metrics\n)\nWHERE run_date >= current_date() - 2 AND rows_processed < baseline * 0.9;\n```\n\nAn alert that fires too often is ignored within a fortnight, and the real one is\nignored with it. An alert that never fires is indistinguishable from none.\n\n## Job notifications — `PRO-S5-O6`\n\nJobs carry notifications at the job or task level: on start, success, failure,\nand **duration warnings** (a threshold after which a still-running run notifies)\nand **streaming backlog** thresholds. Destinations are email, Slack, Teams,\nPagerDuty or a webhook, configured once as notification destinations and reused.\nIn the API and in bundles this is the `email_notifications`,\n`webhook_notifications` and `health` blocks on the job; a run that exceeds\n`RUN_DURATION_SECONDS` is the standard \"it went green but took four times as\nlong\" catch.\n",
+  "toc": [
+   {
+    "level": 2,
+    "text": "Where the signals live",
+    "anchor": "where-the-signals-live--pro-s5-o1-pro-s5-o2-pro-s5-o4",
+    "objective_ids": [
+     "PRO-S5-O1",
+     "PRO-S5-O2",
+     "PRO-S5-O4"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Monitoring through the API and CLI",
+    "anchor": "monitoring-through-the-api-and-cli--pro-s5-o3",
+    "objective_ids": [
+     "PRO-S5-O3"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "SQL Alerts on data quality",
+    "anchor": "sql-alerts-on-data-quality--pro-s5-o5",
+    "objective_ids": [
+     "PRO-S5-O5"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Job notifications",
+    "anchor": "job-notifications--pro-s5-o6",
+    "objective_ids": [
+     "PRO-S5-O6"
+    ]
+   }
+  ],
+  "subpages": []
+ },
+ "PRO-S6": {
+  "section_id": "PRO-S6",
+  "exam": "professional",
+  "title": "Cost and Performance Optimization",
+  "weight": 13,
+  "markdown": "# Cost and Performance Optimization — 13%\n\nThe second-heaviest Professional section. Most optimisation questions are really\n\"which of these is happening?\", and the answer comes from `DESCRIBE DETAIL` and\nthe query profile rather than intuition. Learn the symptoms, the source that\nshows each one, and the fix that matches.\n\n## Why managed tables cost less to run — `PRO-S6-O1`\n\nWhen Unity Catalog owns a table's layout it can maintain it: **predictive\noptimization** runs `OPTIMIZE` (compaction and clustering) and `VACUUM`\nautomatically, based on how the table is used. On an external table that work is\nyours to schedule, and the usual failure is that nobody does until a query gets\nslow or storage bills climb from files nobody references. Managed tables also\nget the newer features first (liquid clustering, deletion vectors) and their\nlifecycle follows the catalog: drop the table, the files go.\n\n## Delta's optimisation features — `PRO-S6-O2`\n\n- **Liquid clustering** replaces partitioning and `ZORDER` for layout: keys can\n  be changed later with `ALTER TABLE ... CLUSTER BY`, the layout adapts\n  incrementally, and there is no partition explosion. Choose keys that are\n  **filtered on often and have low-to-moderate cardinality**. Clustering on a\n  near-unique column (an id) costs a rewrite and buys nothing: every file holds\n  a distinct range, so no file can be skipped.\n- **Deletion vectors** mark rows as deleted rather than rewriting files, making\n  deletes and updates much cheaper; the marked rows are cleaned up later during\n  maintenance (`REORG TABLE ... APPLY (PURGE)` forces it).\n- **`OPTIMIZE`** compacts small files; **`VACUUM`** removes files no longer\n  referenced by retained history.\n\n## How queries stay fast on large tables — `PRO-S6-O3`\n\nDelta records **min/max statistics per column per file**. A filter can skip a\nfile whose range excludes the value, but only if the values are **clustered**:\nscatter every region across every file and no file can be skipped. Data skipping\ntherefore needs statistics *and* locality, and clustering provides the locality.\nFile pruning is the same idea one level up: partition or cluster boundaries let\nthe planner ignore whole files without opening them. Column pruning comes from\nthe columnar format: a query pays only for the columns it references, which is\nwhy `SELECT *` on a wide table is a cost problem, not a style problem.\n\nStart every \"why is this slow\" with `DESCRIBE DETAIL`: `numFiles` and average file\nsize localise most problems before you open a query plan.\n\n## Change Data Feed — `PRO-S6-O4`\n\n`delta.enableChangeDataFeed` makes a table record its row-level changes\n(`_change_type` of insert, update_preimage, update_postimage, delete) so a\nconsumer can read *what changed* since a version instead of rescanning. It\naddresses the case a streaming table cannot handle: **updates and deletes to\nrows already consumed.** A downstream `MERGE` driven by the change feed stays\ncurrent with far less work and lower latency than a periodic full refresh, and\n`table_changes('t', start_version)` is how you read it in SQL.\n\n## Reading a query profile — `PRO-S6-O5`\n\nThe numbers worth finding first, in order:\n\n| Metric | Means |\n|---|---|\n| **Files pruned vs read** | whether data skipping worked at all |\n| **Bytes read** vs bytes returned | whether you read columns you discard |\n| **Spill** | the working set exceeded memory |\n| **Shuffle bytes** | how much data moved between stages |\n| **Join type** | broadcast (cheap) vs sort-merge with a shuffle on both sides |\n\nA query that reads every file for a filtered column has a **layout** problem. A\nquery that reads far more bytes than it returns has a **projection** problem. A\njoin that shuffles a small dimension has a **broadcast** problem\n(`spark.sql.autoBroadcastJoinThreshold`, default 10 MB, or an explicit\n`broadcast()`). One task far slower than its siblings is **skew**, which adaptive\nquery execution can split at runtime.\n\n| Symptom | Usual cause | Fix |\n|---|---|---|\n| Reads every file for a filter | no clustering on the filtered column | cluster on it |\n| Thousands of tiny files | frequent small appends | `OPTIMIZE`, or predictive optimization |\n| Reads far more bytes than returned | `SELECT *` on a wide table | project only what you need |\n| Big shuffle on a join | small side not broadcast | broadcast it |\n| Idle compute | always-on cluster for periodic work | job compute, or serverless |\n\nA table can suffer several of these at once, and clustering fixes exactly one of\nthem. That is the point of this section's assignment.\n",
+  "toc": [
+   {
+    "level": 2,
+    "text": "Why managed tables cost less to run",
+    "anchor": "why-managed-tables-cost-less-to-run--pro-s6-o1",
+    "objective_ids": [
+     "PRO-S6-O1"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Delta's optimisation features",
+    "anchor": "deltas-optimisation-features--pro-s6-o2",
+    "objective_ids": [
+     "PRO-S6-O2"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "How queries stay fast on large tables",
+    "anchor": "how-queries-stay-fast-on-large-tables--pro-s6-o3",
+    "objective_ids": [
+     "PRO-S6-O3"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Change Data Feed",
+    "anchor": "change-data-feed--pro-s6-o4",
+    "objective_ids": [
+     "PRO-S6-O4"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Reading a query profile",
+    "anchor": "reading-a-query-profile--pro-s6-o5",
+    "objective_ids": [
+     "PRO-S6-O5"
+    ]
+   }
+  ],
+  "subpages": []
+ },
+ "PRO-S7": {
+  "section_id": "PRO-S7",
+  "exam": "professional",
+  "title": "Ensuring Data Security and Compliance",
+  "weight": 10,
+  "markdown": "# Ensuring Data Security and Compliance — 10%\n\nTwo mistakes run through this section: treating a mask as deletion, and assuming\nyou know where the sensitive data is. The exam asks you to choose the right\ncontrol for the requirement, and to notice when the cheap control is not enough.\n\n## Least privilege with ACLs — `PRO-S7-O1`\n\nUnity Catalog securables (catalog, schema, table, view, volume, function) carry\nprivileges granted to users, groups and service principals, and privileges\n**inherit downward**: `SELECT` on a schema applies to every table in it,\nincluding tomorrow's. Least privilege in practice:\n\n- Grant to **groups**, not people; membership changes, grants do not.\n- Grant at the level that matches the need: a reader of one table gets `SELECT`\n  on the table plus the `USE CATALOG` and `USE SCHEMA` needed to reach it,\n  nothing wider.\n- Owners have everything implicitly and can grant; an object's owner is the one\n  grant you cannot see in `information_schema.*_privileges`.\n- Workspace objects (notebooks, folders, jobs) have their own ACLs\n  (`CAN_VIEW`, `CAN_RUN`, `CAN_EDIT`, `CAN_MANAGE`) with the same folder\n  inheritance; a service principal that must run a job needs `CAN_MANAGE_RUN`,\n  not ownership.\n\n## Row filters and column masks — `PRO-S7-O2`\n\nBoth are SQL functions attached to a table:\n\n```sql\nCREATE FUNCTION mask_salary(v DOUBLE) RETURN\n  CASE WHEN is_account_group_member('hr') THEN v ELSE NULL END;\nALTER TABLE employees ALTER COLUMN salary SET MASK mask_salary;\n\nCREATE FUNCTION region_filter(region STRING) RETURN\n  is_account_group_member('hr') OR region = current_user_region();\nALTER TABLE employees SET ROW FILTER region_filter ON (region);\n```\n\nA **column mask** decides what a viewer sees in a column; a **row filter**\ndecides which rows they see at all. They apply at query time to everyone,\nincluding the owner, so keep a **break-glass principal** in every rule: a policy\nthat excludes everyone is unauditable and unrecoverable. And remember what they\nare not: a mask can be dropped by anyone who can alter the table, so it hides\ndata from readers; it does not remove it.\n\n## Anonymisation and pseudonymisation — `PRO-S7-O3`\n\n| Technique | Reversible? | Keeps joinability | Keeps analytics |\n|---|---|---|---|\n| **Hashing** | no | yes: same input, same hash | grouping only |\n| **Tokenisation** | yes, with the vault | yes | grouping only |\n| **Suppression** | no | no | nothing |\n| **Generalisation** | no | no | aggregate patterns survive |\n\nChoose by what the data still has to do. Hashing an id keeps joins working;\nsuppressing it does not. **Hashing alone is not anonymisation when the input\nspace is small**: a hashed postcode or date of birth can be brute-forced by\nhashing every possible value. **Salt** low-entropy values and keep the salt out\nof the dataset. Generalisation trades precision for privacy: a birth date\nbecomes a decade, a postcode a region.\n\n## A compliant pipeline that finds PII — `PRO-S7-O4`\n\nMasking the columns you *know* hold PII is the easy half. Free text is where it\nhides: email addresses, phone numbers and names inside a `notes` field that a\ncolumn-by-column approach never inspects. A compliant pipeline detects as well\nas masks:\n\n- Pattern detection with `regexp_replace` for emails and phone numbers, applied\n  to every free-text column, in batch and in the streaming path alike.\n- Pseudonymise the identifier (salted hash) so records stay groupable, and drop\n  the raw identifier and name columns rather than masking them.\n- The same transformation function serves batch and streaming: a\n  `DataFrame.transform` step works on a static read and on `readStream`.\n\n## Retention and purging — `PRO-S7-O5`\n\n| Requirement | Satisfied by |\n|---|---|\n| \"Analysts must not see this\" | a mask or a filter |\n| \"We must not hold this after N days\" | deletion |\n| \"This person asked to be forgotten\" | deletion |\n\n**Masking is not deletion.** A masked row is a retained row. And a Delta\n`DELETE` removes rows from the current version only; earlier versions still hold\nthem, which is what time travel is for. To make an erasure final, expire the\nhistory and vacuum:\n\n```sql\nDELETE FROM records WHERE subject_id IN (SELECT subject_id FROM erasure_requests);\nALTER TABLE records SET TBLPROPERTIES (delta.deletedFileRetentionDuration = 'interval 0 days');\nVACUUM records RETAIN 0 HOURS;\n```\n\nRetaining zero hours breaks time travel and can disrupt concurrent readers: right\nfor an erasure request, wrong as a default. A **retention policy is a cutoff per\ncategory**; one cutoff for everything either keeps marketing data too long or\ndeletes transaction logs a regulator requires you to hold.\n",
+  "toc": [
+   {
+    "level": 2,
+    "text": "Least privilege with ACLs",
+    "anchor": "least-privilege-with-acls--pro-s7-o1",
+    "objective_ids": [
+     "PRO-S7-O1"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Row filters and column masks",
+    "anchor": "row-filters-and-column-masks--pro-s7-o2",
+    "objective_ids": [
+     "PRO-S7-O2"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Anonymisation and pseudonymisation",
+    "anchor": "anonymisation-and-pseudonymisation--pro-s7-o3",
+    "objective_ids": [
+     "PRO-S7-O3"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "A compliant pipeline that finds PII",
+    "anchor": "a-compliant-pipeline-that-finds-pii--pro-s7-o4",
+    "objective_ids": [
+     "PRO-S7-O4"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Retention and purging",
+    "anchor": "retention-and-purging--pro-s7-o5",
+    "objective_ids": [
+     "PRO-S7-O5"
+    ]
+   }
+  ],
+  "subpages": []
+ },
+ "PRO-S8": {
+  "section_id": "PRO-S8",
+  "exam": "professional",
+  "title": "Data Governance",
+  "weight": 7,
+  "markdown": "# Data Governance — 7%\n\nTwo objectives, one theme: **the catalog is a database about your data**, and the\nanswers to \"what is this?\" and \"who can read it?\" are queries. The trap in both\nis a query that returns a plausible, complete-looking result that is wrong.\n\n## Making data findable — `PRO-S8-O1`\n\nUnity Catalog gives three places to record what something is, and one place to\nread it back.\n\n| Want | Use | Read it back from |\n|---|---|---|\n| Prose for a human | `COMMENT ON TABLE t IS '...'`, or `COMMENT` in the DDL | `information_schema.tables.comment`, `columns.comment` |\n| A fact you can filter on | `ALTER TABLE t SET TAGS ('pii' = 'true')` | `information_schema.table_tags`, `column_tags` |\n| Who is responsible | `ALTER TABLE t OWNER TO ...` | `tables.table_owner` |\n\nComments and tags are not alternatives. A **comment** says *what this is*; a\n**tag** says *what class of thing this is*, and only the second is queryable at\nscale: \"show me every column holding PII\" is a query over `column_tags`, not a\nconversation. Every securable takes a comment (catalog, schema, table, column,\nvolume, function); tags go on tables and columns.\n\nTwo properties of `information_schema` to internalise before building on it:\n\n1. **It lives inside each catalog.** `my_catalog.information_schema.tables`\n   describes that catalog only; `system.information_schema` spans the metastore.\n2. **It is filtered by the caller's privileges.** An inventory built by an admin\n   and the same inventory built by an analyst are different inventories. A\n   feature, and a trap if you forget it.\n\n\"Documented\" is a **definition, not a column**. An inventory built on\n`tables.comment` alone reports as undocumented every table whose purpose lives in\na tag or in its column comments, confidently and wrongly. Decide what documented\nmeans for your organisation, write it down, then query for *that*.\n\n## The permission inheritance model — `PRO-S8-O2`\n\nTwo rules explain almost every access question:\n\n1. **A privilege granted on a container applies to everything inside it**, now\n   and in the future: metastore → catalog → schema → table.\n2. **You must be able to reach the object.** `SELECT` on a table is inert without\n   `USE CATALOG` on its catalog *and* `USE SCHEMA` on its schema.\n\nRule 1 is the one people know. Rule 2 generates the support tickets.\n\n**A privilege applies where it inherits; it lives where it was granted.** `SHOW\nGRANTS ON TABLE t` lists an inherited grant with `ObjectType = SCHEMA` and the\nschema as `ObjectKey`. Revoking it on the table (`REVOKE ... ON TABLE`) reports\nsuccess and removes nothing, because there was no table-level grant. Revoke it\nwhere it lives. `information_schema.table_privileges` carries the same fact in\n`inherited_from` (`NONE`, `SCHEMA` or `CATALOG`), and the obvious three-column\nquery simply does not select it.\n\n**Traversal is the privilege you can hold and not use.** A principal can be\ngranted `SELECT` on every table in a catalog and read none of them, because it\nlacks `USE SCHEMA`. `table_privileges` shows the `SELECT`; nothing in that view\nsays it is ineffective. Effective access is a conjunction across three levels,\nand no single view computes it. One spelling trap on the way: you *grant* `USE\nCATALOG` with a space and `information_schema` *records* it as `USE_CATALOG` with\nan underscore, so a filter on the form you typed matches zero rows and looks like\nnobody has access.\n\n**Ownership beats everything.** An owner holds every privilege implicitly and\nnothing in `SHOW GRANTS` says so. An access review that only reads grants makes\nowners invisible.\n\n| Question | Answer it with |\n|---|---|\n| Does this principal hold the privilege? | `information_schema.*_privileges` |\n| Where is it granted, so I can revoke it? | `SHOW GRANTS` → `ObjectType`, or `table_privileges.inherited_from` |\n| Can they actually read the table? | `USE CATALOG` **and** `USE SCHEMA` **and** the privilege |\n| Who has it without a grant? | the owner: `*_owner` columns |\n\nGroups make this manageable: grant to groups, and membership changes without\ntouching a grant. Service principals are principals like users, and appear in\n`information_schema` by application id, so an audit deliverable has to join to a\ndisplay name.\n",
+  "toc": [
+   {
+    "level": 2,
+    "text": "Making data findable",
+    "anchor": "making-data-findable--pro-s8-o1",
+    "objective_ids": [
+     "PRO-S8-O1"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "The permission inheritance model",
+    "anchor": "the-permission-inheritance-model--pro-s8-o2",
+    "objective_ids": [
+     "PRO-S8-O2"
+    ]
+   }
+  ],
+  "subpages": []
+ },
+ "PRO-S9": {
+  "section_id": "PRO-S9",
+  "exam": "professional",
+  "title": "Debugging and Deploying",
+  "weight": 10,
+  "markdown": "# Debugging and Deploying — 10%\n\nHalf of this section is reading what the platform tells you when something\nfails. The other half is the case the exam likes best: **nothing failed, and the\ndata is wrong anyway.** Plus the deployment path that gets code from a branch to\na workspace without a person clicking.\n\n## Diagnostic sources — `PRO-S9-O1`\n\nDatabricks error messages carry an **error class** (`CAST_INVALID_INPUT`,\n`DELTA_SOURCE_TABLE_IGNORE_CHANGES`) and a SQLSTATE. Both are searchable, and the\nclass is stable across versions in a way the prose is not. Read the class first.\n\n| Source | Answers |\n|---|---|\n| The error message | what broke, often how to fix it |\n| Run history | which task, and whether it is new or has always been slow |\n| `DESCRIBE HISTORY` | what the table did, and when |\n| Query profile | where the time and bytes went in one query |\n| Spark UI | which stage, skew, spill, shuffle |\n| Cluster logs | driver and executor detail (classic compute only) |\n| System tables | cost, audit and run history across the workspace |\n\nStart narrow. Opening logs before checking whether the run is simply slower than\nlast week wastes the easy answer. When a cast fails, `try_cast` turns \"it failed\"\ninto \"here are the three rows responsible\".\n\n## Repairing runs and overriding parameters — `PRO-S9-O2`\n\nA multi-task job that fails partway does **not** roll back what earlier tasks\ncommitted. **Repair** re-executes only the failed tasks and their dependants,\nwhich is why idempotent tasks matter: a repaired task runs again from the start.\n\n```bash\ndatabricks jobs list-runs --job-id <id>\ndatabricks jobs repair-run <run-id> --rerun-tasks failed_task\ndatabricks jobs repair-run <run-id> --job-parameters '{\"cutoff\":\"2026-03-01\"}'\n```\n\nParameter overrides on repair (and on `run-now`) re-run a task against a\ncorrected input without editing and redeploying the job. Job-level parameters\nreach notebooks as widgets; task values pass small results between tasks.\n\n## Debugging pipelines — `PRO-S9-O3`\n\nA declarative pipeline's **event log** is the record: every update, every flow,\nexpectation counts, and the error with its error class when a flow fails. Query\nit as a table to see which expectation started dropping rows and when. The\npipeline's Spark UI answers the same questions as a job's (a stage that skews, a\nshuffle that spills). For a hand-rolled Structured Streaming job, the checkpoint\nis where state lives; a stream that \"does nothing\" on restart usually has a\ncheckpoint that already consumed the input, and a stream that reprocesses\neverything has lost it.\n\n## Deploying with bundles — `PRO-S9-O4`\n\n```bash\ndatabricks bundle validate -t prod    # configuration only, never runs code\ndatabricks bundle deploy -t prod      # uploads files, creates or updates resources\ndatabricks bundle run my_job -t prod  # triggers a job, or deploys and starts an app\n```\n\n`validate` checks configuration and resolves variables; it is not a test run.\n`deploy` is idempotent and records the deploying identity in the workspace path\n(`/Users/<deployer>/.bundle/<name>/<target>`). Development mode prefixes resource\nnames with `[dev <user>]` and pauses schedules; production mode does neither and\nexpects a single deployer. Environment-specific values are **variables overridden\nper target**, never edits to the YAML.\n\n## Git-based CI/CD — `PRO-S9-O5`\n\n```\nbranch → pull request → checks → merge → deploy\n```\n\n- **Git folders** (formerly Repos) put a branch in the workspace so notebooks can\n  be edited and run against real compute, then committed. The folder tracks one\n  branch; switching branches switches every notebook in it.\n- **CI** runs the checks on the pull request (validation, unit tests, `bundle\n  validate`) with no credentials to production.\n- **CD** runs on merge to `main`, re-validates, then `bundle deploy` as a\n  **service principal** over OAuth M2M, never as a person. The deploy re-runs\n  tests because two individually valid pull requests can merge into a broken\n  `main`.\n\nOne trap worth knowing: if `DATABRICKS_CONFIG_PROFILE` is set in your shell, the\nCLI resolves that profile and ignores `DATABRICKS_CLIENT_ID` and `SECRET`, so a\nlocal test of CI authentication runs as *you* and appears to succeed.\n\n## The failure that does not raise\n\nEverything above assumes something failed. The dangerous failures do not:\n\n| Silent failure | Run state | How it shows |\n|---|---|---|\n| An upstream source stops arriving | SUCCESS | row count drops |\n| A join starts dropping rows | SUCCESS | row count drops |\n| A cast starts failing | SUCCESS | null rate rises |\n| A filter's assumption breaks | SUCCESS | count moves either way |\n\nNone of these raise. The run is green, the alert never fires, and the data is\nwrong until somebody downstream notices. **The only reliable detector is a\ntrend**: compare this run's row count, null rate, or per-source contribution\nagainst the previous runs. For a table rebuilt on a schedule, `DESCRIBE HISTORY`\nholds the operation metrics of every version; for a job, the run history holds\ndurations. A version that wrote noticeably fewer rows than the one before, with\nno error anywhere, is the shape of a silent regression. That comparison is the\nwhole technique, and it is this section's assignment.\n",
+  "toc": [
+   {
+    "level": 2,
+    "text": "Diagnostic sources",
+    "anchor": "diagnostic-sources--pro-s9-o1",
+    "objective_ids": [
+     "PRO-S9-O1"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Repairing runs and overriding parameters",
+    "anchor": "repairing-runs-and-overriding-parameters--pro-s9-o2",
+    "objective_ids": [
+     "PRO-S9-O2"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Debugging pipelines",
+    "anchor": "debugging-pipelines--pro-s9-o3",
+    "objective_ids": [
+     "PRO-S9-O3"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Deploying with bundles",
+    "anchor": "deploying-with-bundles--pro-s9-o4",
+    "objective_ids": [
+     "PRO-S9-O4"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "Git-based CI/CD",
+    "anchor": "git-based-cicd--pro-s9-o5",
+    "objective_ids": [
+     "PRO-S9-O5"
+    ]
+   },
+   {
+    "level": 2,
+    "text": "The failure that does not raise",
+    "anchor": "the-failure-that-does-not-raise",
+    "objective_ids": []
+   }
+  ],
+  "subpages": []
  }
 }
