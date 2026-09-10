@@ -376,10 +376,11 @@ individually-valid PRs can merge into a broken `main`. Then
 `databricks bundle deploy -t free`, with a concurrency group so two deploys can't
 race.
 
-The bundle now includes the study app (`bundle/resources/de_prep_study_app.app.yml`),
-so a deploy also rebuilds and restarts `de-prep-study` — Databricks runs
-`npm install` and `npm run build` remotely, which is why `deploy.yml` sets up no
-Node toolchain. Check it afterwards with
+The bundle now includes the study app (`bundle/resources/de_prep_study_app.app.yml`).
+`bundle deploy` only uploads it and creates the app resource, stopped; the
+following `bundle run study_app` step is what deploys the source and starts the
+app (and redeploys it when it is already running). Databricks runs `npm install`
+and `npm run build` remotely, which is why `deploy.yml` sets up no Node toolchain. Check it afterwards with
 `databricks apps get de-prep-study --profile FREE -o json`.
 
 ---
