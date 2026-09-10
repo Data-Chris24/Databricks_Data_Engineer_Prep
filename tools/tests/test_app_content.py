@@ -211,3 +211,20 @@ def test_starters_embed_every_learner_notebook(bundle):
                 assert x["source"].startswith("# Databricks notebook source"), f"{s.id}/{x['name']}"
     assert [x["name"] for x in starters["ASSOC-S3"]] == ["assignment"]
     assert [x["name"] for x in starters["ASSOC-S5"]] == ["assignment", "publish_summary"]
+
+
+def test_every_section_of_both_exams_has_notes(bundle):
+    notes = bundle["notes.json"]
+    for exam in load_all():
+        for s in exam.sections:
+            assert s.id in notes, f"{s.id}: no content/lessons/{exam.id}/{s.id}.md"
+
+
+def test_every_objective_is_named_in_its_section_note():
+    """The notes are organised by objective; a heading names each one it covers."""
+    for exam in load_all():
+        for s in exam.sections:
+            path = bac.LESSONS_DIR / exam.id / f"{s.id}.md"
+            headings = "\n".join(l for l in path.read_text().splitlines() if l.startswith("#"))
+            missing = [o.id for o in s.objectives if o.id not in headings]
+            assert not missing, f"{s.id}: no heading names {missing}"
