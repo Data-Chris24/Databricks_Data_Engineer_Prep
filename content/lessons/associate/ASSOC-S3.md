@@ -62,6 +62,10 @@ the standard way to change grain from one-row-per-container to one-row-per-item.
 
 `split()` returns an array; index it for the parts. **Spark SQL arrays are 0-based.**
 
+Indexing past the end **raises** `INVALID_ARRAY_INDEX` under ANSI semantics — it does
+not return null — so one malformed row fails the batch. Use `get(arr, i)` when a
+missing part is expected and should be null.
+
 DataFrames are immutable. Every transformation returns a new one, and transformations
 are lazy — nothing runs until an action.
 
