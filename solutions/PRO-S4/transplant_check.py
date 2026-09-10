@@ -110,10 +110,10 @@ ctx = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
 repo_root = ("/Workspace" + os.path.dirname(ctx.notebookPath().get())).split("/files/")[0] + "/files"
 
 workdir = tempfile.mkdtemp(prefix="transplant_pro_s4_")
-shutil.copytree(os.path.join(repo_root, "notebooks", "assignments", "PRO-S4", "tests"),
+shutil.copytree(os.path.join(repo_root, "grading", "PRO-S4", "tests"),
                 os.path.join(workdir, "tests"))
 fixtures = os.path.join(workdir, "expected.json")
-shutil.copyfile(os.path.join(repo_root, "solutions", "PRO-S4", "expected.json"), fixtures)
+shutil.copyfile(os.path.join(repo_root, "grading", "PRO-S4", "expected.json"), fixtures)
 os.environ["PRO_S4_FIXTURES"] = fixtures
 
 buf = io.StringIO()

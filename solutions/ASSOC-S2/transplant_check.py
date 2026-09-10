@@ -79,12 +79,12 @@ import pytest
 
 ctx = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
 repo_root = ("/Workspace" + os.path.dirname(ctx.notebookPath().get())).split("/files/")[0] + "/files"
-tests_src = os.path.join(repo_root, "notebooks", "assignments", "ASSOC-S2", "tests")
+tests_src = os.path.join(repo_root, "grading", "ASSOC-S2", "tests")
 
 workdir = tempfile.mkdtemp(prefix="transplant_")
 shutil.copytree(tests_src, os.path.join(workdir, "tests"))
 fixtures = os.path.join(workdir, "expected.json")
-shutil.copyfile(os.path.join(repo_root, "solutions", "ASSOC-S2", "expected.json"), fixtures)
+shutil.copyfile(os.path.join(repo_root, "grading", "ASSOC-S2", "expected.json"), fixtures)
 os.environ["ASSOC_S2_FIXTURES"] = fixtures
 
 buf = io.StringIO()

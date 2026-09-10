@@ -5,15 +5,6 @@ resources:
       tasks:
         - task_key: grade
           notebook_task:
-            notebook_path: ../../notebooks/assignments/PRO-S10/grade.py
-      queue:
-        enabled: true
-
-    transplant_check_pro_s10:
-      name: "[DE prep] Anti-transplant check PRO-S10"
-      tasks:
-        - task_key: transplant
-          notebook_task:
-            notebook_path: ../../solutions/PRO-S10/transplant_check.py
+            notebook_path: ../../grading/PRO-S10/grade.py
       queue:
         enabled: true

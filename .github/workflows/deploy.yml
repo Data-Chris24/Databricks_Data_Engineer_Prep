@@ -41,9 +41,14 @@ jobs:
 
       - uses: databricks/setup-cli@main
 
+      # Not --strict: the learner targets exclude ../solutions/** from sync, and
+      # the CLI's "pattern matches no files" check evaluates that pattern against
+      # the bundle folder instead of the sync root, so it warns although the
+      # exclusion works (verified with `bundle sync --dry-run --full`). Errors
+      # still fail this step.
       - name: Validate bundle
         working-directory: bundle
-        run: databricks bundle validate --strict -t free
+        run: databricks bundle validate -t free
 
       - name: Deploy bundle
         working-directory: bundle

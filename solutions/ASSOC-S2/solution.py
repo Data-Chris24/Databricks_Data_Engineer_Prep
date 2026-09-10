@@ -115,7 +115,7 @@ spark.table(TARGET).printSchema()
 # MAGIC %md
 # MAGIC ## 6. Emit the fixtures the tests assert against
 # MAGIC
-# MAGIC Committed to `solutions/ASSOC-S2/expected.json`, so the suite can check
+# MAGIC Committed to `grading/ASSOC-S2/expected.json`, so the suite can check
 # MAGIC known answers without this notebook existing.
 
 # COMMAND ----------

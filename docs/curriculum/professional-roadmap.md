@@ -60,7 +60,7 @@ Two things reliably show up:
 - **Structured Streaming vs Declarative Pipelines** — when each is the right tool.
 
 > The grading harness in this repo is built from exactly the testing APIs
-> `PRO-S1-O11` examines. Read `notebooks/assignments/*/tests/` — it's a worked
+> `PRO-S1-O11` examines. Read `grading/*/tests/` — it's a worked
 > example of a testable objective.
 
 ### 2. Ingestion and transformation (Sections 2 + 3, 17%)

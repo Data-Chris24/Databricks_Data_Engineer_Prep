@@ -38,7 +38,8 @@ guides; content is being built section by section.
 | `notebooks/lessons/` | Worked examples, on the `teach` datasets |
 | `notebooks/assignments/` | Graded assignments, on the `assess` datasets |
 | `notebooks/optional-classic/` | [Optional labs](docs/optional-classic-track.md) needing a paid/trial workspace |
-| `grading/` | Unit-test harness + optional [AI reviewer](docs/grading.md) |
+| `grading/` | Per-section graders, tests and fixtures the app runs, plus the optional [AI reviewer](docs/grading.md) |
+| `solutions/` | Reference solutions and anti-transplant proofs. **Never deployed to a learner's workspace** (maintainer `verify` target only) |
 | [`tools/`](tools/) | Content validators + tests — CI runs these |
 | [`app/`](app/) | The study app (AppKit + Lakebase): Learn, Practice, timed Test |
 | [`bundle/`](bundle/) | Declarative Automation Bundle; deploys the labs and the app |

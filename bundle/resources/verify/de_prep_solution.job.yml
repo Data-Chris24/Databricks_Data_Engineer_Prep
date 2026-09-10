@@ -1,0 +1,20 @@
+# Maintainer-only. These jobs run the reference solution or prove the
+# anti-transplant property, so they exist only in the `verify` target:
+#     databricks bundle deploy -t verify --profile FREE
+#     databricks bundle run <job_key> -t verify --profile FREE
+# The learner-facing `free` target never deploys solutions/ at all.
+# Runs the reference solution. Two jobs in one: it proves the solution still works
+# against the current data, and it emits the expected-value fixtures the graded
+# test suite asserts against.
+targets:
+  verify:
+    resources:
+      jobs:
+        run_solution_assoc_s2:
+          name: '[DE prep] Reference solution ASSOC-S2'
+          tasks:
+          - task_key: solution
+            notebook_task:
+              notebook_path: ../../../solutions/ASSOC-S2/solution.py
+          queue:
+            enabled: true
