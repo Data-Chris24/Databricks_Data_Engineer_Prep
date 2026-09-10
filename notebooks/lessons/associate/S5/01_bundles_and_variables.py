@@ -56,7 +56,7 @@ spark.sql(f"USE SCHEMA {SCHEMA}")
 import re
 jobs = spark.sql("SELECT 1").collect()  # placeholder so the cell has an action
 print("Job names carry the deploying identity, e.g.:")
-print("  [dev datachris24]      [DE prep] Generate ASSOC-S5 datasets   <- deployed by hand")
+print("  [dev <your name>]      [DE prep] Generate ASSOC-S5 datasets   <- deployed by hand")
 print("  [dev github_actions_ci] [DE prep] Generate ASSOC-S5 datasets  <- deployed by CI")
 print()
 print("Same definition, same bundle, different deployer - and they cannot overwrite")

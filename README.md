@@ -77,6 +77,39 @@ python3 -m venv .venv
 
 ---
 
+## Deploy your own copy
+
+This repo is meant to be **forked and deployed to your own Free Edition
+workspace**. Nothing in it depends on the maintainer's account: jobs run as
+whoever deploys, the app keys everything on whoever is signed in, and a reset
+restores the repo's clean notebooks and drops what an assignment produced.
+
+```bash
+# 1. Authenticate to your workspace
+databricks auth login --host <your-workspace-url> --profile FREE
+
+# 2. The one Lakebase project Free Edition allows, for the app's progress store
+databricks postgres create-project de-prep --json '{"spec":{"display_name":"DE prep study app"}}' --profile FREE
+
+# 3. Deploy everything - labs, graders and the app - and start the app
+cd bundle
+databricks bundle deploy -t free --profile FREE
+databricks bundle run study_app -t free --profile FREE
+databricks apps get de-prep-study --profile FREE -o json | grep '"url"'
+```
+
+Open that URL. Because the jobs run as you and you own the tables you create,
+no grants are needed. Deploy from the same machine and profile each time (a
+development-mode deploy is named after its deployer). The optional GitHub Actions
+pipeline in [`.github/workflows/`](.github/workflows/) is how the upstream repo
+deploys; [`docs/ci-cd.md`](docs/ci-cd.md) covers setting it up with a service
+principal if you want the same.
+
+Never edit the deployed notebooks under `.bundle/`: the app gives you your own
+copy of each assignment, and a reset puts the repo's clean version back.
+
+---
+
 ## How to study with this
 
 Open the **study app** in your workspace (it deploys with the bundle) and pick

@@ -77,8 +77,10 @@ Two rules that come from how Lakebase and Databricks Apps hand out ownership:
   against the database first, *your* role owns the schema and the deployed app
   gets `permission denied` forever (recovery is drop-and-redeploy, which loses
   data). `app/README.md` has the check to run first.
-- **Never `bundle deploy` from a laptop.** Development mode prefixes resource
-  names, so it would create a second app and use one of the three slots.
+- **One deployer per workspace.** Development mode prefixes resource names, so
+  a second deployer (CI plus a laptop, say) would create a second app and use one
+  of the three slots. In the upstream repo that deployer is CI; in a fork it is
+  you, from the same machine and profile each time.
 
 Confirmed on the first deploys (2026-09-10):
 

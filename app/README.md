@@ -15,12 +15,16 @@ fails if the JSON is stale.
 
 ## How it is deployed
 
-Only by CI, from `main`, through the repo bundle
-(`bundle/resources/de_prep_study_app.app.yml`). Do not `databricks bundle deploy`
-from a laptop: development mode would create a second, dev-prefixed app and Free
-Edition allows three.
+Through the repo bundle (`bundle/resources/de_prep_study_app.app.yml`), from
+whichever principal deploys it:
 
-The Lakebase project (`projects/de-prep`) was created once by hand and is not a
+- **Upstream repo:** CI from `main`, as a service principal. Do not also
+  `bundle deploy` from a laptop there: development mode would create a second,
+  dev-prefixed app and Free Edition allows three.
+- **Your fork:** from your laptop, as you (`databricks bundle deploy -t free`,
+  then `bundle run study_app`). Same machine and profile each time.
+
+The Lakebase project (`projects/de-prep`) is created once by hand and is not a
 bundle resource, so no bundle command can delete learner progress.
 
 ## Local development
