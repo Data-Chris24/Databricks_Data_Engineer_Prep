@@ -1,0 +1,313 @@
+# PRO-S9 — Debugging and Deploying (10%). Original questions.
+meta:
+  source: Original, written for this repository.
+  note: Covers PRO-S9-O1 through O5.
+
+questions:
+  - id: PRO-S9-Q001
+    objective_ids: [PRO-S9-O1]
+    difficulty: application
+    provenance: original
+    tags: [error-class, sqlstate, diagnostics]
+    stem: >-
+      A job fails with a long stack trace whose first line reads
+      "[CAST_INVALID_INPUT] The value '12 units' of the type STRING cannot be cast to INT".
+      What is the most reliable thing to search for and act on?
+    options:
+      A: >-
+        The error class CAST_INVALID_INPUT, which is stable across releases and documented; then find the rows with try_cast to see what would not convert.
+      B: >-
+        The full stack trace, pasted into a search engine.
+      C: >-
+        The line number in the notebook, which identifies the failing cell.
+      D: >-
+        The cluster's driver log, which has the real cause.
+    correct: A
+    explanation: >-
+      Databricks error messages carry a stable error class and SQLSTATE; the prose
+      changes between versions, the class does not. try_cast then turns "it failed"
+      into a list of the responsible rows.
+    distractor_rationale:
+      B: >-
+        Stack traces are noisy and version-specific; the class is the searchable key.
+      C: >-
+        The cell tells you where, not why; the message already names the value.
+      D: >-
+        The message on the run already names the cause; logs are for when it does not, and are unavailable on serverless.
+
+  - id: PRO-S9-Q002
+    objective_ids: [PRO-S9-O1]
+    difficulty: analysis
+    provenance: original
+    tags: [diagnostics, order-of-investigation, run-history]
+    stem: >-
+      A nightly job that usually takes 15 minutes took 70 last night and succeeded.
+      An engineer opens the cluster logs first. What is the better first step, and
+      why?
+    options:
+      A: >-
+        Compare the run's task durations with previous runs in the run history to localise which task slowed, then open that task's Spark UI; logs come last.
+      B: >-
+        Opening the logs is right; they contain the most detail.
+      C: >-
+        Re-run the job to see whether it is slow again before investigating.
+      D: >-
+        Check system.billing.usage to see whether the run cost more.
+    correct: A
+    explanation: >-
+      Start narrow. Run history shows which task changed; the Spark UI for that
+      task shows the stage and whether it skewed or spilled. Reading logs before
+      knowing where to look wastes the easy answer.
+    distractor_rationale:
+      B: >-
+        Detail without a target is noise; and serverless runs have no cluster logs at all.
+      C: >-
+        Re-running discards the evidence you already have and costs another 70 minutes.
+      D: >-
+        Cost confirms it was slow; it does not say where.
+
+  - id: PRO-S9-Q003
+    objective_ids: [PRO-S9-O2]
+    difficulty: application
+    provenance: original
+    tags: [repair-run, multi-task, idempotence]
+    stem: >-
+      A four-task job failed at task 3. Tasks 1 and 2 each appended rows to Delta
+      tables and succeeded. The engineer repairs the run. What happens?
+    options:
+      A: >-
+        Only task 3 and its dependants re-run; tasks 1 and 2 are not repeated and their commits stand.
+      B: >-
+        All four tasks re-run from the start, so tasks 1 and 2 append their rows a second time.
+      C: >-
+        Tasks 1 and 2 are rolled back and the whole job runs again.
+      D: >-
+        The repair fails because appends cannot be part of a repairable job.
+    correct: A
+    explanation: >-
+      Repair re-executes failed tasks and the tasks that depend on them. Earlier
+      successful commits are not rolled back and not repeated. The task being
+      repaired does run again from its start, which is why tasks should be
+      idempotent.
+    distractor_rationale:
+      B: >-
+        Successful tasks are skipped by repair; that is the difference from a fresh run.
+      C: >-
+        Delta commits are durable; a job has no transaction spanning tasks.
+      D: >-
+        Any job can be repaired; the append concern is about the repaired task, not the earlier ones.
+
+  - id: PRO-S9-Q004
+    objective_ids: [PRO-S9-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [parameter-override, repair, run-now]
+    stem: >-
+      A job's task reads a cutoff date from a job parameter and failed because the
+      upstream data for that date was late. The data has now arrived. What is the
+      lightest correct way to complete the run?
+    options:
+      A: >-
+        Repair the run (or run-now), overriding the parameter if the date must change; no edit to the job definition is needed.
+      B: >-
+        Edit the job's default parameter in the UI, redeploy, and start a new run.
+      C: >-
+        Edit the notebook to hard-code the date, then repair the run.
+      D: >-
+        Delete the failed run and create a new job for the late date.
+    correct: A
+    explanation: >-
+      Parameter overrides on repair and run-now exist for exactly this: re-run
+      against a corrected input without touching the job definition. The definition
+      stays the reviewed one; the override lives with the run.
+    distractor_rationale:
+      B: >-
+        Changing the default affects every future run and requires a deploy for a one-off.
+      C: >-
+        Hard-coding in the notebook breaks the parameterisation permanently.
+      D: >-
+        A new job duplicates configuration and loses the run's history.
+
+  - id: PRO-S9-Q005
+    objective_ids: [PRO-S9-O3]
+    difficulty: application
+    provenance: original
+    tags: [pipeline-event-log, debugging, expectations]
+    stem: >-
+      A declarative pipeline update failed. Which query surface shows the failing
+      flow, its error class, and the expectation counts recorded before the failure,
+      in one place?
+    options:
+      A: The pipeline's event log, queried for that update id.
+      B: The pipeline's target table's DESCRIBE HISTORY.
+      C: The Jobs run list for the job that triggered the pipeline.
+      D: The SQL warehouse query history.
+    correct: A
+    explanation: >-
+      The event log records each update's flows, expectation results and errors.
+      It is the pipeline equivalent of run history plus error message, and it is
+      queryable as a table so the failure can be seen in context.
+    distractor_rationale:
+      B: >-
+        Table history records successful writes; a failed update leaves no commit to describe.
+      C: >-
+        The job only knows the pipeline task failed; the flows are inside the pipeline.
+      D: >-
+        Query history is for warehouse queries, not pipeline updates.
+
+  - id: PRO-S9-Q006
+    objective_ids: [PRO-S9-O3]
+    difficulty: analysis
+    provenance: original
+    tags: [structured-streaming, checkpoint, restart]
+    stem: >-
+      A Structured Streaming job restarted after a deploy and reprocessed every file
+      in its source, doubling the rows in the target. Nothing in the code changed.
+      What most likely happened?
+    options:
+      A: >-
+        The checkpoint location changed or was deleted, so the stream had no memory of consumed files and started from the beginning.
+      B: >-
+        The source folder was re-uploaded, which Auto Loader treats as new data.
+      C: >-
+        The target table's transaction log was compacted, which resets the stream.
+      D: >-
+        The trigger switched to availableNow, which reads everything each time.
+    correct: A
+    explanation: >-
+      The checkpoint is the stream's memory of what it has consumed. A new or
+      deleted checkpoint path makes the stream start from scratch, and an append
+      sink faithfully appends everything again with no error.
+    distractor_rationale:
+      B: >-
+        Identical re-uploaded files are not new to Auto Loader; its checkpoint records them.
+      C: >-
+        Compaction of the target's log does not affect the source stream's progress.
+      D: >-
+        availableNow processes what is new since the checkpoint, not everything.
+
+  - id: PRO-S9-Q007
+    objective_ids: [PRO-S9-O4]
+    difficulty: application
+    provenance: original
+    tags: [dabs, validate, deploy, run]
+    stem: >-
+      A CI pipeline runs databricks bundle validate -t prod and reports success. A
+      teammate concludes the job's notebook has been tested. What is true?
+    options:
+      A: >-
+        validate checks configuration and resolves variables only; it runs no code. Tests need a separate step, and bundle run executes the job.
+      B: >-
+        validate executes each job once in a dry-run mode, so the notebook did run.
+      C: >-
+        validate deploys to a temporary target and runs the job there.
+      D: >-
+        validate is equivalent to deploy without the upload step.
+    correct: A
+    explanation: >-
+      bundle validate is a configuration check. deploy uploads files and creates or
+      updates resources; run triggers a job or deploys and starts an app. Testing is
+      whatever the team adds to CI, and a green validate says nothing about it.
+    distractor_rationale:
+      B: >-
+        There is no dry-run execution of jobs in validate.
+      C: >-
+        validate touches no target beyond resolving its configuration.
+      D: >-
+        deploy creates and updates resources; validate creates nothing.
+
+  - id: PRO-S9-Q008
+    objective_ids: [PRO-S9-O4]
+    difficulty: analysis
+    provenance: original
+    tags: [dabs, deployer, workspace-path, service-principal]
+    stem: >-
+      A bundle deployed by CI as a service principal places its files under
+      /Workspace/Users/<application-id>/.bundle/<name>/<target>/files. An engineer
+      deploys the same bundle from a laptop with the same target and finds a second
+      copy under their own home folder, and two jobs with different name prefixes.
+      What does this demonstrate?
+    options:
+      A: >-
+        A deployment is namespaced by the deploying identity in development mode; one deployer per environment is the rule for production.
+      B: >-
+        A bug: the second deploy should have overwritten the first.
+      C: >-
+        The service principal lacks permission to write to the engineer's folder.
+      D: >-
+        The target was misconfigured to production mode on one of the two machines.
+    correct: A
+    explanation: >-
+      The workspace path records who deployed, and development mode prefixes
+      resources by deployer. Two deployers, two deployments. Production
+      deployments use a single principal (usually CI) precisely to avoid this.
+    distractor_rationale:
+      B: >-
+        Not a bug; isolation per deployer is what development mode is for.
+      C: >-
+        Each deployer writes to its own home; nobody wrote to anyone else's.
+      D: >-
+        Both used development mode; that is why both have prefixes.
+
+  - id: PRO-S9-Q009
+    objective_ids: [PRO-S9-O5]
+    difficulty: application
+    provenance: original
+    tags: [git-folders, branches, ci-cd]
+    stem: >-
+      A team edits notebooks in a Databricks Git folder linked to a feature branch,
+      commits, and opens a pull request. Which statement about the workflow is
+      accurate?
+    options:
+      A: >-
+        The Git folder tracks one branch at a time; switching branches changes every notebook in the folder, and the pull request's checks run in CI outside the workspace.
+      B: >-
+        Each notebook in the Git folder can be on its own branch.
+      C: >-
+        Committing from the Git folder deploys the notebooks to production automatically.
+      D: >-
+        Git folders only support the main branch; feature branches must be handled locally.
+    correct: A
+    explanation: >-
+      A Git folder is a checkout of one branch in the workspace: edit and run there,
+      commit, push, review in the Git provider. Deployment is a separate step, driven
+      by CI on merge, not by the commit itself.
+    distractor_rationale:
+      B: >-
+        The folder is a single checkout; the branch applies to all of it.
+      C: >-
+        A commit is a commit; deployment happens when a pipeline runs bundle deploy on merge.
+      D: >-
+        Git folders check out any branch and can create them.
+
+  - id: PRO-S9-Q010
+    objective_ids: [PRO-S9-O5]
+    difficulty: analysis
+    provenance: original
+    tags: [ci-cd, service-principal, oauth, config-profile]
+    stem: >-
+      An engineer tests the CI deploy locally by exporting DATABRICKS_CLIENT_ID and
+      DATABRICKS_CLIENT_SECRET for the service principal and running bundle deploy.
+      It succeeds, but the resources appear under the engineer's own user path. Why?
+    options:
+      A: >-
+        DATABRICKS_CONFIG_PROFILE was set in the shell, so the CLI resolved that profile and ignored the client credentials, deploying as the engineer.
+      B: >-
+        Service principals always deploy under the invoking user's path.
+      C: >-
+        The client secret had expired, and the CLI fell back to the user's browser session.
+      D: >-
+        bundle deploy ignores environment variables; only the profile file counts.
+    correct: A
+    explanation: >-
+      A named profile takes precedence over machine-to-machine environment
+      variables. The deploy quietly ran as the person, which is why a local test of
+      CI authentication must unset the profile (env -u DATABRICKS_CONFIG_PROFILE) to
+      mean anything.
+    distractor_rationale:
+      B: >-
+        A service-principal deploy lands under the principal's own path.
+      C: >-
+        An expired secret fails authentication; it does not silently switch identity.
+      D: >-
+        Environment variables are a supported auth method; the profile simply outranked them.

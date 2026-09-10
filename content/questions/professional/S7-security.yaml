@@ -1,0 +1,312 @@
+# PRO-S7 — Ensuring Data Security and Compliance (10%). Original questions; Q001 is
+# an official sample in official-samples.yaml.
+meta:
+  source: Original, written for this repository.
+  note: Covers PRO-S7-O1 through O5.
+
+questions:
+  - id: PRO-S7-Q002
+    objective_ids: [PRO-S7-O1]
+    difficulty: application
+    provenance: original
+    tags: [acl, least-privilege, groups, grants]
+    stem: >-
+      An analyst needs to query one table, sales.orders, and nothing else in the
+      catalog. Which set of grants is least privilege?
+    options:
+      A: >-
+        USE CATALOG on the catalog, USE SCHEMA on sales, and SELECT on sales.orders, granted to a group the analyst belongs to.
+      B: >-
+        SELECT on the catalog, so the analyst can read any table they need later.
+      C: >-
+        SELECT on sales.orders only; traversal privileges are implied by a table grant.
+      D: >-
+        Ownership of sales.orders, since owners can always read.
+    correct: A
+    explanation: >-
+      A table grant is inert without the traversal privileges to reach it, so the
+      minimum is the two USE privileges plus SELECT on the one table. Granting to a
+      group keeps the grant stable when people change.
+    distractor_rationale:
+      B: >-
+        SELECT on the catalog inherits to every table in it, far beyond one table.
+      C: >-
+        USE CATALOG and USE SCHEMA are not implied; without them the SELECT cannot be exercised.
+      D: >-
+        Ownership carries every privilege including granting to others; it is the opposite of least privilege.
+
+  - id: PRO-S7-Q003
+    objective_ids: [PRO-S7-O1]
+    difficulty: analysis
+    provenance: original
+    tags: [workspace-acl, jobs, can-manage-run, service-principal]
+    stem: >-
+      An application must trigger an existing job and read its run output, and must
+      not be able to edit the job. Which workspace permission on the job fits?
+    options:
+      A: CAN_MANAGE_RUN, which allows triggering, cancelling and reading runs without changing the definition.
+      B: CAN_VIEW, which allows triggering runs read-only.
+      C: CAN_MANAGE, which is required to trigger runs.
+      D: IS_OWNER, since only owners can start jobs.
+    correct: A
+    explanation: >-
+      Job permission levels are graded: CAN_VIEW sees runs, CAN_MANAGE_RUN can
+      trigger and cancel them, CAN_MANAGE can edit the job, IS_OWNER has everything.
+      Least privilege for a trigger-and-read caller is CAN_MANAGE_RUN.
+    distractor_rationale:
+      B: >-
+        CAN_VIEW cannot trigger a run.
+      C: >-
+        CAN_MANAGE also permits editing the definition, which the requirement forbids.
+      D: >-
+        Ownership is far more than the task needs.
+
+  - id: PRO-S7-Q004
+    objective_ids: [PRO-S7-O2]
+    difficulty: application
+    provenance: original
+    tags: [column-mask, row-filter, functions]
+    stem: >-
+      HR must see salaries, everyone else must see NULL, and regional managers must
+      see only rows for their region. Which combination implements this on one table?
+    options:
+      A: >-
+        A column mask function on salary that returns the value for the HR group and NULL otherwise, plus a row filter function on region.
+      B: >-
+        Two views, one per audience, and grants on the views.
+      C: >-
+        A row filter alone, since it can also blank columns.
+      D: >-
+        A column mask alone, since it can also drop rows.
+    correct: A
+    explanation: >-
+      Masks decide what a viewer sees in a column; filters decide which rows a viewer
+      sees. Both are SQL functions attached to the table and applied at query time
+      to everyone, so the one table serves every audience correctly.
+    distractor_rationale:
+      B: >-
+        Views can work, but they multiply objects and leave the base table readable by anyone granted on it.
+      C: >-
+        A row filter cannot change column values.
+      D: >-
+        A column mask cannot remove rows.
+
+  - id: PRO-S7-Q005
+    objective_ids: [PRO-S7-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [column-mask, deletion, compliance, limits]
+    stem: >-
+      A regulation requires that a national identifier must not be stored in a
+      published table. A team applies a column mask that hides it from everyone but
+      one admin group and declares the requirement met. What is wrong?
+    options:
+      A: >-
+        A mask hides a value from readers; the value is still stored, and anyone who can alter the table can drop the mask. Storing an irreversible hash (or nothing) is what meets "must not be stored".
+      B: >-
+        Nothing; a mask is the standard way to satisfy storage restrictions.
+      C: >-
+        The mask should be a row filter instead.
+      D: >-
+        Masks cannot be applied to string columns, so the statement failed.
+    correct: A
+    explanation: >-
+      Masks and filters are access controls, not data-minimisation. A requirement
+      about what may be held is met by not holding it: hash it irreversibly (salted
+      if the input space is small) or suppress the column.
+    distractor_rationale:
+      B: >-
+        A stored-but-masked identifier is still stored.
+      C: >-
+        A row filter removes rows, not a column's stored value.
+      D: >-
+        Masks apply to any column type.
+
+  - id: PRO-S7-Q006
+    objective_ids: [PRO-S7-O3]
+    difficulty: analysis
+    provenance: original
+    tags: [hashing, salt, low-entropy, anonymisation]
+    stem: >-
+      A team pseudonymises date of birth with an unsalted SHA-256 hash so records can
+      still be grouped by birthday. A reviewer says the column is effectively still
+      plaintext. Why?
+    options:
+      A: >-
+        There are only about 40,000 plausible dates of birth; hashing every one of them and matching reveals every value. Low-entropy inputs need a salt kept away from the data.
+      B: >-
+        SHA-256 is reversible with enough compute.
+      C: >-
+        Hashing a date produces the same output for everyone born in the same year.
+      D: >-
+        Dates cannot be hashed because they are not strings.
+    correct: A
+    explanation: >-
+      Hashing is irreversible in principle, but a small input space can be
+      enumerated: hash every candidate and compare. A salt kept out of the dataset
+      makes the enumeration useless. Email addresses are high-entropy; birthdays and
+      postcodes are not.
+    distractor_rationale:
+      B: >-
+        The hash is not reversed; the input space is enumerated.
+      C: >-
+        Same input gives the same hash; different dates give different hashes.
+      D: >-
+        Any value can be hashed once represented as bytes; the type is not the issue.
+
+  - id: PRO-S7-Q007
+    objective_ids: [PRO-S7-O3]
+    difficulty: application
+    provenance: original
+    tags: [tokenisation, generalisation, suppression, choice]
+    stem: >-
+      A dataset must be shared with a research partner. Customers must be groupable
+      across tables, the partner must never recover identities, but the company must
+      be able to re-identify a record if a customer later exercises a rights request.
+      Which technique for the customer identifier fits?
+    options:
+      A: >-
+        Tokenisation, with the token vault kept by the company; tokens are consistent for grouping and reversible only with the vault.
+      B: >-
+        Suppression, since removing the identifier is the safest option.
+      C: >-
+        Generalisation to the customer's country, which preserves aggregates.
+      D: >-
+        An unsalted hash, which is consistent and irreversible.
+    correct: A
+    explanation: >-
+      Choose the technique by what the data still has to do. Consistent grouping
+      plus reversibility for the data owner alone is tokenisation. Hashing loses the
+      reversibility; suppression loses grouping; generalisation loses both.
+    distractor_rationale:
+      B: >-
+        Without an identifier the partner cannot group a customer's records.
+      C: >-
+        A country is not a customer; grouping by customer is impossible.
+      D: >-
+        Irreversible means the company cannot re-identify on request either.
+
+  - id: PRO-S7-Q008
+    objective_ids: [PRO-S7-O4]
+    difficulty: analysis
+    provenance: original
+    tags: [pii-detection, free-text, regexp, streaming]
+    stem: >-
+      A pipeline masks the email and phone columns of a support-ticket table before
+      publishing. An audit finds customer email addresses in the published table.
+      Where are they, and what does a compliant pipeline do differently?
+    options:
+      A: >-
+        Inside the free-text notes column; a compliant pipeline detects PII patterns in every text column with regexp_replace, in the batch and streaming paths alike, rather than masking only known columns.
+      B: >-
+        In the table history; the pipeline should VACUUM after publishing.
+      C: >-
+        In the column names; the pipeline should rename columns.
+      D: >-
+        Nowhere; the audit is mistaken because the email column is masked.
+    correct: A
+    explanation: >-
+      Masking the columns you know hold PII is the easy half. Free text is where it
+      hides, so a compliant pipeline applies pattern detection to text columns as
+      a transformation step shared by batch and streaming writes.
+    distractor_rationale:
+      B: >-
+        History retention is a separate concern; the audit found values in the current published data.
+      C: >-
+        Column names are not the leak.
+      D: >-
+        The masked column is fine; the notes column is not.
+
+  - id: PRO-S7-Q009
+    objective_ids: [PRO-S7-O4]
+    difficulty: application
+    provenance: original
+    tags: [transform, batch-and-streaming, reuse]
+    stem: >-
+      A team implements PII masking as a function apply_masks(df) that returns a
+      DataFrame, and wants the identical logic in a nightly batch job and in a
+      Structured Streaming job. What is the correct way to reuse it?
+    options:
+      A: >-
+        Call df.transform(apply_masks) in both; a transformation function works on a static DataFrame and on a streaming one alike.
+      B: >-
+        Copy the function into each notebook, since streaming DataFrames need a different API.
+      C: >-
+        Use foreachBatch in the batch job so both paths run the same micro-batch code.
+      D: >-
+        Only the streaming job can use it; batch must re-implement it in SQL.
+    correct: A
+    explanation: >-
+      DataFrame transformations are the same API whether the DataFrame is static or
+      streaming. Packaging the logic as a function and applying it with transform
+      gives one implementation, one test suite, and no drift between the two paths.
+    distractor_rationale:
+      B: >-
+        Column-level transformations are identical on streaming DataFrames.
+      C: >-
+        foreachBatch is a streaming sink construct; a batch job has no micro-batches.
+      D: >-
+        The function is plain DataFrame code and runs in either job.
+
+  - id: PRO-S7-Q010
+    objective_ids: [PRO-S7-O5]
+    difficulty: analysis
+    provenance: original
+    tags: [erasure, delete, time-travel, vacuum]
+    stem: >-
+      A customer requests erasure. The team runs DELETE FROM records WHERE
+      subject_id = 'C42' and confirms the row is gone with a SELECT. A week later an
+      auditor retrieves the row. How, and what was missing?
+    options:
+      A: >-
+        Through time travel: DELETE removes rows from the current version only. Erasure needs the history expired (deletedFileRetentionDuration) and VACUUM run so the old files are removed.
+      B: >-
+        Through a backup the auditor restored; the pipeline should not keep backups.
+      C: >-
+        The DELETE was never committed because Delta requires an explicit COMMIT.
+      D: >-
+        The row was re-inserted by a streaming job; erasure needs the stream stopped.
+    correct: A
+    explanation: >-
+      Earlier versions still contain deleted rows; that is what time travel is for.
+      To make an erasure final, shorten the retention and vacuum, accepting that
+      time travel over that window is gone. Right for an erasure request, wrong as a
+      table's default.
+    distractor_rationale:
+      B: >-
+        No external backup is needed to explain it; the table's own history has the row.
+      C: >-
+        Delta commits each statement atomically; there is no separate COMMIT.
+      D: >-
+        A re-insert would show in the current version's SELECT; the auditor read an old version.
+
+  - id: PRO-S7-Q011
+    objective_ids: [PRO-S7-O5]
+    difficulty: application
+    provenance: original
+    tags: [retention, purge, policy-per-category]
+    stem: >-
+      A retention policy says support tickets are kept for one year, marketing
+      events for 90 days and transaction logs for seven years. A purge job deletes
+      everything older than one year. What is the consequence?
+    options:
+      A: >-
+        Marketing events are kept nine months too long and transaction logs are destroyed six years early; the cutoff must be per record type.
+      B: >-
+        Nothing; one year is a reasonable average.
+      C: >-
+        Only the marketing events are affected, since transaction logs are exempt from purging.
+      D: >-
+        The job fails, because Delta rejects deletes spanning multiple categories.
+    correct: A
+    explanation: >-
+      A single cutoff is a bug in both directions: it over-retains the category
+      with the shortest period and destroys the category with the longest. Retention
+      is a cutoff per category, applied with the record type in the predicate.
+    distractor_rationale:
+      B: >-
+        Averages do not satisfy any of the three obligations.
+      C: >-
+        Nothing exempts transaction logs from a DELETE that does not check the type.
+      D: >-
+        The DELETE runs happily; the harm is silent.

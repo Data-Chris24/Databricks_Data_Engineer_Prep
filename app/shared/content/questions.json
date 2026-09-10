@@ -2098,6 +2098,2744 @@
   "family": "ASSOC-S5-Q001"
  },
  {
+  "id": "PRO-S1-Q004",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O1"
+  ],
+  "stem": "A team keeps two nearly identical job definitions in their bundle, prod_etl.yml and staging_etl.yml, differing only in the target schema and the schedule. A reviewer says the layout is wrong. Which change matches how a Declarative Automation Bundle is meant to be organised?",
+  "code": null,
+  "options": {
+   "A": "One job definition; the schema and schedule become variables that the staging and prod targets override.",
+   "B": "Keep both files but move them under a shared/ folder so the duplication is at least visible.",
+   "C": "Merge them into one file with two job keys, prod_etl and staging_etl, so a single deploy creates both.",
+   "D": "Replace the YAML with a Python script that generates the right file for whichever environment is selected."
+  },
+  "correct": "A",
+  "explanation": "A bundle expresses environment differences as targets overriding variables, not as copies of a resource. One definition deployed with -t staging or -t prod is the whole point: the resource is reviewed once and cannot drift between environments.",
+  "why": {
+   "B": "Moving the copies does not remove the duplication; the two definitions can still drift.",
+   "C": "Two job keys in one file still deploys both jobs to every target, including the one that should not have them.",
+   "D": "Generating YAML from a script hides the configuration from review and from bundle validate."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "dabs",
+   "project-structure",
+   "targets",
+   "variables"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q004"
+ },
+ {
+  "id": "PRO-S1-Q005",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O1"
+  ],
+  "stem": "Two engineers deploy the same bundle to the same workspace from their laptops using a target with mode: development. Later the platform team deploys it from CI as a service principal. What does the workspace contain afterwards?",
+  "code": null,
+  "options": {
+   "A": "Three copies of every resource, each prefixed with its deployer, and a paused schedule on each.",
+   "B": "One copy of every resource, owned by whoever deployed last.",
+   "C": "Two copies, because the service principal's deploy overwrites the first engineer's.",
+   "D": "A deploy error, because a bundle can only be deployed to a workspace once."
+  },
+  "correct": "A",
+  "explanation": "Development mode prefixes resource names with the deployer's identity and pauses schedules, so each deployer gets an isolated copy. Three deployers, three copies. This is why development mode is safe for people and why production deployments use a single principal and production mode.",
+  "why": {
+   "B": "Resources are namespaced by deployer in development mode; they do not overwrite each other.",
+   "C": "The service principal is a third deployer with its own prefix, not a replacement for anyone.",
+   "D": "A bundle can be deployed many times to one workspace; the prefix is what keeps them apart."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "dabs",
+   "development-mode",
+   "prefix",
+   "collaboration"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q005"
+ },
+ {
+  "id": "PRO-S1-Q006",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O2"
+  ],
+  "stem": "A notebook runs %pip install somepkg==2.1.0 in its first cell, then imports the package in the next cell and finds version 1.8.0 already loaded. What is the correct fix?",
+  "code": null,
+  "options": {
+   "A": "Restart the Python process after the install, with %restart_python or dbutils.library.restartPython(), before importing.",
+   "B": "Use %sh pip install instead, which installs into the correct environment.",
+   "C": "Move the import above the install so the old version is never loaded.",
+   "D": "Install the package as a cluster library; %pip cannot change a version that is already installed."
+  },
+  "correct": "A",
+  "explanation": "%pip changes the notebook session's environment, but a module already imported into the running Python process stays loaded until the process restarts. The restart is the documented step between installing and importing a different version.",
+  "why": {
+   "B": "%sh pip installs into the driver's shell environment, not necessarily the notebook's Python, and still would not unload the imported module.",
+   "C": "Importing first loads the old version, which is exactly the problem.",
+   "D": "%pip can install a different version; the process just has to restart for the import to see it."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "pip",
+   "restart-python",
+   "dependencies",
+   "notebooks"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q006"
+ },
+ {
+  "id": "PRO-S1-Q007",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O2"
+  ],
+  "stem": "A job task must use an internal Python library that is not on PyPI. The team has a built wheel file. Which approach installs it for the task in a way that is reproducible across runs and workspaces?",
+  "code": null,
+  "options": {
+   "A": "Upload the wheel to a Unity Catalog volume and declare it as a task library (or in the serverless environment) referencing that path.",
+   "B": "Copy the wheel into the notebook's folder and add a %pip install ./lib.whl cell at the top of the notebook.",
+   "C": "Unzip the wheel and append its folder to sys.path in the first cell.",
+   "D": "Push the wheel to a public PyPI mirror so a plain %pip install works everywhere."
+  },
+  "correct": "A",
+  "explanation": "Task libraries and serverless environments install declared dependencies before the task starts, and a volume is governed storage that every workspace deploying the bundle can reference. The installation is part of the job's definition, not of the notebook's runtime behaviour.",
+  "why": {
+   "B": "It works once, but the install is buried in the notebook, runs on every execution, and relative paths break when the notebook moves.",
+   "C": "Manipulating sys.path skips dependency resolution entirely and fails as soon as the library has its own dependencies.",
+   "D": "Publishing internal code to a public index is a security problem, not a packaging solution."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "wheel",
+   "volumes",
+   "task-libraries",
+   "serverless-environment"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q007"
+ },
+ {
+  "id": "PRO-S1-Q008",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O3"
+  ],
+  "stem": "A pipeline applies a Python function to 400 million rows using a scalar @udf and takes hours. The logic is pure arithmetic on two numeric columns. Which change delivers the largest improvement, and why?",
+  "code": null,
+  "options": {
+   "A": "Rewrite the logic with built-in column expressions; it stays in the JVM and the optimiser can see through it.",
+   "B": "Convert the @udf to a pandas UDF; Arrow batches amortise serialisation, which is where most of the time goes.",
+   "C": "Increase spark.sql.shuffle.partitions so more executors share the UDF work.",
+   "D": "Cache the input DataFrame so the UDF is not recomputed for each downstream action."
+  },
+  "correct": "A",
+  "explanation": "Pure arithmetic needs no UDF at all. Built-in expressions run inside the JVM with no per-row serialisation and remain visible to the optimiser, which beats even a vectorised UDF. A pandas UDF is the right answer only when a UDF is genuinely required.",
+  "why": {
+   "B": "A pandas UDF is far faster than a scalar UDF, but it still ships data to Python; for arithmetic a built-in removes the cost entirely.",
+   "C": "A UDF's cost is per row, not per partition; more partitions do not change how many rows cross the Python boundary.",
+   "D": "Caching avoids recomputation across actions but does nothing about the per-row cost within one computation."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "pandas-udf",
+   "python-udf",
+   "performance",
+   "arrow"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q008"
+ },
+ {
+  "id": "PRO-S1-Q009",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O3"
+  ],
+  "stem": "Which statement about a pandas UDF declared with pandas_udf(returnType=DoubleType()) that takes one pandas.Series and returns one is accurate?",
+  "code": null,
+  "options": {
+   "A": "Spark hands it a batch of values at a time as a Series, transferred via Arrow, so the function must return a Series of the same length.",
+   "B": "Spark calls it once per row with a one-element Series, so it behaves like a scalar UDF with extra overhead.",
+   "C": "The function receives the entire column as a single Series, so it must fit in the driver's memory.",
+   "D": "It runs inside the JVM once the Series is converted, so it is as fast as a built-in."
+  },
+  "correct": "A",
+  "explanation": "A scalar pandas UDF is vectorised over batches (spark.sql.execution.arrow.maxRecordsPerBatch controls the size). Each call receives a Series for the batch and must return a Series of the same length, which is what makes it much cheaper than a row-at-a-time UDF.",
+  "why": {
+   "B": "That describes a scalar Python UDF; the pandas UDF's benefit is precisely the batching.",
+   "C": "Batches are bounded and processed on executors, not the whole column on the driver.",
+   "D": "The function is Python running in a Python worker; Arrow makes the transfer cheap but it is not JVM code."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "pandas-udf",
+   "series",
+   "batch"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q009"
+ },
+ {
+  "id": "PRO-S1-Q010",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O4"
+  ],
+  "stem": "A landing folder receives new JSON files every few minutes. A declarative pipeline reads it with Auto Loader into a streaming table. A file that was already processed is accidentally re-uploaded with the same name and content. What happens on the next update?",
+  "code": null,
+  "options": {
+   "A": "Auto Loader ignores it, because its checkpoint records the file as already consumed.",
+   "B": "The rows are appended again, because Auto Loader processes whatever is present in the folder.",
+   "C": "The pipeline fails with a duplicate-file error that must be cleared manually.",
+   "D": "The streaming table is rebuilt from scratch to reconcile the folder with the table."
+  },
+  "correct": "A",
+  "explanation": "Auto Loader tracks discovered files in its checkpoint and processes each file exactly once. An identical re-upload is not new to it. This is what makes a streaming table over a landing zone safe to re-run.",
+  "why": {
+   "B": "That is what a plain batch read of the folder would do; Auto Loader's file tracking exists to prevent it.",
+   "C": "Nothing raises; the file is simply not re-processed.",
+   "D": "Streaming tables process incrementally; a full rebuild is what a materialized view does."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "auto-loader",
+   "cloudfiles",
+   "checkpoint",
+   "exactly-once"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q010"
+ },
+ {
+  "id": "PRO-S1-Q011",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O4"
+  ],
+  "stem": "A declarative pipeline defines bronze, silver and gold tables. The silver definition reads bronze; gold reads silver. An engineer asks where the task ordering is configured. What is the accurate answer?",
+  "code": null,
+  "options": {
+   "A": "Nowhere; the pipeline derives the execution order from the table definitions' references to each other.",
+   "B": "In the pipeline settings, where each table lists its upstream tables under depends_on.",
+   "C": "In a job that wraps the pipeline, with one task per table and explicit dependencies.",
+   "D": "By file order; tables are materialised in the order their definitions appear."
+  },
+  "correct": "A",
+  "explanation": "Declarative pipelines build the dependency graph from what each table reads. You describe the tables; the platform derives the order, parallelism and retries. That is the difference in abstraction level from a job of tasks.",
+  "why": {
+   "B": "depends_on is a job-task concept; pipeline tables do not declare dependencies by hand.",
+   "C": "A job can trigger the pipeline as one task, but the ordering inside the pipeline is still derived.",
+   "D": "File and definition order do not matter; references do."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "declarative-pipelines",
+   "expectations",
+   "dependency-graph"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q011"
+ },
+ {
+  "id": "PRO-S1-Q012",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O6"
+  ],
+  "stem": "A source table receives new rows continuously, but a nightly correction job also updates a few percent of yesterday's rows. A downstream aggregate must reflect those corrections. Which object should hold the aggregate, and why?",
+  "code": null,
+  "options": {
+   "A": "A materialized view, because it recomputes over the current source and so reflects updated rows.",
+   "B": "A streaming table, because it processes the source incrementally and is cheaper.",
+   "C": "A streaming table with skipChangeCommits, so the updates do not break the stream.",
+   "D": "Either; both objects reflect updates to source rows on the next refresh."
+  },
+  "correct": "A",
+  "explanation": "A streaming table processes each source row once and does not revisit rows it already consumed, so a correction to an old row never reaches it. When old data changes, a materialized view is the object that stays correct.",
+  "why": {
+   "B": "Cheaper, but wrong here: the corrected rows were already consumed and will not be re-read.",
+   "C": "skipChangeCommits keeps the stream running by skipping the update commits, which is exactly the data you need.",
+   "D": "The two differ precisely on this point; a streaming table does not reflect updates to consumed rows."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "streaming-table",
+   "materialized-view",
+   "updates",
+   "choice"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q012"
+ },
+ {
+  "id": "PRO-S1-Q013",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O6"
+  ],
+  "stem": "An events table only ever receives appends and has grown to billions of rows. A pipeline keeps a per-day count from it. The count is currently a materialized view that recomputes on every hourly refresh. What is the best change?",
+  "code": null,
+  "options": {
+   "A": "Make it a streaming table; an append-only source lets it process only new rows each refresh.",
+   "B": "Keep the materialized view but refresh it daily instead of hourly.",
+   "C": "Replace it with a plain table rebuilt by a scheduled job.",
+   "D": "Add a partition on day to the source so the materialized view refresh reads less."
+  },
+  "correct": "A",
+  "explanation": "When the source is append-only, a streaming table's cost is proportional to new data rather than to the whole query. Refreshing hourly then reads an hour of events instead of billions of rows.",
+  "why": {
+   "B": "Reduces frequency, not the cost of each recompute, and lowers freshness.",
+   "C": "A scheduled rebuild is the same full recompute without the pipeline's bookkeeping.",
+   "D": "Layout helps a full scan somewhat, but the recompute is still over the whole history every refresh."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "streaming-table",
+   "append-only",
+   "cost"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q013"
+ },
+ {
+  "id": "PRO-S1-Q014",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O7"
+  ],
+  "stem": "A change feed delivers two events for customer C7 out of order: first an update with seq_num 12 setting tier to gold, then an older update with seq_num 9 setting tier to silver. The target uses AUTO CDC with SEQUENCE BY seq_num. What is C7's tier in the target after both are applied?",
+  "code": null,
+  "options": {
+   "A": "gold, because the event with the higher sequence wins regardless of arrival order.",
+   "B": "silver, because the most recently applied event overwrites the previous one.",
+   "C": "Both rows are kept, because the events have different sequence numbers.",
+   "D": "The update fails, because sequence numbers must arrive in increasing order."
+  },
+  "correct": "A",
+  "explanation": "SEQUENCE BY defines which event is newest. A late-arriving event with a lower sequence is recognised as older and ignored. This is the first of the three things AUTO CDC handles that a hand-written upsert usually gets wrong.",
+  "why": {
+   "B": "Arrival order carries no meaning under SEQUENCE BY; that is the point of specifying it.",
+   "C": "AUTO CDC maintains one current row per key; it is not an append of events.",
+   "D": "Out-of-order arrival is expected and handled, not an error."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "auto-cdc",
+   "apply-changes",
+   "sequence-by",
+   "out-of-order"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q014"
+ },
+ {
+  "id": "PRO-S1-Q015",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O7"
+  ],
+  "stem": "A CDC pipeline uses APPLY CHANGES INTO ... KEYS (id) SEQUENCE BY ts but omits the APPLY AS DELETE WHEN clause. The feed contains rows with op = 'delete'. What does the target contain for a key whose latest event is a delete?",
+  "code": null,
+  "options": {
+   "A": "A row for the key, populated from the delete event's columns, because without the clause a delete is treated like any other upsert.",
+   "B": "No row, because rows with op = 'delete' are recognised by name.",
+   "C": "The row from the event before the delete, because deletes are ignored.",
+   "D": "An error at pipeline update time, because deletes require the clause."
+  },
+  "correct": "A",
+  "explanation": "AUTO CDC only knows an event is a delete if you tell it which condition means delete. Without APPLY AS DELETE WHEN, the delete event is just the latest event for the key and is applied as an update, leaving a row that says \"deleted\" instead of removing it.",
+  "why": {
+   "B": "The column name op has no special meaning; the clause supplies the condition.",
+   "C": "The delete event has the highest sequence, so it wins; it is applied as an upsert, not ignored.",
+   "D": "Nothing fails; the result is silently wrong, which is worse."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "auto-cdc",
+   "apply-as-delete",
+   "tombstone"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q015"
+ },
+ {
+  "id": "PRO-S1-Q016",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O8"
+  ],
+  "stem": "A team must write each micro-batch to an external system with a custom idempotent upsert, control the trigger precisely, and manage watermarks for a stream-stream join. Which approach fits, and why?",
+  "code": null,
+  "options": {
+   "A": "Structured Streaming; the requirements are about the mechanics (foreachBatch, triggers, watermarks) that a declarative pipeline abstracts away.",
+   "B": "A declarative pipeline; it manages checkpoints and triggers for you, so the custom sink becomes an expectation.",
+   "C": "A declarative pipeline with a materialized view over the external system.",
+   "D": "Either, since both support arbitrary sinks through the same API."
+  },
+  "correct": "A",
+  "explanation": "Declarative pipelines are a different abstraction: you describe tables and the platform runs them. When the requirement is control over the mechanics, such as a custom sink via foreachBatch, explicit triggers and join watermarks, Structured Streaming is the tool.",
+  "why": {
+   "B": "Expectations are data-quality rules, not sinks; a pipeline does not expose foreachBatch-style custom writes.",
+   "C": "Materialized views compute tables in the lakehouse; they do not write to external systems.",
+   "D": "They are not interchangeable; the pipeline deliberately hides what this team needs to control."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "structured-streaming",
+   "declarative-pipelines",
+   "choice",
+   "foreachbatch"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q016"
+ },
+ {
+  "id": "PRO-S1-Q017",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O9"
+  ],
+  "stem": "A job must process a list of regions produced by its first task, running the same notebook once per region with at most three in parallel, and then run a summary task only if every region succeeded. Which job structure achieves this?",
+  "code": null,
+  "options": {
+   "A": "The first task sets a task value with the regions; a For each task iterates over it with concurrency 3 running the notebook; the summary depends on it with run_if ALL_SUCCESS.",
+   "B": "One notebook task that loops over regions in Python, followed by the summary task.",
+   "C": "A separate task per region hard-coded in the job, followed by the summary task.",
+   "D": "An If/else task that checks each region in turn and runs the notebook for the ones that match."
+  },
+  "correct": "A",
+  "explanation": "For each is the job-level loop: it takes a list (from a task value or a parameter), runs a nested task per element with a concurrency limit, and downstream tasks can depend on the whole loop with a run_if condition. The regions can then change at runtime without editing the job.",
+  "why": {
+   "B": "A Python loop is sequential inside one task and gives no per-region run history, retries or concurrency.",
+   "C": "Hard-coding tasks fixes the region list in the job definition and cannot follow the first task's output.",
+   "D": "If/else branches on a condition; it does not iterate."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "jobs",
+   "for-each",
+   "if-else",
+   "task-values"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q017"
+ },
+ {
+  "id": "PRO-S1-Q018",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O9"
+  ],
+  "stem": "A job has a load task and a cleanup task that removes temporary files. The cleanup must run whether the load succeeds or fails. How should the dependency be configured?",
+  "code": null,
+  "options": {
+   "A": "cleanup depends on load with run_if set to ALL_DONE.",
+   "B": "cleanup depends on load with the default condition; failed upstream tasks still trigger dependants.",
+   "C": "Put the cleanup at the start of the job so it runs before anything can fail.",
+   "D": "Give the load task a retry so it never fails, making the default dependency sufficient."
+  },
+  "correct": "A",
+  "explanation": "run_if controls when a dependant runs relative to its upstream tasks' outcomes. ALL_DONE runs the cleanup once the load has finished in any state, which is the pattern for tidy-up work. The default (ALL_SUCCESS) would skip it on failure.",
+  "why": {
+   "B": "The default condition is ALL_SUCCESS; a failed upstream task skips the dependant.",
+   "C": "Cleaning up before the load leaves the files behind when the load fails, which is the case that matters.",
+   "D": "Retries reduce failures; they do not eliminate them, and a retry that gives up still skips the dependant."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "jobs",
+   "run-if",
+   "cleanup",
+   "failure"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q018"
+ },
+ {
+  "id": "PRO-S1-Q019",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O10"
+  ],
+  "stem": "A task appends the day's rows to a Delta table and occasionally fails after writing because a downstream notification call times out. It is configured with two retries. What is the consequence, and what is the right fix?",
+  "code": null,
+  "options": {
+   "A": "Retries re-run the whole task, so the day's rows can be appended twice; make the write idempotent (overwrite the day's partition or MERGE) or disable retries.",
+   "B": "Retries resume from the failed step, so nothing is duplicated; no change is needed.",
+   "C": "Delta prevents duplicate appends automatically, so only the notification is repeated.",
+   "D": "Retries are ignored when the failure is in a network call; the task must be re-run by hand."
+  },
+  "correct": "A",
+  "explanation": "A retry runs the task again from the start. A non-idempotent append then writes its rows a second time with no error. Either make the write safe to repeat, or do not retry a task whose work is not repeatable.",
+  "why": {
+   "B": "Tasks have no resumable steps; a retry is a fresh execution.",
+   "C": "Delta guarantees atomic commits, not deduplication of two separate appends.",
+   "D": "Retries apply to any task failure; the network call failing is exactly what triggers one."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "retries",
+   "idempotence",
+   "append",
+   "task-configuration"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q019"
+ },
+ {
+  "id": "PRO-S1-Q020",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O10"
+  ],
+  "stem": "A notebook task on serverless compute needs a specific version of a library and, separately, fails with out-of-memory while building a large pandas frame on the driver. Which pair of configuration changes addresses both?",
+  "code": null,
+  "options": {
+   "A": "Declare the library in the task's serverless environment; select the high-memory option for the notebook task.",
+   "B": "Add a %pip install cell; increase spark.sql.shuffle.partitions.",
+   "C": "Attach the library to the cluster; add executors to the cluster.",
+   "D": "Declare the library in the environment; set a retry so the task succeeds on a second attempt."
+  },
+  "correct": "A",
+  "explanation": "On serverless, dependencies belong to the task's environment definition rather than ad hoc installs, and a driver-side memory need is met by the notebook task's high-memory option. Neither shuffle partitions nor retries change the memory available to the driver.",
+  "why": {
+   "B": "Shuffle partitions affect executor-side parallelism, not a pandas frame held on the driver.",
+   "C": "Serverless has no cluster to attach libraries to or add executors to.",
+   "D": "A retry repeats the same out-of-memory failure with the same memory."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "serverless",
+   "environment",
+   "dependencies",
+   "memory"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q020"
+ },
+ {
+  "id": "PRO-S1-Q021",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O11"
+  ],
+  "stem": "A transformation is written as a function clean(df) and applied with df.transform(clean). A unit test builds a three-row input DataFrame and an expected DataFrame by hand, then calls assertDataFrameEqual(clean(input), expected). The test fails only because the expected frame has columns in a different order. What is the correct interpretation?",
+  "code": null,
+  "options": {
+   "A": "assertDataFrameEqual compares schema including column order; either fix the expected frame's column order or assert on content in the order the contract specifies.",
+   "B": "assertDataFrameEqual ignores column order, so the failure must be a data difference.",
+   "C": "DataFrame.transform reorders columns, so the function under test is at fault.",
+   "D": "The test should compare with collect() and sorted() instead, which ignores column order."
+  },
+  "correct": "A",
+  "explanation": "The testing utilities compare schema as well as content, and column order is part of the schema. Tests written against an explicit contract should build the expected frame in the contracted order, which also makes the test catch a contract violation.",
+  "why": {
+   "B": "Column order is compared; the message names the schema mismatch.",
+   "C": "transform applies the function as written; it does not reorder columns by itself.",
+   "D": "Comparing collected Python lists loses type checking and the readable difference report the utility provides."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "assertDataFrameEqual",
+   "assertSchemaEqual",
+   "transform",
+   "pytest"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q021"
+ },
+ {
+  "id": "PRO-S1-Q022",
+  "exam": "professional",
+  "section": "PRO-S1",
+  "objectives": [
+   "PRO-S1-O11"
+  ],
+  "stem": "A team's \"unit tests\" for a pipeline read yesterday's production output as the expected result and compare it to today's run of the same pipeline. The tests pass every day. What is the problem?",
+  "code": null,
+  "options": {
+   "A": "The expected values come from the pipeline under test, so a bug present in both runs cannot be detected; expected data must be an independent hand-built fixture.",
+   "B": "Production data is too large for tests; sample it to make them faster.",
+   "C": "Nothing; comparing consecutive runs is a valid regression test.",
+   "D": "The tests should compare schemas only, since data changes daily."
+  },
+  "correct": "A",
+  "explanation": "A test proves something only when its expected values are derived independently of the code under test. Tiny hand-built inputs with known correct outputs catch logic errors; comparing the pipeline to itself catches only differences between two runs.",
+  "why": {
+   "B": "Size is a secondary concern; the flaw is where the expectation comes from.",
+   "C": "It detects change, not correctness; a long-standing bug passes every day.",
+   "D": "Schema checks belong in the suite too, but they do not test the transformation's logic."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "testing",
+   "fixtures",
+   "integration-test",
+   "production-data"
+  ],
+  "variant_of": null,
+  "family": "PRO-S1-Q022"
+ },
+ {
+  "id": "PRO-S2-Q001",
+  "exam": "professional",
+  "section": "PRO-S2",
+  "objectives": [
+   "PRO-S2-O1"
+  ],
+  "stem": "A nightly job reads 2 TB of JSON files with spark.read.json(path) and no schema, then writes Delta. The read phase takes twice as long as the team expects. What is the most likely cause and fix?",
+  "code": null,
+  "options": {
+   "A": "Without a schema, Spark scans the files once to infer types and again to load them; supplying .schema() removes the inference pass.",
+   "B": "JSON is row-oriented, so it cannot be read in parallel; convert the source to Parquet first.",
+   "C": "The files are compressed, and decompression dominates; store them uncompressed.",
+   "D": "The write to Delta is what is slow; the read is fine."
+  },
+  "correct": "A",
+  "explanation": "JSON tells Spark the field names but not the types. Inference is a full pass over the data before the real read. An explicit schema is one pass instead of two, and it fails loudly when the source changes shape instead of quietly changing your types.",
+  "why": {
+   "B": "JSON files are read in parallel; the extra time is the inference pass, not the format's parallelism.",
+   "C": "Decompression costs the same on both passes; removing one pass is the fix.",
+   "D": "The question describes the read phase as slow, and inference explains a doubling exactly."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "json",
+   "schema-inference",
+   "two-passes",
+   "cost"
+  ],
+  "variant_of": null,
+  "family": "PRO-S2-Q001"
+ },
+ {
+  "id": "PRO-S2-Q002",
+  "exam": "professional",
+  "section": "PRO-S2",
+  "objectives": [
+   "PRO-S2-O1"
+  ],
+  "stem": "Two sources deliver the same nine columns, one as CSV and one as Parquet, but in different column orders. A pipeline combines them with df_csv.union(df_parquet) and no error occurs. What is in the result?",
+  "code": null,
+  "options": {
+   "A": "Values placed by position, so columns are silently mixed; unionByName aligns them, and types should then be pinned explicitly.",
+   "B": "The rows aligned by column name, because Spark matches names when they agree.",
+   "C": "An error at write time, because the schemas differ.",
+   "D": "Only the CSV rows, because union drops rows whose schema differs."
+  },
+  "correct": "A",
+  "explanation": "union is positional: it pairs the nth column with the nth column whatever the names say, and when both are strings nothing complains. unionByName lines sources up by name, and casting to declared types afterwards stops a union from widening a column because one source inferred it differently.",
+  "why": {
+   "B": "Name matching is what unionByName does; union does not look at names.",
+   "C": "Same width and compatible types is all union checks; the mix-up is silent.",
+   "D": "No rows are dropped; they are all there, in the wrong columns."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "union",
+   "unionByName",
+   "column-order",
+   "types"
+  ],
+  "variant_of": null,
+  "family": "PRO-S2-Q002"
+ },
+ {
+  "id": "PRO-S2-Q003",
+  "exam": "professional",
+  "section": "PRO-S2",
+  "objectives": [
+   "PRO-S2-O2"
+  ],
+  "stem": "A bronze Delta table is read as a stream by a silver pipeline. A batch job runs an UPDATE on bronze to fix a typo. On its next trigger the silver stream fails with DELTA_SOURCE_TABLE_IGNORE_CHANGES. Why, and what is the right long-term design?",
+  "code": null,
+  "options": {
+   "A": "A stream can read a Delta table only while its history is append-only; an update produces a version the reader cannot express as new rows. Keep bronze append-only and apply corrections in silver.",
+   "B": "The stream's checkpoint was corrupted by the batch job; delete it and restart.",
+   "C": "Bronze must be a streaming table for silver to read it; convert it.",
+   "D": "The batch job and the stream cannot both write to bronze; give the batch job its own table."
+  },
+  "correct": "A",
+  "explanation": "Append-only is what lets batch and streaming writers share a table and what lets it be read as a stream downstream. skipChangeCommits and ignoreChanges are escape hatches with real costs (a missed update, or re-emitted rows). The durable answer is to never update bronze.",
+  "why": {
+   "B": "The checkpoint is intact; the source's history changed shape.",
+   "C": "Any Delta table can be streamed from while it is append-only.",
+   "D": "Concurrent appends from batch and stream are fine; the update is the problem."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "append-only",
+   "streaming-source",
+   "ignore-changes"
+  ],
+  "variant_of": null,
+  "family": "PRO-S2-Q003"
+ },
+ {
+  "id": "PRO-S2-Q004",
+  "exam": "professional",
+  "section": "PRO-S2",
+  "objectives": [
+   "PRO-S2-O2"
+  ],
+  "stem": "An Auto Loader stream with trigger(availableNow=True) and outputMode(\"append\") appends to bronze once an hour from a job. An engineer worries the job will double-load if it runs twice in one hour. What is true?",
+  "code": null,
+  "options": {
+   "A": "Nothing is double-loaded: the checkpoint records consumed files, so a second run appends only files that arrived since. Losing the checkpoint is the way to double-load.",
+   "B": "It will double-load, because availableNow reads everything present each run.",
+   "C": "It will double-load unless the job is set to a single concurrent run.",
+   "D": "It will fail, because two runs cannot share a checkpoint."
+  },
+  "correct": "A",
+  "explanation": "The checkpoint is the stream's memory. availableNow processes what is new since the checkpoint and stops, which is what makes an append-only ingestion safe to re-run. A fresh checkpoint has no memory, and that is the one way to load the same data twice with no error.",
+  "why": {
+   "B": "availableNow processes what is available and unconsumed, not everything in the folder.",
+   "C": "Concurrency limits avoid overlapping runs; they are not what prevents reprocessing.",
+   "D": "Sequential runs share the checkpoint by design; that is how progress persists."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "auto-loader",
+   "checkpoint",
+   "trigger-availablenow",
+   "idempotence"
+  ],
+  "variant_of": null,
+  "family": "PRO-S2-Q004"
+ },
+ {
+  "id": "PRO-S3-Q001",
+  "exam": "professional",
+  "section": "PRO-S3",
+  "objectives": [
+   "PRO-S3-O1"
+  ],
+  "stem": "A 7-day moving average of daily revenue is computed with a window ordered by date and ROWS BETWEEN 6 PRECEDING AND CURRENT ROW. The table has no row for days with zero sales. What is wrong with the result on a week containing two such days?",
+  "code": null,
+  "options": {
+   "A": "The frame counts rows, so it reaches back nine calendar days; RANGE BETWEEN INTERVAL 6 DAYS PRECEDING AND CURRENT ROW (or filling the gaps) gives a true 7-day window.",
+   "B": "Nothing; missing days contribute zero to the average automatically.",
+   "C": "The window fails, because ROWS frames require contiguous dates.",
+   "D": "The average is too low, because missing days are counted as NULL."
+  },
+  "correct": "A",
+  "explanation": "rowsBetween counts rows; rangeBetween counts values of the ordering column. On an irregular series they differ: six rows back is not six days back. The wrong choice produces a plausible number and no error.",
+  "why": {
+   "B": "Missing rows are absent, not zero; the row frame simply reaches further back.",
+   "C": "Row frames never fail on gaps; that is why the error is silent.",
+   "D": "Absent rows are not NULL rows; nothing is counted for them."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "window",
+   "rowsBetween",
+   "rangeBetween",
+   "time-series"
+  ],
+  "variant_of": null,
+  "family": "PRO-S3-Q001"
+ },
+ {
+  "id": "PRO-S3-Q002",
+  "exam": "professional",
+  "section": "PRO-S3",
+  "objectives": [
+   "PRO-S3-O1"
+  ],
+  "stem": "A table holds several versions of each order, each with a revision number. An engineer keeps the latest version with dropDuplicates([\"order_id\"]) and the tests report that some rows hold an old revision. Why, and what is correct?",
+  "code": null,
+  "options": {
+   "A": "dropDuplicates keeps an arbitrary row per key; use row_number() over the key ordered by revision descending and keep the first.",
+   "B": "dropDuplicates keeps the last row it sees, so the input must be sorted by revision first.",
+   "C": "The revision column has nulls, which dropDuplicates treats as newest.",
+   "D": "dropDuplicates must be given both columns to keep the latest revision."
+  },
+  "correct": "A",
+  "explanation": "Which duplicate survives dropDuplicates is not defined. \"Latest per key\" is a window question: partition by the key, order by what says newer, keep rn = 1.",
+  "why": {
+   "B": "Sorting before dropDuplicates is not guaranteed to be honoured after a shuffle.",
+   "C": "Nulls are not treated as newest; the function has no notion of newest at all.",
+   "D": "Two columns make each (order, revision) pair unique, which keeps every version."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "window",
+   "row_number",
+   "latest-per-key",
+   "dropDuplicates"
+  ],
+  "variant_of": null,
+  "family": "PRO-S3-Q002"
+ },
+ {
+  "id": "PRO-S3-Q003",
+  "exam": "professional",
+  "section": "PRO-S3",
+  "objectives": [
+   "PRO-S3-O2"
+  ],
+  "stem": "A declarative pipeline must publish only rows with a positive amount, keep the rejected rows for investigation, and never stop because of them. Which design meets all three?",
+  "code": null,
+  "options": {
+   "A": "A clean table with CONSTRAINT positive EXPECT (amount > 0) ON VIOLATION DROP ROW, and a quarantine table selecting the rows where the condition is false, both from the same source.",
+   "B": "A single table with EXPECT (amount > 0) ON VIOLATION FAIL UPDATE, so bad data is noticed immediately.",
+   "C": "A single table with a filter WHERE amount > 0 in its definition.",
+   "D": "A single table with EXPECT (amount > 0) and no action, so violations are counted."
+  },
+  "correct": "A",
+  "explanation": "Filtering loses the evidence and FAIL UPDATE stops the pipeline. The quarantine pattern is two tables from one source: the clean one with a drop expectation, the other selecting the inverse condition so bad rows are kept where a human can look.",
+  "why": {
+   "B": "FAIL UPDATE halts the pipeline on the first bad row, which the requirement forbids.",
+   "C": "A filter drops the rows silently; nothing is kept for investigation.",
+   "D": "A bare EXPECT keeps the bad rows in the published table and only counts them."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "quarantine",
+   "expectations",
+   "on-violation",
+   "pipelines"
+  ],
+  "variant_of": null,
+  "family": "PRO-S3-Q003"
+ },
+ {
+  "id": "PRO-S3-Q004",
+  "exam": "professional",
+  "section": "PRO-S3",
+  "objectives": [
+   "PRO-S3-O2"
+  ],
+  "stem": "A quarantine table is built by casting every column, then writing rows where any cast produced NULL. Investigators complain the quarantine is useless. Why?",
+  "code": null,
+  "options": {
+   "A": "The quarantined rows hold the coerced values (NULLs), not the original strings; quarantine must keep the raw values and ideally the reason and source file.",
+   "B": "Quarantine tables must be streaming tables, and this one is a materialized view.",
+   "C": "Casting is not allowed in a quarantine pipeline; use expectations instead.",
+   "D": "The rows should have been dropped rather than kept, since they are invalid."
+  },
+  "correct": "A",
+  "explanation": "A quarantine row that has already been through the transformation you are debugging is not evidence. try_cast decides good from bad, but the original values ride along into quarantine so someone can see what \"12 units\" looked like.",
+  "why": {
+   "B": "The object type is irrelevant; the content is what is wrong.",
+   "C": "Casting with try_cast is exactly how good and bad are separated in a classic job.",
+   "D": "Keeping the rows is the point of quarantine; keeping them intact is the missing part."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "quarantine",
+   "raw-values",
+   "try_cast",
+   "evidence"
+  ],
+  "variant_of": null,
+  "family": "PRO-S3-Q004"
+ },
+ {
+  "id": "PRO-S4-Q001",
+  "exam": "professional",
+  "section": "PRO-S4",
+  "objectives": [
+   "PRO-S4-O1"
+  ],
+  "stem": "A partner runs Databricks in another cloud region. Another partner uses only pandas on their own servers. What kind of recipient does each need?",
+  "code": null,
+  "options": {
+   "A": "Databricks-to-Databricks for the first, identified by their sharing identifier; open-protocol (token-based) for the second, who receives a credential file.",
+   "B": "Open protocol for both, since it works for any client.",
+   "C": "Databricks-to-Databricks for both, since pandas can mount a share as a catalog.",
+   "D": "Neither; cross-region sharing requires copying the data."
+  },
+  "correct": "A",
+  "explanation": "D2D recipients are other metastores, identified by cloud:region:metastore-id, and mount the share as a catalog. Open-protocol recipients are anyone with a Delta Sharing client and authenticate with a token in a credential file. The metastore must have open sharing enabled for the second.",
+  "why": {
+   "B": "Open protocol works for the Databricks partner too but loses the catalog integration D2D gives them.",
+   "C": "pandas has no metastore to mount a catalog into; it uses the open protocol client.",
+   "D": "Not copying is the whole point of Delta Sharing; region does not matter."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "delta-sharing",
+   "d2d",
+   "d2o",
+   "recipient"
+  ],
+  "variant_of": null,
+  "family": "PRO-S4-Q001"
+ },
+ {
+  "id": "PRO-S4-Q002",
+  "exam": "professional",
+  "section": "PRO-S4",
+  "objectives": [
+   "PRO-S4-O1"
+  ],
+  "stem": "Legal requires a partner to see only the current state of a table, never earlier versions. The engineer runs ALTER SHARE s ADD TABLE c.s.t. What has been shared, and what would be correct?",
+  "code": null,
+  "options": {
+   "A": "Full history, because that is the default; ADD TABLE ... WITHOUT HISTORY is required, which in turn needs deletion vectors disabled and purged on the table.",
+   "B": "Current state only; history is never shared unless WITH HISTORY is specified.",
+   "C": "Nothing yet; a table is shared only after GRANT SELECT ON SHARE, at which point history is chosen.",
+   "D": "Current state only, because the share was created without a history option."
+  },
+  "correct": "A",
+  "explanation": "The shortest statement shares history silently, letting the recipient time-travel your table. WITHOUT HISTORY shares the current state, and it refuses on a table with deletion vectors until they are disabled and purged with REORG ... APPLY (PURGE).",
+  "why": {
+   "B": "The default is the other way round: history is enabled unless you say WITHOUT HISTORY.",
+   "C": "The grant makes the share reachable; what is shared was decided at ADD TABLE.",
+   "D": "History is a per-object setting made when the object is added."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "delta-sharing",
+   "history",
+   "without-history",
+   "deletion-vectors"
+  ],
+  "variant_of": null,
+  "family": "PRO-S4-Q002"
+ },
+ {
+  "id": "PRO-S4-Q003",
+  "exam": "professional",
+  "section": "PRO-S4",
+  "objectives": [
+   "PRO-S4-O2"
+  ],
+  "stem": "A CREATE CONNECTION statement with a wrong hostname and a CREATE FOREIGN CATALOG over it both succeed in a deployment pipeline, which reports green. The first query against the catalog fails with FAILED_JDBC.CONNECTION. What does this show?",
+  "code": null,
+  "options": {
+   "A": "Federation DDL is lazy: a connection and foreign catalog are metadata until something uses them, so only a query proves a federation works.",
+   "B": "The pipeline's service principal lacks USE CONNECTION, which is checked at query time.",
+   "C": "Foreign catalogs must be refreshed after creation before they can be queried.",
+   "D": "The hostname is validated but DNS was temporarily unavailable during deployment."
+  },
+  "correct": "A",
+  "explanation": "Nothing is checked when the objects are created. A green deployment tells you nothing about whether the source is reachable or the credentials are right; the first thing to touch the source is the first to fail, and the error redacts the credential.",
+  "why": {
+   "B": "A privilege problem is a PERMISSION_DENIED, not a JDBC connection failure.",
+   "C": "Foreign schemas and tables are discovered on demand; there is no refresh step.",
+   "D": "The hostname is not validated at creation; that is the point."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "federation",
+   "lazy-ddl",
+   "connection",
+   "foreign-catalog"
+  ],
+  "variant_of": null,
+  "family": "PRO-S4-Q003"
+ },
+ {
+  "id": "PRO-S4-Q004",
+  "exam": "professional",
+  "section": "PRO-S4",
+  "objectives": [
+   "PRO-S4-O2"
+  ],
+  "stem": "A platform team creates a connection to a PostgreSQL system. Analysts should be able to query the foreign catalog built on it but must not be able to create new foreign catalogs over the connection. Which grants achieve this?",
+  "code": null,
+  "options": {
+   "A": "USE CATALOG and SELECT on the foreign catalog for the analysts; no USE CONNECTION on the connection.",
+   "B": "USE CONNECTION on the connection, which implies read access to any catalog built on it.",
+   "C": "SELECT on the connection, which grants query access.",
+   "D": "Ownership of the foreign catalog, since owners can query it."
+  },
+  "correct": "A",
+  "explanation": "USE CONNECTION is the right to build a foreign catalog over a connection; reading data goes through grants on the foreign catalog, which inherit to every foreign table under it. The credential stays inside Unity Catalog and is never seen by the analysts.",
+  "why": {
+   "B": "USE CONNECTION is exactly what lets someone build new catalogs, which the requirement forbids, and it does not grant reads.",
+   "C": "SELECT is not a privilege on a connection.",
+   "D": "Ownership is far more than read access and lets them grant to others."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "federation",
+   "governance",
+   "use-connection",
+   "grants"
+  ],
+  "variant_of": null,
+  "family": "PRO-S4-Q004"
+ },
+ {
+  "id": "PRO-S4-Q005",
+  "exam": "professional",
+  "section": "PRO-S4",
+  "objectives": [
+   "PRO-S4-O3"
+  ],
+  "stem": "A partner wants to read only what changed in a shared table each day rather than re-reading it. The provider tries ALTER SHARE s ADD TABLE t WITH CHANGE DATA FEED and the clause is refused. What actually controls whether the recipient gets the change feed?",
+  "code": null,
+  "options": {
+   "A": "The table's own delta.enableChangeDataFeed property; enable it on the table and share normally, and the share exposes the feed.",
+   "B": "The recipient's authentication type; only open-protocol recipients can read change feeds.",
+   "C": "A share-level property set with ALTER SHARE ... SET CDF = true.",
+   "D": "Nothing; Delta Sharing cannot expose change data."
+  },
+  "correct": "A",
+  "explanation": "The share is a view of properties the table already has more than a place to configure them. CDF on the table is what the recipient sees; the explicit clause is refused on tables encrypted with Databricks-managed keys.",
+  "why": {
+   "B": "Both recipient kinds can read a shared change feed.",
+   "C": "No such share-level property exists.",
+   "D": "Sharing the change feed is a documented feature; the mechanism is the table property."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "delta-sharing",
+   "live-data",
+   "cdf",
+   "alias"
+  ],
+  "variant_of": null,
+  "family": "PRO-S4-Q005"
+ },
+ {
+  "id": "PRO-S4-Q006",
+  "exam": "professional",
+  "section": "PRO-S4",
+  "objectives": [
+   "PRO-S4-O3"
+  ],
+  "stem": "During a sharing review, an engineer runs SHOW ALL IN SHARE partner_share and concludes the review is complete. A month later a table is found to be readable by a recipient nobody expected, and a DROP TABLE on another shared table fails. What did the review miss, and why did the drop fail?",
+  "code": null,
+  "options": {
+   "A": "The review needed SHOW GRANTS ON SHARE too, since \"who can read\" is the recipients granted the share; the drop failed because an object in a share is a dependency and cannot be dropped.",
+   "B": "The review needed DESCRIBE HISTORY; the drop failed because the table had history sharing enabled.",
+   "C": "The review was complete; the extra recipient was added later, and the drop failed because of a lock.",
+   "D": "The review needed SHOW RECIPIENTS; the drop failed because the recipient was still connected."
+  },
+  "correct": "A",
+  "explanation": "A sharing review has two halves: what is in the share, and who has been granted the share. Unity Catalog refuses to drop an object that a share contains (DELTA_SHARING_SECURABLE_DELETE_BLOCKED.BY_SHARES) because it would break a recipient you may not be in contact with.",
+  "why": {
+   "B": "History sharing affects what versions a recipient sees, not whether the object can be dropped.",
+   "C": "Grants are part of the configuration and belong in the review; there is no lock.",
+   "D": "Recipient connections are not tracked that way; membership in a share is what blocks the drop."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "delta-sharing",
+   "audit",
+   "show-grants",
+   "dependency"
+  ],
+  "variant_of": null,
+  "family": "PRO-S4-Q006"
+ },
+ {
+  "id": "PRO-S5-Q001",
+  "exam": "professional",
+  "section": "PRO-S5",
+  "objectives": [
+   "PRO-S5-O1"
+  ],
+  "stem": "Finance asks which SQL warehouses and jobs consumed the most DBUs last month, broken down by the cost-center tag on the compute. Which source answers this with one query?",
+  "code": null,
+  "options": {
+   "A": "system.billing.usage, filtered by usage_date and grouped by SKU and the custom tag.",
+   "B": "system.access.audit, grouped by the workspace object that was accessed.",
+   "C": "DESCRIBE HISTORY on each table the jobs wrote to.",
+   "D": "The Jobs UI run list, exported to a spreadsheet."
+  },
+  "correct": "A",
+  "explanation": "The billing usage system table records consumption per SKU with the compute's tags and identifiers, which is the governed, queryable source for cost by workload and by tag.",
+  "why": {
+   "B": "The audit log records actions, not consumption; it cannot say how many DBUs a job used.",
+   "C": "Table history describes writes to a table, not compute cost.",
+   "D": "Run lists have durations, not DBUs or tags, and are not a joinable source."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "system-tables",
+   "billing",
+   "cost"
+  ],
+  "variant_of": null,
+  "family": "PRO-S5-Q001"
+ },
+ {
+  "id": "PRO-S5-Q002",
+  "exam": "professional",
+  "section": "PRO-S5",
+  "objectives": [
+   "PRO-S5-O1"
+  ],
+  "stem": "A sensitive table was read by an unexpected principal last week, and a downstream team wants to know which tables were derived from it since. Which two system tables answer the two questions?",
+  "code": null,
+  "options": {
+   "A": "system.access.audit for who read it, and system.access.table_lineage for what was derived from it.",
+   "B": "system.billing.usage for who read it, and information_schema.tables for what was derived.",
+   "C": "system.access.table_lineage for both, since lineage records readers.",
+   "D": "DESCRIBE HISTORY for both, since it records every operation on the table."
+  },
+  "correct": "A",
+  "explanation": "Audit records actions with the acting identity (reads included); lineage records which tables were produced from which. They are different questions and different system tables.",
+  "why": {
+   "B": "Billing has no reader identity per table, and information_schema has no lineage.",
+   "C": "Lineage captures data flow between tables, not interactive reads by a principal.",
+   "D": "Table history records writes to that table; it does not know who read it or what was built from it."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "system-tables",
+   "audit",
+   "lineage"
+  ],
+  "variant_of": null,
+  "family": "PRO-S5-Q002"
+ },
+ {
+  "id": "PRO-S5-Q003",
+  "exam": "professional",
+  "section": "PRO-S5",
+  "objectives": [
+   "PRO-S5-O2"
+  ],
+  "stem": "A scheduled notebook job has become slow. An engineer wants to know which stage of which Spark job in the run is responsible, and whether it spills. Which tool, and why not the other?",
+  "code": null,
+  "options": {
+   "A": "The run's Spark UI, which shows stages and tasks with spill and shuffle metrics; the query profile is per SQL query in the SQL editor or warehouse, not per job run.",
+   "B": "The query profile, which shows every stage of the job; the Spark UI only lists jobs.",
+   "C": "DESCRIBE HISTORY on the output table, which records execution time per stage.",
+   "D": "system.compute tables, which record per-stage metrics for every run."
+  },
+  "correct": "A",
+  "explanation": "The Spark UI is the per-run, per-stage view with task-level metrics such as spill and shuffle read. The query profile is the equivalent for a single SQL query on a warehouse. Knowing which tool answers which question is the objective.",
+  "why": {
+   "B": "Reversed: the profile is per query; the Spark UI is the stage-level view for job runs.",
+   "C": "Table history records write operations and their metrics, not Spark stages.",
+   "D": "Compute system tables describe clusters and warehouses, not stages within a run."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "query-profile",
+   "spark-ui",
+   "which-tool"
+  ],
+  "variant_of": null,
+  "family": "PRO-S5-Q003"
+ },
+ {
+  "id": "PRO-S5-Q004",
+  "exam": "professional",
+  "section": "PRO-S5",
+  "objectives": [
+   "PRO-S5-O2"
+  ],
+  "stem": "A SQL query's profile shows files read equal to files in the table and bytes read close to the table's size, although the query filters on a single customer_id. What does the profile tell you, and what is the fix?",
+  "code": null,
+  "options": {
+   "A": "No file pruning happened for the filter; the table needs locality on the filtered column (cluster on it, or accept a full scan for a near-unique filter).",
+   "B": "The warehouse is undersized; scale it up so the scan is faster.",
+   "C": "The filter was applied after the scan because customer_id is a string; cast it to a number.",
+   "D": "The query cache was cold; the second run will read fewer files."
+  },
+  "correct": "A",
+  "explanation": "Files read versus files pruned is the profile's data-skipping metric. Reading every file for a selective filter means the layout gives no locality on that column. If the filter column is a reasonable clustering key, clustering fixes it; if it is nearly unique, the scan is the honest cost.",
+  "why": {
+   "B": "A bigger warehouse scans the same bytes faster; it does not reduce what is read.",
+   "C": "Filters on strings prune fine when statistics and locality exist; the type is irrelevant.",
+   "D": "Caching may speed repeat reads, but the profile's pruning metric is about the first read's layout."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "query-profile",
+   "files-pruned",
+   "layout"
+  ],
+  "variant_of": null,
+  "family": "PRO-S5-Q004"
+ },
+ {
+  "id": "PRO-S5-Q005",
+  "exam": "professional",
+  "section": "PRO-S5",
+  "objectives": [
+   "PRO-S5-O3"
+  ],
+  "stem": "A monitoring script needs the exit value a notebook task returned with dbutils.notebook.exit(), for the latest run of a job. Which sequence of API calls or CLI commands gets it?",
+  "code": null,
+  "options": {
+   "A": "List the job's runs to get the latest run id, get the run to find the task's run id, then get-run-output on the task run id.",
+   "B": "Get the job definition; the last exit value is stored on the job.",
+   "C": "Call get-run on the job run id; the exit value is in the run's state message.",
+   "D": "Query system.lakeflow.job_run_timeline, which stores notebook exit values."
+  },
+  "correct": "A",
+  "explanation": "Notebook output belongs to the task run, not the job run. runs/list finds the run, runs/get exposes each task's run id, and runs/get-output on that id returns the notebook_output with the exit value. This is how the study app reads a grade.",
+  "why": {
+   "B": "Job definitions hold settings, not run results.",
+   "C": "The state message is a status string; outputs are a separate endpoint on the task run.",
+   "D": "The run timeline system table records timings and states, not notebook outputs."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "jobs-api",
+   "cli",
+   "run-output",
+   "monitoring"
+  ],
+  "variant_of": null,
+  "family": "PRO-S5-Q005"
+ },
+ {
+  "id": "PRO-S5-Q006",
+  "exam": "professional",
+  "section": "PRO-S5",
+  "objectives": [
+   "PRO-S5-O3"
+  ],
+  "stem": "A team notices that a job's runtime has doubled over three months, but nobody saw it happen because every run succeeded. What monitoring change would have surfaced it?",
+  "code": null,
+  "options": {
+   "A": "Pull run durations on a schedule through the Jobs API (or system tables) into a table and alert on the trend, since success state alone hides gradual slowdowns.",
+   "B": "Enable failure notifications on the job so the team is emailed when it fails.",
+   "C": "Add a retry to the job so slow runs are re-attempted.",
+   "D": "Increase the job's timeout so slow runs are marked failed sooner."
+  },
+  "correct": "A",
+  "explanation": "A green run is not evidence of health. Durations collected over time turn a gradual regression into a visible trend; the API is how that collection outlives a person watching a dashboard.",
+  "why": {
+   "B": "The runs never failed, so failure notifications never fire.",
+   "C": "Retries respond to failures; they do nothing about slow successes.",
+   "D": "A tighter timeout converts slow runs into failures, which is a blunt alert and loses the output."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "jobs-api",
+   "trends",
+   "automation"
+  ],
+  "variant_of": null,
+  "family": "PRO-S5-Q006"
+ },
+ {
+  "id": "PRO-S5-Q007",
+  "exam": "professional",
+  "section": "PRO-S5",
+  "objectives": [
+   "PRO-S5-O4"
+  ],
+  "stem": "A declarative pipeline has an expectation that drops rows failing a rule. Data consumers ask how many rows have been dropped per day over the last month. Where is that recorded?",
+  "code": null,
+  "options": {
+   "A": "In the pipeline's event log, which records expectation pass and fail counts for every update and can be queried as a table.",
+   "B": "In the target table's DESCRIBE HISTORY, which lists rows dropped per commit.",
+   "C": "Nowhere; dropped rows are discarded without a count.",
+   "D": "In system.access.audit under the pipeline's principal."
+  },
+  "correct": "A",
+  "explanation": "The event log is the pipeline's record: flows, updates, errors and per-expectation counts of passed, failed and dropped rows. Querying it as a table is how quality is trended rather than read off one run's page.",
+  "why": {
+   "B": "Table history records the write's operation metrics, not which expectation rejected what.",
+   "C": "Counts are kept precisely so quality can be monitored; only the rows themselves are dropped.",
+   "D": "The audit log records who did what, not data-quality outcomes."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "pipeline-event-log",
+   "expectations",
+   "data-quality"
+  ],
+  "variant_of": null,
+  "family": "PRO-S5-Q007"
+ },
+ {
+  "id": "PRO-S5-Q008",
+  "exam": "professional",
+  "section": "PRO-S5",
+  "objectives": [
+   "PRO-S5-O4"
+  ],
+  "stem": "A pipeline update failed overnight. The engineer wants the error class and the flow that raised it, plus which expectations were violated before the failure. Which single source has all of it?",
+  "code": null,
+  "options": {
+   "A": "The pipeline event log, filtered to that update's id.",
+   "B": "The Jobs run list, which shows the failing task's error.",
+   "C": "The driver logs of the pipeline's cluster.",
+   "D": "system.billing.usage, filtered to the pipeline's SKU."
+  },
+  "correct": "A",
+  "explanation": "Every pipeline update writes its flows, expectation results and errors (with error class and message) to the event log. It is the one place that ties the failure to the data-quality picture leading up to it.",
+  "why": {
+   "B": "A job that triggers the pipeline shows that the task failed, not the pipeline's internal flows or expectations.",
+   "C": "Driver logs are raw and unstructured, and not available on serverless pipelines.",
+   "D": "Billing has cost, not errors."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "pipeline-event-log",
+   "failure",
+   "error-class"
+  ],
+  "variant_of": null,
+  "family": "PRO-S5-Q008"
+ },
+ {
+  "id": "PRO-S5-Q009",
+  "exam": "professional",
+  "section": "PRO-S5",
+  "objectives": [
+   "PRO-S5-O5"
+  ],
+  "stem": "A SQL alert fires when a daily row count drops below a fixed floor. It fires every Saturday and Sunday, when volume is legitimately lower, and never fired during a slow month-long decline on weekdays. What is the design flaw?",
+  "code": null,
+  "options": {
+   "A": "A fixed threshold on a seasonal metric; compare each day with a baseline of the same day type and alert on sustained downward deviation from it.",
+   "B": "The floor is set too high; lower it until weekends stop firing.",
+   "C": "The alert should run hourly instead of daily.",
+   "D": "Alerts cannot detect gradual declines; only a dashboard can."
+  },
+  "correct": "A",
+  "explanation": "A fixed threshold is honest only when the metric is stationary. With a weekly cycle, any floor above weekend volume fires every weekend and any floor below it never catches a weekday decline. A same-day-type rolling baseline compares like with like.",
+  "why": {
+   "B": "Lowering the floor stops the weekend noise and guarantees the weekday decline is never caught.",
+   "C": "Frequency does not fix a comparison that is wrong in kind.",
+   "D": "A baseline-relative condition detects gradual declines well; the alert just needs the right query."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "sql-alerts",
+   "threshold",
+   "seasonality",
+   "baseline"
+  ],
+  "variant_of": null,
+  "family": "PRO-S5-Q009"
+ },
+ {
+  "id": "PRO-S5-Q010",
+  "exam": "professional",
+  "section": "PRO-S5",
+  "objectives": [
+   "PRO-S5-O5"
+  ],
+  "stem": "An alert on a pipeline metric fires on any day more than 15% below its baseline. It also fired on the one day a marketing campaign doubled volume, because the query used absolute deviation. Which two changes make the alert trustworthy?",
+  "code": null,
+  "options": {
+   "A": "Alert only on the downward direction, and require the condition to hold for several consecutive days before firing.",
+   "B": "Raise the deviation to 50% and notify a second person.",
+   "C": "Switch the comparison to the previous day rather than a baseline.",
+   "D": "Disable the alert on days with campaigns."
+  },
+  "correct": "A",
+  "explanation": "Unusual is not a useful condition; the direction that means something is a drop. Requiring persistence trades a day of latency for an alert people believe. An alert that cries wolf is ignored, and then the real one is too.",
+  "why": {
+   "B": "A looser threshold delays detection and still fires on a big enough upward spike.",
+   "C": "Day-over-day comparisons amplify noise and still treat a spike as an anomaly.",
+   "D": "Manual exceptions do not scale and leave the alert firing on the next benign spike."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "sql-alerts",
+   "persistence",
+   "false-positives",
+   "direction"
+  ],
+  "variant_of": null,
+  "family": "PRO-S5-Q010"
+ },
+ {
+  "id": "PRO-S5-Q011",
+  "exam": "professional",
+  "section": "PRO-S5",
+  "objectives": [
+   "PRO-S5-O6"
+  ],
+  "stem": "A job normally finishes in 20 minutes. The team wants to be told when a run is still going after 60 minutes, even though it may still succeed, and when it fails. Where is this configured?",
+  "code": null,
+  "options": {
+   "A": "On the job: a failure notification plus a health rule on run duration (RUN_DURATION_SECONDS) with a notification destination such as a Slack channel.",
+   "B": "In a SQL alert over system.lakeflow.job_run_timeline that runs every minute.",
+   "C": "In the notebook, with a timer thread that emails after 60 minutes.",
+   "D": "By setting the job timeout to 60 minutes, which sends a failure notification."
+  },
+  "correct": "A",
+  "explanation": "Jobs carry notification settings for start, success and failure, and health rules for duration and streaming backlog that notify while the run is still in progress. Destinations are configured once and reused across jobs.",
+  "why": {
+   "B": "Possible but indirect and laggy; the job's own health rule exists for exactly this.",
+   "C": "Code inside the task cannot observe the task from outside and dies with it.",
+   "D": "A timeout kills the run at 60 minutes; the requirement was to be warned while it continues."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "job-notifications",
+   "duration-warning",
+   "health"
+  ],
+  "variant_of": null,
+  "family": "PRO-S5-Q011"
+ },
+ {
+  "id": "PRO-S5-Q012",
+  "exam": "professional",
+  "section": "PRO-S5",
+  "objectives": [
+   "PRO-S5-O6"
+  ],
+  "stem": "Which is the recommended way to route job failure notifications so they keep working when the engineer who set them up leaves the team?",
+  "code": null,
+  "options": {
+   "A": "A shared notification destination (a Slack channel, Teams channel, PagerDuty service or webhook) configured on the job, not an individual's email.",
+   "B": "The job owner's email, since ownership transfers automatically.",
+   "C": "No notifications; rely on the run list being checked each morning.",
+   "D": "A personal webhook on the engineer's laptop."
+  },
+  "correct": "A",
+  "explanation": "Notify a channel, not a person. Notification destinations are workspace-level objects reused by many jobs, and a channel survives personnel changes and holidays.",
+  "why": {
+   "B": "Ownership does not transfer on its own, and a personal inbox is a single point of failure.",
+   "C": "Manual checking is the failure mode notifications exist to replace.",
+   "D": "A laptop is offline more often than a service."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "job-notifications",
+   "destinations",
+   "channel"
+  ],
+  "variant_of": null,
+  "family": "PRO-S5-Q012"
+ },
+ {
+  "id": "PRO-S6-Q002",
+  "exam": "professional",
+  "section": "PRO-S6",
+  "objectives": [
+   "PRO-S6-O1"
+  ],
+  "stem": "A team migrates a set of external Delta tables to Unity Catalog managed tables. Six months later they notice that OPTIMIZE and VACUUM have been running on the tables although nobody scheduled them. What explains it?",
+  "code": null,
+  "options": {
+   "A": "Predictive optimization runs maintenance automatically on managed tables, based on how they are used; on the external tables that work had been theirs to schedule.",
+   "B": "The migration created a maintenance job per table that nobody noticed.",
+   "C": "Managed tables are compacted on every write, so OPTIMIZE is implicit.",
+   "D": "VACUUM runs on every managed table nightly regardless of usage, as a fixed platform schedule."
+  },
+  "correct": "A",
+  "explanation": "When Unity Catalog owns a table's layout it can maintain it. Predictive optimization decides when compaction, clustering and vacuum are worth running from the table's activity, which removes a class of operational work that external tables leave with the team.",
+  "why": {
+   "B": "No job is created; the maintenance is a platform service, not a workspace resource.",
+   "C": "Writes are not compacted inline; small files still accumulate until maintenance runs.",
+   "D": "It is usage-driven rather than a fixed schedule; idle tables are not vacuumed for the sake of it."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "managed-tables",
+   "predictive-optimization",
+   "maintenance"
+  ],
+  "variant_of": null,
+  "family": "PRO-S6-Q002"
+ },
+ {
+  "id": "PRO-S6-Q003",
+  "exam": "professional",
+  "section": "PRO-S6",
+  "objectives": [
+   "PRO-S6-O1"
+  ],
+  "stem": "An external Delta table is dropped with DROP TABLE. A month later the cloud storage bill has not changed. A managed table dropped the same way did reduce the bill. Why?",
+  "code": null,
+  "options": {
+   "A": "Dropping an external table removes only the catalog entry; the files stay in the external location. Dropping a managed table removes the data too.",
+   "B": "External tables are always cached in storage for 30 days before deletion.",
+   "C": "The external table's files were still referenced by time travel and will be removed by the next VACUUM.",
+   "D": "Managed tables are compressed on drop, which is what reduced the bill."
+  },
+  "correct": "A",
+  "explanation": "A managed table's lifecycle follows the catalog: drop it and its files go. An external table is a catalog entry over storage the team controls, so dropping it leaves every file in place, and cleaning up is a separate manual step.",
+  "why": {
+   "B": "There is no retention window on dropped external tables; the files are simply not touched.",
+   "C": "VACUUM operates on a live table; a dropped external table has no table to vacuum.",
+   "D": "Nothing is compressed on drop; the managed table's files were deleted."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "managed-tables",
+   "external-tables",
+   "lifecycle",
+   "storage"
+  ],
+  "variant_of": null,
+  "family": "PRO-S6-Q003"
+ },
+ {
+  "id": "PRO-S6-Q004",
+  "exam": "professional",
+  "section": "PRO-S6",
+  "objectives": [
+   "PRO-S6-O2"
+  ],
+  "stem": "A 2 TB orders table is queried almost always by order_date ranges and by region. An engineer proposes ALTER TABLE orders CLUSTER BY (order_id) because order_id is the primary key. What is the likely effect?",
+  "code": null,
+  "options": {
+   "A": "A costly rewrite and no benefit: order_id is nearly unique, so every file spans a distinct range and no file can be skipped for the actual filters.",
+   "B": "Faster queries, because clustering on the primary key makes lookups by any column efficient.",
+   "C": "Faster queries by order_date, because clustering on the key sorts the table chronologically.",
+   "D": "An error, because CLUSTER BY requires a column with fewer than 10,000 distinct values."
+  },
+  "correct": "A",
+  "explanation": "Data skipping needs locality on the columns queries filter by. A near-unique key gives every file a distinct range of ids, which helps nothing that filters on date or region. Cluster on the filter columns: order_date and region.",
+  "why": {
+   "B": "Clustering helps only filters on the clustering columns; it is not an index over all columns.",
+   "C": "Ids do not imply dates; even if they correlated, the filter on order_date needs order_date statistics to prune.",
+   "D": "No such limit exists; the statement succeeds and the rewrite happens."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "liquid-clustering",
+   "cluster-key",
+   "cardinality"
+  ],
+  "variant_of": null,
+  "family": "PRO-S6-Q004"
+ },
+ {
+  "id": "PRO-S6-Q005",
+  "exam": "professional",
+  "section": "PRO-S6",
+  "objectives": [
+   "PRO-S6-O2"
+  ],
+  "stem": "A table with deletion vectors enabled receives thousands of small DELETE statements a day. Queries stay fast, but a downstream consumer that must read the table without deletion vectors asks for a clean copy. Which statement produces the physical rewrite that removes the soft-deleted rows?",
+  "code": null,
+  "options": {
+   "A": "REORG TABLE t APPLY (PURGE)",
+   "B": "VACUUM t RETAIN 0 HOURS",
+   "C": "OPTIMIZE t ZORDER BY (id)",
+   "D": "ALTER TABLE t SET TBLPROPERTIES (delta.enableDeletionVectors = false)"
+  },
+  "correct": "A",
+  "explanation": "Deletion vectors mark rows deleted without rewriting files, which is what makes the deletes cheap. REORG ... APPLY (PURGE) rewrites the affected files so the marked rows are physically gone. Turning the property off only stops new vectors being written.",
+  "why": {
+   "B": "VACUUM removes unreferenced files; rows marked by a deletion vector are still in referenced files.",
+   "C": "OPTIMIZE compacts and can rewrite files, but purging deletion vectors is what REORG APPLY (PURGE) is for.",
+   "D": "Disabling the property prevents future vectors and leaves the existing ones in place."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "deletion-vectors",
+   "updates",
+   "reorg",
+   "purge"
+  ],
+  "variant_of": null,
+  "family": "PRO-S6-Q005"
+ },
+ {
+  "id": "PRO-S6-Q006",
+  "exam": "professional",
+  "section": "PRO-S6",
+  "objectives": [
+   "PRO-S6-O3"
+  ],
+  "stem": "A query with WHERE region = 'EMEA' on a table of 4,000 files reads all 4,000 files, according to the query profile. The table has per-file min/max statistics on region. What is the most likely cause?",
+  "code": null,
+  "options": {
+   "A": "Every file contains rows from every region, so no file's min/max range excludes 'EMEA'; the data has statistics but no locality.",
+   "B": "Statistics only apply to numeric columns, so region cannot be used for skipping.",
+   "C": "The query profile counts files opened for metadata, not data; the query actually skipped most of them.",
+   "D": "Data skipping requires a partition on the column, and the table is unpartitioned."
+  },
+  "correct": "A",
+  "explanation": "Skipping needs statistics and locality. If values of region are scattered across every file, each file's range covers every region and nothing can be excluded. Clustering on region (liquid clustering) gives the files distinct ranges, which is what lets pruning work.",
+  "why": {
+   "B": "Min/max statistics are collected on string columns too.",
+   "C": "The profile's files-read metric is data reads; 4,000 of 4,000 means no pruning.",
+   "D": "Partitioning is one way to get locality; clustering is the other, and neither is required for statistics to exist."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "data-skipping",
+   "statistics",
+   "locality",
+   "describe-detail"
+  ],
+  "variant_of": null,
+  "family": "PRO-S6-Q006"
+ },
+ {
+  "id": "PRO-S6-Q007",
+  "exam": "professional",
+  "section": "PRO-S6",
+  "objectives": [
+   "PRO-S6-O3"
+  ],
+  "stem": "A dashboard query selects three columns from a 120-column Delta table but is written as SELECT * inside a subquery, with the three columns picked in the outer query. The profile shows bytes read far larger than bytes returned. What is happening?",
+  "code": null,
+  "options": {
+   "A": "The optimiser usually pushes the projection down, but if it cannot (for example through a UDF or certain views) all 120 columns are read from the columnar files; projecting only the needed columns fixes it.",
+   "B": "Columnar formats always read whole rows, so bytes read cannot be reduced without changing the storage format.",
+   "C": "The subquery is materialised to disk, which doubles bytes read.",
+   "D": "Bytes read includes the transaction log, which is large for a wide table."
+  },
+  "correct": "A",
+  "explanation": "Parquet-backed Delta reads only referenced columns, but only when the plan's projection reaches the scan. Anything that blocks projection pushdown turns a three-column query into a 120-column read. Bytes read versus bytes returned is the profile metric that exposes it.",
+  "why": {
+   "B": "Column pruning is the defining benefit of a columnar format; it works when the projection reaches the scan.",
+   "C": "Subqueries are not materialised to disk by default; they are planned as one query.",
+   "D": "The log is metadata and tiny compared with 120 columns of data."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "column-pruning",
+   "select-star",
+   "bytes-read"
+  ],
+  "variant_of": null,
+  "family": "PRO-S6-Q007"
+ },
+ {
+  "id": "PRO-S6-Q008",
+  "exam": "professional",
+  "section": "PRO-S6",
+  "objectives": [
+   "PRO-S6-O4"
+  ],
+  "stem": "A silver table is updated by MERGE, including updates to existing rows. A gold streaming table built directly on it keeps failing on update commits. The team needs gold to reflect the updates within minutes. What should they do?",
+  "code": null,
+  "options": {
+   "A": "Enable change data feed on silver and drive gold from table_changes, applying inserts, updates and deletes with MERGE; gold sees exactly what changed.",
+   "B": "Set skipChangeCommits on the gold stream so it stops failing.",
+   "C": "Set ignoreChanges on the gold stream, which re-emits updated rows as new appends.",
+   "D": "Rebuild gold fully every few minutes with a scheduled job."
+  },
+  "correct": "A",
+  "explanation": "A streaming table cannot revisit rows it consumed, which is the limitation the change data feed exists to address: it records row-level changes so a consumer can apply exactly the inserts, updates and deletes since the last version, keeping latency low without a full rebuild.",
+  "why": {
+   "B": "Skipping the update commits keeps the stream alive by dropping precisely the changes gold needs.",
+   "C": "ignoreChanges re-emits whole rewritten files as appends, duplicating rows unless gold is made idempotent, and never expresses deletes.",
+   "D": "A full rebuild every few minutes is the expensive option CDF replaces."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "change-data-feed",
+   "streaming-table",
+   "merge",
+   "latency"
+  ],
+  "variant_of": null,
+  "family": "PRO-S6-Q008"
+ },
+ {
+  "id": "PRO-S6-Q009",
+  "exam": "professional",
+  "section": "PRO-S6",
+  "objectives": [
+   "PRO-S6-O4"
+  ],
+  "stem": "With delta.enableChangeDataFeed set on a table, which columns does table_changes('t', 5) add alongside the table's own columns, and what values does _change_type take for an UPDATE?",
+  "code": null,
+  "options": {
+   "A": "_change_type, _commit_version and _commit_timestamp; an update appears as an update_preimage row and an update_postimage row.",
+   "B": "_change_type and _commit_version; an update appears as a single row with _change_type = 'update'.",
+   "C": "_operation and _timestamp; an update appears as a delete followed by an insert.",
+   "D": "No extra columns; changes are distinguished by comparing consecutive versions."
+  },
+  "correct": "A",
+  "explanation": "The change feed exposes each change with its type, commit version and commit timestamp. Updates are represented as a before image and an after image, which is what lets a consumer apply them precisely.",
+  "why": {
+   "B": "Updates are two rows (pre and post image), and the timestamp column exists too.",
+   "C": "Those column names are invented; and updates are images, not delete/insert pairs.",
+   "D": "The whole point of CDF is not having to diff versions yourself."
+  },
+  "difficulty": "recall",
+  "provenance": "original",
+  "tags": [
+   "change-data-feed",
+   "table_changes",
+   "_change_type"
+  ],
+  "variant_of": null,
+  "family": "PRO-S6-Q009"
+ },
+ {
+  "id": "PRO-S6-Q010",
+  "exam": "professional",
+  "section": "PRO-S6",
+  "objectives": [
+   "PRO-S6-O5"
+  ],
+  "stem": "A query profile shows a join between a 900 GB fact table and a 40 MB dimension executed as a sort-merge join with large shuffle bytes on both sides. Which change most directly reduces the shuffle, and why?",
+  "code": null,
+  "options": {
+   "A": "Broadcast the dimension (broadcast() or a higher spark.sql.autoBroadcastJoinThreshold); the fact table then never shuffles.",
+   "B": "Increase spark.sql.shuffle.partitions so the shuffle is spread over more tasks.",
+   "C": "Cluster the fact table on the join key so the sort-merge join skips the sort.",
+   "D": "Cache the dimension table so the shuffle reads it from memory."
+  },
+  "correct": "A",
+  "explanation": "A sort-merge join shuffles both inputs by the join key. When one side is small, broadcasting it to every executor removes the shuffle of the large side entirely. 40 MB is above the default 10 MB threshold, so the optimiser did not choose it on its own.",
+  "why": {
+   "B": "More partitions change task sizes, not the total bytes shuffled.",
+   "C": "Clustering helps file skipping on filters; a sort-merge join still shuffles by key.",
+   "D": "Caching avoids re-reading the dimension; the shuffle of the 900 GB side is untouched."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "query-profile",
+   "join",
+   "broadcast",
+   "shuffle"
+  ],
+  "variant_of": null,
+  "family": "PRO-S6-Q010"
+ },
+ {
+  "id": "PRO-S6-Q011",
+  "exam": "professional",
+  "section": "PRO-S6",
+  "objectives": [
+   "PRO-S6-O5"
+  ],
+  "stem": "In a query profile, one stage shows 199 tasks finishing in under two seconds and one task taking eleven minutes with heavy spill. What is the diagnosis and the first remedy to try?",
+  "code": null,
+  "options": {
+   "A": "Data skew on the stage's key; enable adaptive query execution's skew join handling, which splits the oversized partition at runtime, before hand-salting keys.",
+   "B": "Too few partitions; increase spark.sql.shuffle.partitions so every task is smaller.",
+   "C": "A slow executor node; restart the cluster to get a healthy node.",
+   "D": "The stage is I/O bound; add more executors so reads run in parallel."
+  },
+  "correct": "A",
+  "explanation": "One straggler with disproportionate data and spill is the signature of skew: a single key holds most of the rows. Adaptive execution can split skewed partitions with no code change, which is the cheapest fix; salting the key is the manual fallback.",
+  "why": {
+   "B": "More partitions do not split one key's data; the hot key still lands in one task.",
+   "C": "Node health would slow several tasks randomly, not exactly the task with the most data.",
+   "D": "The other 199 tasks are fast; the problem is the distribution of data, not throughput."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "query-profile",
+   "spill",
+   "skew",
+   "aqe"
+  ],
+  "variant_of": null,
+  "family": "PRO-S6-Q011"
+ },
+ {
+  "id": "PRO-S7-Q002",
+  "exam": "professional",
+  "section": "PRO-S7",
+  "objectives": [
+   "PRO-S7-O1"
+  ],
+  "stem": "An analyst needs to query one table, sales.orders, and nothing else in the catalog. Which set of grants is least privilege?",
+  "code": null,
+  "options": {
+   "A": "USE CATALOG on the catalog, USE SCHEMA on sales, and SELECT on sales.orders, granted to a group the analyst belongs to.",
+   "B": "SELECT on the catalog, so the analyst can read any table they need later.",
+   "C": "SELECT on sales.orders only; traversal privileges are implied by a table grant.",
+   "D": "Ownership of sales.orders, since owners can always read."
+  },
+  "correct": "A",
+  "explanation": "A table grant is inert without the traversal privileges to reach it, so the minimum is the two USE privileges plus SELECT on the one table. Granting to a group keeps the grant stable when people change.",
+  "why": {
+   "B": "SELECT on the catalog inherits to every table in it, far beyond one table.",
+   "C": "USE CATALOG and USE SCHEMA are not implied; without them the SELECT cannot be exercised.",
+   "D": "Ownership carries every privilege including granting to others; it is the opposite of least privilege."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "acl",
+   "least-privilege",
+   "groups",
+   "grants"
+  ],
+  "variant_of": null,
+  "family": "PRO-S7-Q002"
+ },
+ {
+  "id": "PRO-S7-Q003",
+  "exam": "professional",
+  "section": "PRO-S7",
+  "objectives": [
+   "PRO-S7-O1"
+  ],
+  "stem": "An application must trigger an existing job and read its run output, and must not be able to edit the job. Which workspace permission on the job fits?",
+  "code": null,
+  "options": {
+   "A": "CAN_MANAGE_RUN, which allows triggering, cancelling and reading runs without changing the definition.",
+   "B": "CAN_VIEW, which allows triggering runs read-only.",
+   "C": "CAN_MANAGE, which is required to trigger runs.",
+   "D": "IS_OWNER, since only owners can start jobs."
+  },
+  "correct": "A",
+  "explanation": "Job permission levels are graded: CAN_VIEW sees runs, CAN_MANAGE_RUN can trigger and cancel them, CAN_MANAGE can edit the job, IS_OWNER has everything. Least privilege for a trigger-and-read caller is CAN_MANAGE_RUN.",
+  "why": {
+   "B": "CAN_VIEW cannot trigger a run.",
+   "C": "CAN_MANAGE also permits editing the definition, which the requirement forbids.",
+   "D": "Ownership is far more than the task needs."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "workspace-acl",
+   "jobs",
+   "can-manage-run",
+   "service-principal"
+  ],
+  "variant_of": null,
+  "family": "PRO-S7-Q003"
+ },
+ {
+  "id": "PRO-S7-Q004",
+  "exam": "professional",
+  "section": "PRO-S7",
+  "objectives": [
+   "PRO-S7-O2"
+  ],
+  "stem": "HR must see salaries, everyone else must see NULL, and regional managers must see only rows for their region. Which combination implements this on one table?",
+  "code": null,
+  "options": {
+   "A": "A column mask function on salary that returns the value for the HR group and NULL otherwise, plus a row filter function on region.",
+   "B": "Two views, one per audience, and grants on the views.",
+   "C": "A row filter alone, since it can also blank columns.",
+   "D": "A column mask alone, since it can also drop rows."
+  },
+  "correct": "A",
+  "explanation": "Masks decide what a viewer sees in a column; filters decide which rows a viewer sees. Both are SQL functions attached to the table and applied at query time to everyone, so the one table serves every audience correctly.",
+  "why": {
+   "B": "Views can work, but they multiply objects and leave the base table readable by anyone granted on it.",
+   "C": "A row filter cannot change column values.",
+   "D": "A column mask cannot remove rows."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "column-mask",
+   "row-filter",
+   "functions"
+  ],
+  "variant_of": null,
+  "family": "PRO-S7-Q004"
+ },
+ {
+  "id": "PRO-S7-Q005",
+  "exam": "professional",
+  "section": "PRO-S7",
+  "objectives": [
+   "PRO-S7-O2"
+  ],
+  "stem": "A regulation requires that a national identifier must not be stored in a published table. A team applies a column mask that hides it from everyone but one admin group and declares the requirement met. What is wrong?",
+  "code": null,
+  "options": {
+   "A": "A mask hides a value from readers; the value is still stored, and anyone who can alter the table can drop the mask. Storing an irreversible hash (or nothing) is what meets \"must not be stored\".",
+   "B": "Nothing; a mask is the standard way to satisfy storage restrictions.",
+   "C": "The mask should be a row filter instead.",
+   "D": "Masks cannot be applied to string columns, so the statement failed."
+  },
+  "correct": "A",
+  "explanation": "Masks and filters are access controls, not data-minimisation. A requirement about what may be held is met by not holding it: hash it irreversibly (salted if the input space is small) or suppress the column.",
+  "why": {
+   "B": "A stored-but-masked identifier is still stored.",
+   "C": "A row filter removes rows, not a column's stored value.",
+   "D": "Masks apply to any column type."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "column-mask",
+   "deletion",
+   "compliance",
+   "limits"
+  ],
+  "variant_of": null,
+  "family": "PRO-S7-Q005"
+ },
+ {
+  "id": "PRO-S7-Q006",
+  "exam": "professional",
+  "section": "PRO-S7",
+  "objectives": [
+   "PRO-S7-O3"
+  ],
+  "stem": "A team pseudonymises date of birth with an unsalted SHA-256 hash so records can still be grouped by birthday. A reviewer says the column is effectively still plaintext. Why?",
+  "code": null,
+  "options": {
+   "A": "There are only about 40,000 plausible dates of birth; hashing every one of them and matching reveals every value. Low-entropy inputs need a salt kept away from the data.",
+   "B": "SHA-256 is reversible with enough compute.",
+   "C": "Hashing a date produces the same output for everyone born in the same year.",
+   "D": "Dates cannot be hashed because they are not strings."
+  },
+  "correct": "A",
+  "explanation": "Hashing is irreversible in principle, but a small input space can be enumerated: hash every candidate and compare. A salt kept out of the dataset makes the enumeration useless. Email addresses are high-entropy; birthdays and postcodes are not.",
+  "why": {
+   "B": "The hash is not reversed; the input space is enumerated.",
+   "C": "Same input gives the same hash; different dates give different hashes.",
+   "D": "Any value can be hashed once represented as bytes; the type is not the issue."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "hashing",
+   "salt",
+   "low-entropy",
+   "anonymisation"
+  ],
+  "variant_of": null,
+  "family": "PRO-S7-Q006"
+ },
+ {
+  "id": "PRO-S7-Q007",
+  "exam": "professional",
+  "section": "PRO-S7",
+  "objectives": [
+   "PRO-S7-O3"
+  ],
+  "stem": "A dataset must be shared with a research partner. Customers must be groupable across tables, the partner must never recover identities, but the company must be able to re-identify a record if a customer later exercises a rights request. Which technique for the customer identifier fits?",
+  "code": null,
+  "options": {
+   "A": "Tokenisation, with the token vault kept by the company; tokens are consistent for grouping and reversible only with the vault.",
+   "B": "Suppression, since removing the identifier is the safest option.",
+   "C": "Generalisation to the customer's country, which preserves aggregates.",
+   "D": "An unsalted hash, which is consistent and irreversible."
+  },
+  "correct": "A",
+  "explanation": "Choose the technique by what the data still has to do. Consistent grouping plus reversibility for the data owner alone is tokenisation. Hashing loses the reversibility; suppression loses grouping; generalisation loses both.",
+  "why": {
+   "B": "Without an identifier the partner cannot group a customer's records.",
+   "C": "A country is not a customer; grouping by customer is impossible.",
+   "D": "Irreversible means the company cannot re-identify on request either."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "tokenisation",
+   "generalisation",
+   "suppression",
+   "choice"
+  ],
+  "variant_of": null,
+  "family": "PRO-S7-Q007"
+ },
+ {
+  "id": "PRO-S7-Q008",
+  "exam": "professional",
+  "section": "PRO-S7",
+  "objectives": [
+   "PRO-S7-O4"
+  ],
+  "stem": "A pipeline masks the email and phone columns of a support-ticket table before publishing. An audit finds customer email addresses in the published table. Where are they, and what does a compliant pipeline do differently?",
+  "code": null,
+  "options": {
+   "A": "Inside the free-text notes column; a compliant pipeline detects PII patterns in every text column with regexp_replace, in the batch and streaming paths alike, rather than masking only known columns.",
+   "B": "In the table history; the pipeline should VACUUM after publishing.",
+   "C": "In the column names; the pipeline should rename columns.",
+   "D": "Nowhere; the audit is mistaken because the email column is masked."
+  },
+  "correct": "A",
+  "explanation": "Masking the columns you know hold PII is the easy half. Free text is where it hides, so a compliant pipeline applies pattern detection to text columns as a transformation step shared by batch and streaming writes.",
+  "why": {
+   "B": "History retention is a separate concern; the audit found values in the current published data.",
+   "C": "Column names are not the leak.",
+   "D": "The masked column is fine; the notes column is not."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "pii-detection",
+   "free-text",
+   "regexp",
+   "streaming"
+  ],
+  "variant_of": null,
+  "family": "PRO-S7-Q008"
+ },
+ {
+  "id": "PRO-S7-Q009",
+  "exam": "professional",
+  "section": "PRO-S7",
+  "objectives": [
+   "PRO-S7-O4"
+  ],
+  "stem": "A team implements PII masking as a function apply_masks(df) that returns a DataFrame, and wants the identical logic in a nightly batch job and in a Structured Streaming job. What is the correct way to reuse it?",
+  "code": null,
+  "options": {
+   "A": "Call df.transform(apply_masks) in both; a transformation function works on a static DataFrame and on a streaming one alike.",
+   "B": "Copy the function into each notebook, since streaming DataFrames need a different API.",
+   "C": "Use foreachBatch in the batch job so both paths run the same micro-batch code.",
+   "D": "Only the streaming job can use it; batch must re-implement it in SQL."
+  },
+  "correct": "A",
+  "explanation": "DataFrame transformations are the same API whether the DataFrame is static or streaming. Packaging the logic as a function and applying it with transform gives one implementation, one test suite, and no drift between the two paths.",
+  "why": {
+   "B": "Column-level transformations are identical on streaming DataFrames.",
+   "C": "foreachBatch is a streaming sink construct; a batch job has no micro-batches.",
+   "D": "The function is plain DataFrame code and runs in either job."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "transform",
+   "batch-and-streaming",
+   "reuse"
+  ],
+  "variant_of": null,
+  "family": "PRO-S7-Q009"
+ },
+ {
+  "id": "PRO-S7-Q010",
+  "exam": "professional",
+  "section": "PRO-S7",
+  "objectives": [
+   "PRO-S7-O5"
+  ],
+  "stem": "A customer requests erasure. The team runs DELETE FROM records WHERE subject_id = 'C42' and confirms the row is gone with a SELECT. A week later an auditor retrieves the row. How, and what was missing?",
+  "code": null,
+  "options": {
+   "A": "Through time travel: DELETE removes rows from the current version only. Erasure needs the history expired (deletedFileRetentionDuration) and VACUUM run so the old files are removed.",
+   "B": "Through a backup the auditor restored; the pipeline should not keep backups.",
+   "C": "The DELETE was never committed because Delta requires an explicit COMMIT.",
+   "D": "The row was re-inserted by a streaming job; erasure needs the stream stopped."
+  },
+  "correct": "A",
+  "explanation": "Earlier versions still contain deleted rows; that is what time travel is for. To make an erasure final, shorten the retention and vacuum, accepting that time travel over that window is gone. Right for an erasure request, wrong as a table's default.",
+  "why": {
+   "B": "No external backup is needed to explain it; the table's own history has the row.",
+   "C": "Delta commits each statement atomically; there is no separate COMMIT.",
+   "D": "A re-insert would show in the current version's SELECT; the auditor read an old version."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "erasure",
+   "delete",
+   "time-travel",
+   "vacuum"
+  ],
+  "variant_of": null,
+  "family": "PRO-S7-Q010"
+ },
+ {
+  "id": "PRO-S7-Q011",
+  "exam": "professional",
+  "section": "PRO-S7",
+  "objectives": [
+   "PRO-S7-O5"
+  ],
+  "stem": "A retention policy says support tickets are kept for one year, marketing events for 90 days and transaction logs for seven years. A purge job deletes everything older than one year. What is the consequence?",
+  "code": null,
+  "options": {
+   "A": "Marketing events are kept nine months too long and transaction logs are destroyed six years early; the cutoff must be per record type.",
+   "B": "Nothing; one year is a reasonable average.",
+   "C": "Only the marketing events are affected, since transaction logs are exempt from purging.",
+   "D": "The job fails, because Delta rejects deletes spanning multiple categories."
+  },
+  "correct": "A",
+  "explanation": "A single cutoff is a bug in both directions: it over-retains the category with the shortest period and destroys the category with the longest. Retention is a cutoff per category, applied with the record type in the predicate.",
+  "why": {
+   "B": "Averages do not satisfy any of the three obligations.",
+   "C": "Nothing exempts transaction logs from a DELETE that does not check the type.",
+   "D": "The DELETE runs happily; the harm is silent."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "retention",
+   "purge",
+   "policy-per-category"
+  ],
+  "variant_of": null,
+  "family": "PRO-S7-Q011"
+ },
+ {
+  "id": "PRO-S8-Q002",
+  "exam": "professional",
+  "section": "PRO-S8",
+  "objectives": [
+   "PRO-S8-O1"
+  ],
+  "stem": "A governance team needs to list every column across the catalog that holds personal data, so masking can be verified. Column comments already say things like \"customer email (PII)\". Why is that insufficient, and what should be recorded instead?",
+  "code": null,
+  "options": {
+   "A": "Comments are prose for a human and cannot be filtered reliably; set a tag such as pii = 'true' on each column and query information_schema.column_tags.",
+   "B": "Comments are stored only in the UI and are not queryable at all.",
+   "C": "Comments are fine; query information_schema.columns with LIKE '%PII%'.",
+   "D": "Only table-level metadata is queryable, so the requirement cannot be met per column."
+  },
+  "correct": "A",
+  "explanation": "Comments say what something is; tags say what class of thing it is, and only the second is queryable at scale. \"Show me everything holding PII\" is a query over column_tags, not a text search over free prose that different authors wrote differently.",
+  "why": {
+   "B": "Comments are in information_schema.columns; they are just not structured.",
+   "C": "A LIKE over prose misses every column whose author wrote \"personal\", \"sensitive\" or nothing.",
+   "D": "Column tags exist and have their own information_schema view."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "tags",
+   "comments",
+   "discoverability",
+   "information_schema"
+  ],
+  "variant_of": null,
+  "family": "PRO-S8-Q002"
+ },
+ {
+  "id": "PRO-S8-Q003",
+  "exam": "professional",
+  "section": "PRO-S8",
+  "objectives": [
+   "PRO-S8-O1"
+  ],
+  "stem": "An analyst builds a table inventory from information_schema.tables and reports 120 tables. An admin runs the identical query and gets 340. Neither query has a WHERE clause. What explains the difference?",
+  "code": null,
+  "options": {
+   "A": "information_schema is filtered by the caller's privileges; each user sees only the objects they can access, so an inventory is only complete when run by a principal that can see everything.",
+   "B": "The analyst queried the per-catalog view and the admin queried system.information_schema, which spans all catalogs.",
+   "C": "The admin's query included temporary views.",
+   "D": "Caching; the analyst's result was stale."
+  },
+  "correct": "A",
+  "explanation": "The views are filtered by what the caller may see. That is a feature, and a trap for anyone building governance reports: the same inventory built by two people is two different inventories.",
+  "why": {
+   "B": "The question says the queries were identical; the difference is the caller.",
+   "C": "Temporary views are not in information_schema.tables.",
+   "D": "information_schema is not a cached snapshot per user."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "information_schema",
+   "filtered",
+   "inventory"
+  ],
+  "variant_of": null,
+  "family": "PRO-S8-Q003"
+ },
+ {
+  "id": "PRO-S8-Q004",
+  "exam": "professional",
+  "section": "PRO-S8",
+  "objectives": [
+   "PRO-S8-O2"
+  ],
+  "stem": "An access review finds group finance has SELECT on hr.salaries. An engineer runs REVOKE SELECT ON TABLE hr.salaries FROM finance, which succeeds, but the group can still read the table. Why?",
+  "code": null,
+  "options": {
+   "A": "The privilege was granted on the schema (or catalog) and inherited; revoking on the table removes a grant that was never there. Revoke it where it lives, as SHOW GRANTS' ObjectType or table_privileges.inherited_from shows.",
+   "B": "Revokes take effect at the next cluster restart.",
+   "C": "finance is also the owner of the table, and owners cannot be revoked.",
+   "D": "The group holds SELECT through a row filter that must be dropped first."
+  },
+  "correct": "A",
+  "explanation": "A privilege applies where it inherits but lives where it was granted. The revoke reported success and changed nothing, which is why an access review must record the level a grant was made at, not only that it applies.",
+  "why": {
+   "B": "Grants and revokes apply immediately.",
+   "C": "Ownership is possible but not implied; the common cause is inheritance.",
+   "D": "Row filters restrict rows; they do not grant privileges."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "inheritance",
+   "revoke",
+   "show-grants",
+   "inherited_from"
+  ],
+  "variant_of": null,
+  "family": "PRO-S8-Q004"
+ },
+ {
+  "id": "PRO-S8-Q005",
+  "exam": "professional",
+  "section": "PRO-S8",
+  "objectives": [
+   "PRO-S8-O2"
+  ],
+  "stem": "A service principal is granted SELECT on every table in catalog reporting via a catalog-level grant, yet its queries fail with PERMISSION_DENIED on every table. information_schema.table_privileges shows the SELECT. What is missing?",
+  "code": null,
+  "options": {
+   "A": "USE CATALOG on the catalog and USE SCHEMA on each schema; SELECT is inert without the traversal privileges, and no privileges view computes that conjunction for you.",
+   "B": "Table ownership; only owners can exercise inherited grants.",
+   "C": "A refresh of the catalog's privilege cache.",
+   "D": "A workspace binding; service principals cannot read catalogs at all."
+  },
+  "correct": "A",
+  "explanation": "USE CATALOG and USE SCHEMA are the right to see that something exists and name it. Holding SELECT without them is the classic support ticket, and it is invisible to a report built from table_privileges alone.",
+  "why": {
+   "B": "Inherited grants work for any grantee; ownership is not required.",
+   "C": "There is no privilege cache to refresh.",
+   "D": "Service principals are ordinary principals in Unity Catalog."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "traversal",
+   "use-schema",
+   "effective-access"
+  ],
+  "variant_of": null,
+  "family": "PRO-S8-Q005"
+ },
+ {
+  "id": "PRO-S10-Q004",
+  "exam": "professional",
+  "section": "PRO-S10",
+  "objectives": [
+   "PRO-S10-O1"
+  ],
+  "stem": "A dimension's surrogate key is generated with monotonically_increasing_id() each time the dimension is rebuilt. Facts published last month reference those keys. What goes wrong at the next rebuild, and what fixes it?",
+  "code": null,
+  "options": {
+   "A": "Keys are renumbered, so every published fact points at a different version; derive the key deterministically, for example a hash of the natural key and valid_from.",
+   "B": "Nothing; monotonically_increasing_id() is stable across runs for the same input.",
+   "C": "Keys collide within the rebuild, causing duplicate rows.",
+   "D": "The rebuild fails because surrogate keys must be sequential integers."
+  },
+  "correct": "A",
+  "explanation": "A scalable model must survive a rebuild. Generated ids depend on partition layout and run order; a hash of the identifying columns produces the same key for the same version every time, so facts already published keep pointing at the right row.",
+  "why": {
+   "B": "The function is deterministic only within a run's layout; another run assigns different ids.",
+   "C": "Ids within one run are unique; instability across runs is the problem.",
+   "D": "Surrogate keys can be any unique value; strings from a hash are common."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "surrogate-key",
+   "deterministic",
+   "rebuild"
+  ],
+  "variant_of": null,
+  "family": "PRO-S10-Q004"
+ },
+ {
+  "id": "PRO-S10-Q005",
+  "exam": "professional",
+  "section": "PRO-S10",
+  "objectives": [
+   "PRO-S10-O4"
+  ],
+  "stem": "An order fact is joined to a Type 2 customer dimension on customer_id only. 900 orders go in and 1,180 rows come out, with no error. What happened, and what is the correct join?",
+  "code": null,
+  "options": {
+   "A": "Customers with several versions matched every version; join on customer_id AND ordered_on >= valid_from AND ordered_on < valid_to so each order matches the one version in effect on its date.",
+   "B": "The dimension has duplicate natural keys by mistake; deduplicate it first.",
+   "C": "The fact table has duplicate orders; deduplicate the fact.",
+   "D": "The join should be a LEFT ANTI join to remove unmatched orders."
+  },
+  "correct": "A",
+  "explanation": "A dimension join must not change the fact's row count. In a Type 2 dimension the natural key identifies a customer, not a row, so the validity window belongs in the join condition, with asymmetric bounds so a changeover date matches exactly one version.",
+  "why": {
+   "B": "Several versions per key is the definition of a Type 2 dimension, not a mistake.",
+   "C": "The fact had 900 distinct orders; the growth came from the join.",
+   "D": "An anti join removes matches; the fix is to match exactly one version."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "scd2",
+   "point-in-time-join",
+   "grain"
+  ],
+  "variant_of": null,
+  "family": "PRO-S10-Q005"
+ },
+ {
+  "id": "PRO-S10-Q006",
+  "exam": "professional",
+  "section": "PRO-S10",
+  "objectives": [
+   "PRO-S10-O2"
+  ],
+  "stem": "A new fact table's query patterns are not yet known. The team must choose a layout today. Which choice keeps the most options open at the least cost?",
+  "code": null,
+  "options": {
+   "A": "CLUSTER BY AUTO, letting Databricks choose and revise keys from query history; keys can be changed later without rewriting the table.",
+   "B": "PARTITIONED BY the date column, since it is always safe.",
+   "C": "ZORDER BY every column that might be filtered, run after each load.",
+   "D": "No layout at all until the patterns are known, then partition."
+  },
+  "correct": "A",
+  "explanation": "Clustering is a property of the table the engine maintains and that you can change; partitioning is a directory layout fixed at creation. Not knowing the access pattern is the normal state at creation time, and AUTO is built for it.",
+  "why": {
+   "B": "A daily partition on a table that is not large per day produces small files, and the choice cannot be undone without a rewrite.",
+   "C": "ZORDER is not incremental and re-sorts everything each run; more columns dilute it.",
+   "D": "Partitioning later still means rewriting the table; clustering later is a metadata change."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "liquid-clustering",
+   "cluster-by-auto",
+   "optimize"
+  ],
+  "variant_of": null,
+  "family": "PRO-S10-Q006"
+ },
+ {
+  "id": "PRO-S10-Q007",
+  "exam": "professional",
+  "section": "PRO-S10",
+  "objectives": [
+   "PRO-S10-O3"
+  ],
+  "stem": "A table partitioned by region has one partition ten times larger than the others and thousands of tiny files in the smallest ones. Queries filtering on region are slow for the big region and slow to list for the small ones. Which benefit of liquid clustering addresses both symptoms?",
+  "code": null,
+  "options": {
+   "A": "Clustering targets file size rather than one directory per value, so a hot key is spread across files and small keys are grouped into full files.",
+   "B": "Clustering creates a directory per region like partitioning but compresses them.",
+   "C": "Clustering removes the need for statistics, so file counts stop mattering.",
+   "D": "Clustering only helps the small partitions; the large region needs ZORDER."
+  },
+  "correct": "A",
+  "explanation": "A partition is exactly as big as its key value says, so skew becomes a straggler directory and sparse keys become tiny files. Clustering groups rows into files by the key with no directories, targeting file size, and its OPTIMIZE is incremental.",
+  "why": {
+   "B": "Clustering has no directories; that is the difference.",
+   "C": "Statistics are what make skipping possible; clustering provides the locality for them.",
+   "D": "ZORDER re-sorts everything each run and does not fix the partition layout."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "partitioning",
+   "liquid-clustering",
+   "skew",
+   "small-files"
+  ],
+  "variant_of": null,
+  "family": "PRO-S10-Q007"
+ },
+ {
+  "id": "PRO-S10-Q008",
+  "exam": "professional",
+  "section": "PRO-S10",
+  "objectives": [
+   "PRO-S10-O3"
+  ],
+  "stem": "A team reloads one calendar month of a very large table every night by deleting and rewriting that month. Partitions are several gigabytes each. Which layout is the better fit, and why?",
+  "code": null,
+  "options": {
+   "A": "Partitioning by month: REPLACE WHERE on a partition column swaps the slice as a metadata operation, and the partitions are large enough to be worth it.",
+   "B": "Liquid clustering by month, because clustering is always preferred.",
+   "C": "No layout; deletes and rewrites are cheap regardless.",
+   "D": "ZORDER by month, run after each nightly load."
+  },
+  "correct": "A",
+  "explanation": "\"Always cluster\" is not the lesson. Partitioning still wins when partitions are comfortably large and whole slices are dropped or overwritten, because REPLACE WHERE on a partition column has no clustering equivalent.",
+  "why": {
+   "B": "Clustering cannot swap a slice cheaply; the overwrite becomes a row-level rewrite.",
+   "C": "A month of a very large table is not cheap to delete and rewrite row by row.",
+   "D": "ZORDER is a sort within files and does nothing for slice replacement."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "partitioning",
+   "replace-where",
+   "when-to-partition"
+  ],
+  "variant_of": null,
+  "family": "PRO-S10-Q008"
+ },
+ {
+  "id": "PRO-S9-Q001",
+  "exam": "professional",
+  "section": "PRO-S9",
+  "objectives": [
+   "PRO-S9-O1"
+  ],
+  "stem": "A job fails with a long stack trace whose first line reads \"[CAST_INVALID_INPUT] The value '12 units' of the type STRING cannot be cast to INT\". What is the most reliable thing to search for and act on?",
+  "code": null,
+  "options": {
+   "A": "The error class CAST_INVALID_INPUT, which is stable across releases and documented; then find the rows with try_cast to see what would not convert.",
+   "B": "The full stack trace, pasted into a search engine.",
+   "C": "The line number in the notebook, which identifies the failing cell.",
+   "D": "The cluster's driver log, which has the real cause."
+  },
+  "correct": "A",
+  "explanation": "Databricks error messages carry a stable error class and SQLSTATE; the prose changes between versions, the class does not. try_cast then turns \"it failed\" into a list of the responsible rows.",
+  "why": {
+   "B": "Stack traces are noisy and version-specific; the class is the searchable key.",
+   "C": "The cell tells you where, not why; the message already names the value.",
+   "D": "The message on the run already names the cause; logs are for when it does not, and are unavailable on serverless."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "error-class",
+   "sqlstate",
+   "diagnostics"
+  ],
+  "variant_of": null,
+  "family": "PRO-S9-Q001"
+ },
+ {
+  "id": "PRO-S9-Q002",
+  "exam": "professional",
+  "section": "PRO-S9",
+  "objectives": [
+   "PRO-S9-O1"
+  ],
+  "stem": "A nightly job that usually takes 15 minutes took 70 last night and succeeded. An engineer opens the cluster logs first. What is the better first step, and why?",
+  "code": null,
+  "options": {
+   "A": "Compare the run's task durations with previous runs in the run history to localise which task slowed, then open that task's Spark UI; logs come last.",
+   "B": "Opening the logs is right; they contain the most detail.",
+   "C": "Re-run the job to see whether it is slow again before investigating.",
+   "D": "Check system.billing.usage to see whether the run cost more."
+  },
+  "correct": "A",
+  "explanation": "Start narrow. Run history shows which task changed; the Spark UI for that task shows the stage and whether it skewed or spilled. Reading logs before knowing where to look wastes the easy answer.",
+  "why": {
+   "B": "Detail without a target is noise; and serverless runs have no cluster logs at all.",
+   "C": "Re-running discards the evidence you already have and costs another 70 minutes.",
+   "D": "Cost confirms it was slow; it does not say where."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "diagnostics",
+   "order-of-investigation",
+   "run-history"
+  ],
+  "variant_of": null,
+  "family": "PRO-S9-Q002"
+ },
+ {
+  "id": "PRO-S9-Q003",
+  "exam": "professional",
+  "section": "PRO-S9",
+  "objectives": [
+   "PRO-S9-O2"
+  ],
+  "stem": "A four-task job failed at task 3. Tasks 1 and 2 each appended rows to Delta tables and succeeded. The engineer repairs the run. What happens?",
+  "code": null,
+  "options": {
+   "A": "Only task 3 and its dependants re-run; tasks 1 and 2 are not repeated and their commits stand.",
+   "B": "All four tasks re-run from the start, so tasks 1 and 2 append their rows a second time.",
+   "C": "Tasks 1 and 2 are rolled back and the whole job runs again.",
+   "D": "The repair fails because appends cannot be part of a repairable job."
+  },
+  "correct": "A",
+  "explanation": "Repair re-executes failed tasks and the tasks that depend on them. Earlier successful commits are not rolled back and not repeated. The task being repaired does run again from its start, which is why tasks should be idempotent.",
+  "why": {
+   "B": "Successful tasks are skipped by repair; that is the difference from a fresh run.",
+   "C": "Delta commits are durable; a job has no transaction spanning tasks.",
+   "D": "Any job can be repaired; the append concern is about the repaired task, not the earlier ones."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "repair-run",
+   "multi-task",
+   "idempotence"
+  ],
+  "variant_of": null,
+  "family": "PRO-S9-Q003"
+ },
+ {
+  "id": "PRO-S9-Q004",
+  "exam": "professional",
+  "section": "PRO-S9",
+  "objectives": [
+   "PRO-S9-O2"
+  ],
+  "stem": "A job's task reads a cutoff date from a job parameter and failed because the upstream data for that date was late. The data has now arrived. What is the lightest correct way to complete the run?",
+  "code": null,
+  "options": {
+   "A": "Repair the run (or run-now), overriding the parameter if the date must change; no edit to the job definition is needed.",
+   "B": "Edit the job's default parameter in the UI, redeploy, and start a new run.",
+   "C": "Edit the notebook to hard-code the date, then repair the run.",
+   "D": "Delete the failed run and create a new job for the late date."
+  },
+  "correct": "A",
+  "explanation": "Parameter overrides on repair and run-now exist for exactly this: re-run against a corrected input without touching the job definition. The definition stays the reviewed one; the override lives with the run.",
+  "why": {
+   "B": "Changing the default affects every future run and requires a deploy for a one-off.",
+   "C": "Hard-coding in the notebook breaks the parameterisation permanently.",
+   "D": "A new job duplicates configuration and loses the run's history."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "parameter-override",
+   "repair",
+   "run-now"
+  ],
+  "variant_of": null,
+  "family": "PRO-S9-Q004"
+ },
+ {
+  "id": "PRO-S9-Q005",
+  "exam": "professional",
+  "section": "PRO-S9",
+  "objectives": [
+   "PRO-S9-O3"
+  ],
+  "stem": "A declarative pipeline update failed. Which query surface shows the failing flow, its error class, and the expectation counts recorded before the failure, in one place?",
+  "code": null,
+  "options": {
+   "A": "The pipeline's event log, queried for that update id.",
+   "B": "The pipeline's target table's DESCRIBE HISTORY.",
+   "C": "The Jobs run list for the job that triggered the pipeline.",
+   "D": "The SQL warehouse query history."
+  },
+  "correct": "A",
+  "explanation": "The event log records each update's flows, expectation results and errors. It is the pipeline equivalent of run history plus error message, and it is queryable as a table so the failure can be seen in context.",
+  "why": {
+   "B": "Table history records successful writes; a failed update leaves no commit to describe.",
+   "C": "The job only knows the pipeline task failed; the flows are inside the pipeline.",
+   "D": "Query history is for warehouse queries, not pipeline updates."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "pipeline-event-log",
+   "debugging",
+   "expectations"
+  ],
+  "variant_of": null,
+  "family": "PRO-S9-Q005"
+ },
+ {
+  "id": "PRO-S9-Q006",
+  "exam": "professional",
+  "section": "PRO-S9",
+  "objectives": [
+   "PRO-S9-O3"
+  ],
+  "stem": "A Structured Streaming job restarted after a deploy and reprocessed every file in its source, doubling the rows in the target. Nothing in the code changed. What most likely happened?",
+  "code": null,
+  "options": {
+   "A": "The checkpoint location changed or was deleted, so the stream had no memory of consumed files and started from the beginning.",
+   "B": "The source folder was re-uploaded, which Auto Loader treats as new data.",
+   "C": "The target table's transaction log was compacted, which resets the stream.",
+   "D": "The trigger switched to availableNow, which reads everything each time."
+  },
+  "correct": "A",
+  "explanation": "The checkpoint is the stream's memory of what it has consumed. A new or deleted checkpoint path makes the stream start from scratch, and an append sink faithfully appends everything again with no error.",
+  "why": {
+   "B": "Identical re-uploaded files are not new to Auto Loader; its checkpoint records them.",
+   "C": "Compaction of the target's log does not affect the source stream's progress.",
+   "D": "availableNow processes what is new since the checkpoint, not everything."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "structured-streaming",
+   "checkpoint",
+   "restart"
+  ],
+  "variant_of": null,
+  "family": "PRO-S9-Q006"
+ },
+ {
+  "id": "PRO-S9-Q007",
+  "exam": "professional",
+  "section": "PRO-S9",
+  "objectives": [
+   "PRO-S9-O4"
+  ],
+  "stem": "A CI pipeline runs databricks bundle validate -t prod and reports success. A teammate concludes the job's notebook has been tested. What is true?",
+  "code": null,
+  "options": {
+   "A": "validate checks configuration and resolves variables only; it runs no code. Tests need a separate step, and bundle run executes the job.",
+   "B": "validate executes each job once in a dry-run mode, so the notebook did run.",
+   "C": "validate deploys to a temporary target and runs the job there.",
+   "D": "validate is equivalent to deploy without the upload step."
+  },
+  "correct": "A",
+  "explanation": "bundle validate is a configuration check. deploy uploads files and creates or updates resources; run triggers a job or deploys and starts an app. Testing is whatever the team adds to CI, and a green validate says nothing about it.",
+  "why": {
+   "B": "There is no dry-run execution of jobs in validate.",
+   "C": "validate touches no target beyond resolving its configuration.",
+   "D": "deploy creates and updates resources; validate creates nothing."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "dabs",
+   "validate",
+   "deploy",
+   "run"
+  ],
+  "variant_of": null,
+  "family": "PRO-S9-Q007"
+ },
+ {
+  "id": "PRO-S9-Q008",
+  "exam": "professional",
+  "section": "PRO-S9",
+  "objectives": [
+   "PRO-S9-O4"
+  ],
+  "stem": "A bundle deployed by CI as a service principal places its files under /Workspace/Users/<application-id>/.bundle/<name>/<target>/files. An engineer deploys the same bundle from a laptop with the same target and finds a second copy under their own home folder, and two jobs with different name prefixes. What does this demonstrate?",
+  "code": null,
+  "options": {
+   "A": "A deployment is namespaced by the deploying identity in development mode; one deployer per environment is the rule for production.",
+   "B": "A bug: the second deploy should have overwritten the first.",
+   "C": "The service principal lacks permission to write to the engineer's folder.",
+   "D": "The target was misconfigured to production mode on one of the two machines."
+  },
+  "correct": "A",
+  "explanation": "The workspace path records who deployed, and development mode prefixes resources by deployer. Two deployers, two deployments. Production deployments use a single principal (usually CI) precisely to avoid this.",
+  "why": {
+   "B": "Not a bug; isolation per deployer is what development mode is for.",
+   "C": "Each deployer writes to its own home; nobody wrote to anyone else's.",
+   "D": "Both used development mode; that is why both have prefixes."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "dabs",
+   "deployer",
+   "workspace-path",
+   "service-principal"
+  ],
+  "variant_of": null,
+  "family": "PRO-S9-Q008"
+ },
+ {
+  "id": "PRO-S9-Q009",
+  "exam": "professional",
+  "section": "PRO-S9",
+  "objectives": [
+   "PRO-S9-O5"
+  ],
+  "stem": "A team edits notebooks in a Databricks Git folder linked to a feature branch, commits, and opens a pull request. Which statement about the workflow is accurate?",
+  "code": null,
+  "options": {
+   "A": "The Git folder tracks one branch at a time; switching branches changes every notebook in the folder, and the pull request's checks run in CI outside the workspace.",
+   "B": "Each notebook in the Git folder can be on its own branch.",
+   "C": "Committing from the Git folder deploys the notebooks to production automatically.",
+   "D": "Git folders only support the main branch; feature branches must be handled locally."
+  },
+  "correct": "A",
+  "explanation": "A Git folder is a checkout of one branch in the workspace: edit and run there, commit, push, review in the Git provider. Deployment is a separate step, driven by CI on merge, not by the commit itself.",
+  "why": {
+   "B": "The folder is a single checkout; the branch applies to all of it.",
+   "C": "A commit is a commit; deployment happens when a pipeline runs bundle deploy on merge.",
+   "D": "Git folders check out any branch and can create them."
+  },
+  "difficulty": "application",
+  "provenance": "original",
+  "tags": [
+   "git-folders",
+   "branches",
+   "ci-cd"
+  ],
+  "variant_of": null,
+  "family": "PRO-S9-Q009"
+ },
+ {
+  "id": "PRO-S9-Q010",
+  "exam": "professional",
+  "section": "PRO-S9",
+  "objectives": [
+   "PRO-S9-O5"
+  ],
+  "stem": "An engineer tests the CI deploy locally by exporting DATABRICKS_CLIENT_ID and DATABRICKS_CLIENT_SECRET for the service principal and running bundle deploy. It succeeds, but the resources appear under the engineer's own user path. Why?",
+  "code": null,
+  "options": {
+   "A": "DATABRICKS_CONFIG_PROFILE was set in the shell, so the CLI resolved that profile and ignored the client credentials, deploying as the engineer.",
+   "B": "Service principals always deploy under the invoking user's path.",
+   "C": "The client secret had expired, and the CLI fell back to the user's browser session.",
+   "D": "bundle deploy ignores environment variables; only the profile file counts."
+  },
+  "correct": "A",
+  "explanation": "A named profile takes precedence over machine-to-machine environment variables. The deploy quietly ran as the person, which is why a local test of CI authentication must unset the profile (env -u DATABRICKS_CONFIG_PROFILE) to mean anything.",
+  "why": {
+   "B": "A service-principal deploy lands under the principal's own path.",
+   "C": "An expired secret fails authentication; it does not silently switch identity.",
+   "D": "Environment variables are a supported auth method; the profile simply outranked them."
+  },
+  "difficulty": "analysis",
+  "provenance": "original",
+  "tags": [
+   "ci-cd",
+   "service-principal",
+   "oauth",
+   "config-profile"
+  ],
+  "variant_of": null,
+  "family": "PRO-S9-Q010"
+ },
+ {
   "id": "PRO-S10-Q001",
   "exam": "professional",
   "section": "PRO-S10",

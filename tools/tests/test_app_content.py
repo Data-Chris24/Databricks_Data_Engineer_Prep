@@ -228,3 +228,18 @@ def test_every_objective_is_named_in_its_section_note():
             headings = "\n".join(l for l in path.read_text().splitlines() if l.startswith("#"))
             missing = [o.id for o in s.objectives if o.id not in headings]
             assert not missing, f"{s.id}: no heading names {missing}"
+
+
+def test_both_exams_clear_the_timed_test_gate(bundle):
+    """Test mode needs at least scored_items question families; never let it regress."""
+    families = bundle["meta.json"]["families_per_exam"]
+    for exam in bundle["exams.json"]:
+        assert families[exam["id"]] >= exam["items"], (
+            f"{exam['id']}: {families[exam['id']]} families < {exam['items']} items; the timed test would lock"
+        )
+
+
+def test_every_objective_has_a_question(bundle):
+    covered = {o for q in bundle["questions.json"] for o in q["objectives"]}
+    missing = [o.id for o in objective_index().values() if o.id not in covered]
+    assert not missing, f"objectives without a question: {missing}"

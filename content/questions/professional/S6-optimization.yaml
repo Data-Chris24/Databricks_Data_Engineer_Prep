@@ -1,0 +1,324 @@
+# PRO-S6 — Cost and Performance Optimization (13%). Original questions; Q001 is an
+# official sample in official-samples.yaml.
+meta:
+  source: Original, written for this repository.
+  note: Covers PRO-S6-O1 through O5.
+
+questions:
+  - id: PRO-S6-Q002
+    objective_ids: [PRO-S6-O1]
+    difficulty: application
+    provenance: original
+    tags: [managed-tables, predictive-optimization, maintenance]
+    stem: >-
+      A team migrates a set of external Delta tables to Unity Catalog managed tables.
+      Six months later they notice that OPTIMIZE and VACUUM have been running on the
+      tables although nobody scheduled them. What explains it?
+    options:
+      A: >-
+        Predictive optimization runs maintenance automatically on managed tables, based
+        on how they are used; on the external tables that work had been theirs to schedule.
+      B: >-
+        The migration created a maintenance job per table that nobody noticed.
+      C: >-
+        Managed tables are compacted on every write, so OPTIMIZE is implicit.
+      D: >-
+        VACUUM runs on every managed table nightly regardless of usage, as a fixed platform schedule.
+    correct: A
+    explanation: >-
+      When Unity Catalog owns a table's layout it can maintain it. Predictive
+      optimization decides when compaction, clustering and vacuum are worth running
+      from the table's activity, which removes a class of operational work that
+      external tables leave with the team.
+    distractor_rationale:
+      B: >-
+        No job is created; the maintenance is a platform service, not a workspace resource.
+      C: >-
+        Writes are not compacted inline; small files still accumulate until maintenance runs.
+      D: >-
+        It is usage-driven rather than a fixed schedule; idle tables are not vacuumed for the sake of it.
+
+  - id: PRO-S6-Q003
+    objective_ids: [PRO-S6-O1]
+    difficulty: analysis
+    provenance: original
+    tags: [managed-tables, external-tables, lifecycle, storage]
+    stem: >-
+      An external Delta table is dropped with DROP TABLE. A month later the cloud
+      storage bill has not changed. A managed table dropped the same way did reduce the
+      bill. Why?
+    options:
+      A: >-
+        Dropping an external table removes only the catalog entry; the files stay in the
+        external location. Dropping a managed table removes the data too.
+      B: >-
+        External tables are always cached in storage for 30 days before deletion.
+      C: >-
+        The external table's files were still referenced by time travel and will be removed by the next VACUUM.
+      D: >-
+        Managed tables are compressed on drop, which is what reduced the bill.
+    correct: A
+    explanation: >-
+      A managed table's lifecycle follows the catalog: drop it and its files go. An
+      external table is a catalog entry over storage the team controls, so dropping it
+      leaves every file in place, and cleaning up is a separate manual step.
+    distractor_rationale:
+      B: >-
+        There is no retention window on dropped external tables; the files are simply not touched.
+      C: >-
+        VACUUM operates on a live table; a dropped external table has no table to vacuum.
+      D: >-
+        Nothing is compressed on drop; the managed table's files were deleted.
+
+  - id: PRO-S6-Q004
+    objective_ids: [PRO-S6-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [liquid-clustering, cluster-key, cardinality]
+    stem: >-
+      A 2 TB orders table is queried almost always by order_date ranges and by
+      region. An engineer proposes ALTER TABLE orders CLUSTER BY (order_id) because
+      order_id is the primary key. What is the likely effect?
+    options:
+      A: >-
+        A costly rewrite and no benefit: order_id is nearly unique, so every file spans a
+        distinct range and no file can be skipped for the actual filters.
+      B: >-
+        Faster queries, because clustering on the primary key makes lookups by any column efficient.
+      C: >-
+        Faster queries by order_date, because clustering on the key sorts the table chronologically.
+      D: >-
+        An error, because CLUSTER BY requires a column with fewer than 10,000 distinct values.
+    correct: A
+    explanation: >-
+      Data skipping needs locality on the columns queries filter by. A near-unique
+      key gives every file a distinct range of ids, which helps nothing that filters
+      on date or region. Cluster on the filter columns: order_date and region.
+    distractor_rationale:
+      B: >-
+        Clustering helps only filters on the clustering columns; it is not an index over all columns.
+      C: >-
+        Ids do not imply dates; even if they correlated, the filter on order_date needs order_date statistics to prune.
+      D: >-
+        No such limit exists; the statement succeeds and the rewrite happens.
+
+  - id: PRO-S6-Q005
+    objective_ids: [PRO-S6-O2]
+    difficulty: application
+    provenance: original
+    tags: [deletion-vectors, updates, reorg, purge]
+    stem: >-
+      A table with deletion vectors enabled receives thousands of small DELETE
+      statements a day. Queries stay fast, but a downstream consumer that must read
+      the table without deletion vectors asks for a clean copy. Which statement
+      produces the physical rewrite that removes the soft-deleted rows?
+    options:
+      A: REORG TABLE t APPLY (PURGE)
+      B: VACUUM t RETAIN 0 HOURS
+      C: OPTIMIZE t ZORDER BY (id)
+      D: ALTER TABLE t SET TBLPROPERTIES (delta.enableDeletionVectors = false)
+    correct: A
+    explanation: >-
+      Deletion vectors mark rows deleted without rewriting files, which is what makes
+      the deletes cheap. REORG ... APPLY (PURGE) rewrites the affected files so the
+      marked rows are physically gone. Turning the property off only stops new
+      vectors being written.
+    distractor_rationale:
+      B: >-
+        VACUUM removes unreferenced files; rows marked by a deletion vector are still in referenced files.
+      C: >-
+        OPTIMIZE compacts and can rewrite files, but purging deletion vectors is what REORG APPLY (PURGE) is for.
+      D: >-
+        Disabling the property prevents future vectors and leaves the existing ones in place.
+
+  - id: PRO-S6-Q006
+    objective_ids: [PRO-S6-O3]
+    difficulty: analysis
+    provenance: original
+    tags: [data-skipping, statistics, locality, describe-detail]
+    stem: >-
+      A query with WHERE region = 'EMEA' on a table of 4,000 files reads all 4,000
+      files, according to the query profile. The table has per-file min/max
+      statistics on region. What is the most likely cause?
+    options:
+      A: >-
+        Every file contains rows from every region, so no file's min/max range excludes 'EMEA'; the data has statistics but no locality.
+      B: >-
+        Statistics only apply to numeric columns, so region cannot be used for skipping.
+      C: >-
+        The query profile counts files opened for metadata, not data; the query actually skipped most of them.
+      D: >-
+        Data skipping requires a partition on the column, and the table is unpartitioned.
+    correct: A
+    explanation: >-
+      Skipping needs statistics and locality. If values of region are scattered
+      across every file, each file's range covers every region and nothing can be
+      excluded. Clustering on region (liquid clustering) gives the files distinct
+      ranges, which is what lets pruning work.
+    distractor_rationale:
+      B: >-
+        Min/max statistics are collected on string columns too.
+      C: >-
+        The profile's files-read metric is data reads; 4,000 of 4,000 means no pruning.
+      D: >-
+        Partitioning is one way to get locality; clustering is the other, and neither is required for statistics to exist.
+
+  - id: PRO-S6-Q007
+    objective_ids: [PRO-S6-O3]
+    difficulty: application
+    provenance: original
+    tags: [column-pruning, select-star, bytes-read]
+    stem: >-
+      A dashboard query selects three columns from a 120-column Delta table but is
+      written as SELECT * inside a subquery, with the three columns picked in the
+      outer query. The profile shows bytes read far larger than bytes returned. What
+      is happening?
+    options:
+      A: >-
+        The optimiser usually pushes the projection down, but if it cannot (for example through a UDF or certain views) all 120 columns are read from the columnar files; projecting only the needed columns fixes it.
+      B: >-
+        Columnar formats always read whole rows, so bytes read cannot be reduced without changing the storage format.
+      C: >-
+        The subquery is materialised to disk, which doubles bytes read.
+      D: >-
+        Bytes read includes the transaction log, which is large for a wide table.
+    correct: A
+    explanation: >-
+      Parquet-backed Delta reads only referenced columns, but only when the plan's
+      projection reaches the scan. Anything that blocks projection pushdown turns a
+      three-column query into a 120-column read. Bytes read versus bytes returned is
+      the profile metric that exposes it.
+    distractor_rationale:
+      B: >-
+        Column pruning is the defining benefit of a columnar format; it works when the projection reaches the scan.
+      C: >-
+        Subqueries are not materialised to disk by default; they are planned as one query.
+      D: >-
+        The log is metadata and tiny compared with 120 columns of data.
+
+  - id: PRO-S6-Q008
+    objective_ids: [PRO-S6-O4]
+    difficulty: analysis
+    provenance: original
+    tags: [change-data-feed, streaming-table, merge, latency]
+    stem: >-
+      A silver table is updated by MERGE, including updates to existing rows. A gold
+      streaming table built directly on it keeps failing on update commits. The team
+      needs gold to reflect the updates within minutes. What should they do?
+    options:
+      A: >-
+        Enable change data feed on silver and drive gold from table_changes, applying inserts, updates and deletes with MERGE; gold sees exactly what changed.
+      B: >-
+        Set skipChangeCommits on the gold stream so it stops failing.
+      C: >-
+        Set ignoreChanges on the gold stream, which re-emits updated rows as new appends.
+      D: >-
+        Rebuild gold fully every few minutes with a scheduled job.
+    correct: A
+    explanation: >-
+      A streaming table cannot revisit rows it consumed, which is the limitation the
+      change data feed exists to address: it records row-level changes so a consumer
+      can apply exactly the inserts, updates and deletes since the last version,
+      keeping latency low without a full rebuild.
+    distractor_rationale:
+      B: >-
+        Skipping the update commits keeps the stream alive by dropping precisely the changes gold needs.
+      C: >-
+        ignoreChanges re-emits whole rewritten files as appends, duplicating rows unless gold is made idempotent, and never expresses deletes.
+      D: >-
+        A full rebuild every few minutes is the expensive option CDF replaces.
+
+  - id: PRO-S6-Q009
+    objective_ids: [PRO-S6-O4]
+    difficulty: recall
+    provenance: original
+    tags: [change-data-feed, table_changes, _change_type]
+    stem: >-
+      With delta.enableChangeDataFeed set on a table, which columns does
+      table_changes('t', 5) add alongside the table's own columns, and what values
+      does _change_type take for an UPDATE?
+    options:
+      A: >-
+        _change_type, _commit_version and _commit_timestamp; an update appears as an update_preimage row and an update_postimage row.
+      B: >-
+        _change_type and _commit_version; an update appears as a single row with _change_type = 'update'.
+      C: >-
+        _operation and _timestamp; an update appears as a delete followed by an insert.
+      D: >-
+        No extra columns; changes are distinguished by comparing consecutive versions.
+    correct: A
+    explanation: >-
+      The change feed exposes each change with its type, commit version and commit
+      timestamp. Updates are represented as a before image and an after image, which
+      is what lets a consumer apply them precisely.
+    distractor_rationale:
+      B: >-
+        Updates are two rows (pre and post image), and the timestamp column exists too.
+      C: >-
+        Those column names are invented; and updates are images, not delete/insert pairs.
+      D: >-
+        The whole point of CDF is not having to diff versions yourself.
+
+  - id: PRO-S6-Q010
+    objective_ids: [PRO-S6-O5]
+    difficulty: analysis
+    provenance: original
+    tags: [query-profile, join, broadcast, shuffle]
+    stem: >-
+      A query profile shows a join between a 900 GB fact table and a 40 MB dimension
+      executed as a sort-merge join with large shuffle bytes on both sides. Which
+      change most directly reduces the shuffle, and why?
+    options:
+      A: >-
+        Broadcast the dimension (broadcast() or a higher spark.sql.autoBroadcastJoinThreshold); the fact table then never shuffles.
+      B: >-
+        Increase spark.sql.shuffle.partitions so the shuffle is spread over more tasks.
+      C: >-
+        Cluster the fact table on the join key so the sort-merge join skips the sort.
+      D: >-
+        Cache the dimension table so the shuffle reads it from memory.
+    correct: A
+    explanation: >-
+      A sort-merge join shuffles both inputs by the join key. When one side is small,
+      broadcasting it to every executor removes the shuffle of the large side
+      entirely. 40 MB is above the default 10 MB threshold, so the optimiser did not
+      choose it on its own.
+    distractor_rationale:
+      B: >-
+        More partitions change task sizes, not the total bytes shuffled.
+      C: >-
+        Clustering helps file skipping on filters; a sort-merge join still shuffles by key.
+      D: >-
+        Caching avoids re-reading the dimension; the shuffle of the 900 GB side is untouched.
+
+  - id: PRO-S6-Q011
+    objective_ids: [PRO-S6-O5]
+    difficulty: application
+    provenance: original
+    tags: [query-profile, spill, skew, aqe]
+    stem: >-
+      In a query profile, one stage shows 199 tasks finishing in under two seconds
+      and one task taking eleven minutes with heavy spill. What is the diagnosis and
+      the first remedy to try?
+    options:
+      A: >-
+        Data skew on the stage's key; enable adaptive query execution's skew join handling, which splits the oversized partition at runtime, before hand-salting keys.
+      B: >-
+        Too few partitions; increase spark.sql.shuffle.partitions so every task is smaller.
+      C: >-
+        A slow executor node; restart the cluster to get a healthy node.
+      D: >-
+        The stage is I/O bound; add more executors so reads run in parallel.
+    correct: A
+    explanation: >-
+      One straggler with disproportionate data and spill is the signature of skew:
+      a single key holds most of the rows. Adaptive execution can split skewed
+      partitions with no code change, which is the cheapest fix; salting the key is
+      the manual fallback.
+    distractor_rationale:
+      B: >-
+        More partitions do not split one key's data; the hot key still lands in one task.
+      C: >-
+        Node health would slow several tasks randomly, not exactly the task with the most data.
+      D: >-
+        The other 199 tasks are fast; the problem is the distribution of data, not throughput.
