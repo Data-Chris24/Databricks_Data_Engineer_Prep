@@ -1,0 +1,10 @@
+resources:
+  jobs:
+    run_solution_pro_s5:
+      name: "[DE prep] Reference solution PRO-S5"
+      tasks:
+        - task_key: solution
+          notebook_task:
+            notebook_path: ../../solutions/PRO-S5/solution.py
+      queue:
+        enabled: true
