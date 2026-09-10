@@ -1,0 +1,68 @@
+# Advisory AI review for PRO-S10. Never overturns the unit tests.
+assignment: PRO-S10
+objective_ids: [PRO-S10-O1, PRO-S10-O2, PRO-S10-O3, PRO-S10-O4]
+
+context: >-
+  The learner built a star schema over a Type 2 slowly-changing dimension: 80 customers
+  holding 114 versions, and 900 orders that must join to the version in effect on the
+  order date. The lesson taught the same star schema over a dimension that never
+  changed, where a natural-key join was correct.
+
+criteria:
+  - id: surrogate_key_grain
+    weight: critical
+    asks: Does the surrogate key identify a version, or just rename the natural key?
+    good: >-
+      One key per version, derived from the natural key plus the validity start, so the
+      dimension can hold several rows for one customer.
+    poor: >-
+      A key derived from customer_id alone, or the dimension collapsed to current rows
+      so the question never arises.
+
+  - id: deterministic_key
+    weight: critical
+    asks: Does rebuilding the dimension renumber it?
+    good: >-
+      A deterministic function of the version's identity - a hash, or a natural composite
+      key - so republished facts still point at the same versions.
+    poor: >-
+      monotonically_increasing_id() or row_number() over an unstable ordering. The tests
+      cannot see this, because a single build looks identical either way. It is the
+      difference between a dimension you can rebuild and one you can only append to.
+
+  - id: as_of_join
+    weight: critical
+    asks: Is the validity window in the join condition?
+    good: >-
+      valid_from <= ordered_on < valid_to, asymmetric, so a changeover date matches
+      exactly one version.
+    poor: >-
+      Joining on the natural key and filtering to is_current, or joining first and
+      filtering the window afterwards in a way that drops the non-matching orders.
+
+  - id: grain_was_checked
+    weight: high
+    asks: Did they verify the fact grain, or assume it?
+    good: >-
+      Row count compared before and after the join, and the revenue total shown to be
+      unchanged - because a range join is exactly the kind that quietly fans out.
+    poor: Wrote the table without ever counting it.
+
+  - id: understood_why_it_matters
+    weight: medium
+    asks: >-
+      Can they say what the naive join actually does wrong, beyond "it is incorrect"?
+    good: >-
+      Named the effect - historical revenue re-attributed to whichever segment the
+      customer is in now - and ideally quantified it against their own result.
+    poor: Treated it as a rule to follow rather than a failure with a shape.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues: [{severity: high | medium | low, location: string, note: string}]
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail.
+  - Judge the model, not naming or formatting.
