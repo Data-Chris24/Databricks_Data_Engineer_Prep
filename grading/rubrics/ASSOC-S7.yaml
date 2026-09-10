@@ -1,0 +1,65 @@
+# Advisory AI review for ASSOC-S7. Never overturns the unit tests.
+assignment: ASSOC-S7
+objective_ids: [ASSOC-S7-O1, ASSOC-S7-O2, ASSOC-S7-O3, ASSOC-S7-O4]
+
+context: >-
+  The learner published a governed employee table. A direct identifier had to be
+  hashed rather than masked, a salary and a free-text note masked to HR only, and
+  rows scoped by region - without locking the owner out.
+
+criteria:
+  - id: hash_vs_mask
+    weight: critical
+    asks: >-
+      Did they understand why national_id must be hashed rather than masked?
+    good: >-
+      sha2 or equivalent, with the reasoning stated: a mask can be dropped by anyone
+      who can alter the table, so the value is still in the data.
+    poor: >-
+      A mask on national_id, or a reversible transformation such as base64 or a
+      substring, which is obfuscation rather than de-identification.
+
+  - id: mechanism_fit
+    weight: high
+    asks: Was each requirement met with the mechanism that actually fits it?
+    good: Masks for values, a row filter for rows, a hash for the identifier.
+    poor: >-
+      A view per audience, which does not travel with the table and is bypassed by
+      anyone querying the base table directly.
+
+  - id: break_glass
+    weight: high
+    asks: Can anyone still audit the data?
+    good: >-
+      Every rule keeps a break-glass group, and the choice is deliberate rather than
+      accidental.
+    poor: >-
+      A policy denying everyone, or one naming an individual user instead of a group,
+      which breaks when that person leaves.
+
+  - id: group_function
+    weight: medium
+    asks: >-
+      Did they notice that is_account_group_member and is_member test different things?
+    good: The right one for the group being tested, ideally with a note on the difference.
+    poor: >-
+      Assumed they are interchangeable. This silently denies everyone rather than
+      erroring, which is the dangerous kind of wrong.
+
+  - id: gaming
+    weight: critical
+    asks: Is this real governance or shaped to the assertions?
+    good: Policies that would hold for a real audience.
+    poor: >-
+      A mask returning the true value for everyone, a row filter that is always true,
+      or hardcoded hashes.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues: [{severity: high | medium | low, location: string, note: string}]
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail.
+  - Judge the approach, not formatting or naming.

@@ -1,0 +1,10 @@
+resources:
+  jobs:
+    run_solution_assoc_s7:
+      name: "[DE prep] Reference solution ASSOC-S7"
+      tasks:
+        - task_key: solution
+          notebook_task:
+            notebook_path: ../../solutions/ASSOC-S7/solution.py
+      queue:
+        enabled: true
