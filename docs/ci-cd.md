@@ -223,6 +223,22 @@ databricks permissions get database-projects de-prep --profile FREE      # confi
 
 Then re-run the deploy: `gh workflow run deploy.yml --ref main`.
 
+### 2c. Let the grading jobs read what learners build
+
+The study app grades an assignment by triggering that section's `grade_*` job.
+A job runs as its creator, which in a CI deployment is the service principal,
+and Unity Catalog grants it nothing on `workspace.de_prep` by default, so the
+checks would fail to read the learner's tables. One schema-level grant fixes it
+for every current and future table in the schema:
+
+```sql
+GRANT USE SCHEMA, SELECT ON SCHEMA workspace.de_prep TO `<DATABRICKS_CLIENT_ID>`;
+```
+
+Run it once as the schema owner, from a notebook or the SQL editor. In a fork
+you deploy as yourself this is unnecessary: the jobs run as you and you own the
+tables.
+
 ### 3. Allow auto-merge
 
 `Settings → General → Pull Requests` → tick **Allow auto-merge**.

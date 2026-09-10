@@ -199,3 +199,34 @@ export interface BankTooSmall {
   have: number;
   need: number;
 }
+
+// ---------------------------------------------------------------- grading
+
+export type GradeStatus = 'queued' | 'running' | 'passed' | 'failed' | 'error';
+
+export interface GradeTest {
+  test: string;
+  outcome: string;
+  message?: string;
+}
+
+/** What grading/<SEC>/grade.py returns through dbutils.notebook.exit. */
+export interface GradeResult {
+  section: string;
+  passed: boolean;
+  total: number;
+  failed: GradeTest[];
+  tests: { test: string; outcome: string }[];
+  report_tail: string;
+}
+
+export interface GradingRun {
+  id: string;
+  sectionId: string;
+  runId: number | null;
+  status: GradeStatus;
+  startedAt: string;
+  finishedAt: string | null;
+  result: GradeResult | null;
+  error: string | null;
+}

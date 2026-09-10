@@ -47,36 +47,50 @@ print("fixtures    :", fixtures_dst)
 
 # COMMAND ----------
 
-import io
-import contextlib
+import io, contextlib, json
 import pytest
 
-# Run in-process so the tests share this notebook's Spark session, capturing the
-# report so it survives into the job run output as well as the cell output.
+
+class _Collect:
+    """Per-test outcomes, so the result can be returned as data and not only as text."""
+
+    def __init__(self):
+        self.results = []
+
+    def pytest_runtest_logreport(self, report):
+        if report.when == "call" or (report.when == "setup" and report.outcome != "passed"):
+            message = str(report.longrepr)[-600:] if report.failed else ""
+            self.results.append({
+                "test": report.nodeid.split("::")[-1],
+                "outcome": report.outcome,
+                "message": message,
+            })
+
+
+collector = _Collect()
 buf = io.StringIO()
 with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
-    exit_code = pytest.main([
-        tests_dir,
-        "-v",
-        "--tb=short",
-        "-p", "no:cacheprovider",
-    ])
-
+    exit_code = pytest.main([tests_dir, "-v", "--tb=short", "-p", "no:cacheprovider"], plugins=[collector])
 report = buf.getvalue()
 print(report)
 print(f"\npytest exit code: {exit_code}")
 
-# Persist the report so it can be read back without scraping the run UI.
-REPORT_PATH = "/Volumes/workspace/de_prep/raw/_grading/ASSOC-S2-report.txt"
-dbutils.fs.mkdirs("/Volumes/workspace/de_prep/raw/_grading")
-dbutils.fs.put(REPORT_PATH, report[-30000:] + f"\n\nexit={exit_code}\n", overwrite=True)
-print("report written to", REPORT_PATH)
-
 # COMMAND ----------
 
-if exit_code != 0:
-    raise RuntimeError(
-        f"Assignment not yet passing (pytest exit {exit_code}). "
-        "Read the failures above - each says what the checker expected and why."
-    )
-print("PASS - all graded checks satisfied.")
+# The study app triggers this job and reads the value below from the run's
+# output, so the grade comes back inside the app. Run by hand, the report above
+# says the same thing in prose.
+result = {
+    "section": "ASSOC-S2",
+    "passed": exit_code == 0,
+    "total": len(collector.results),
+    "failed": [r for r in collector.results if r["outcome"] != "passed"],
+    "tests": [{"test": r["test"], "outcome": r["outcome"]} for r in collector.results],
+    "report_tail": report[-4000:],
+}
+if result["passed"]:
+    print("PASS - all graded checks satisfied.")
+else:
+    print(f"Assignment not yet passing: {len(result['failed'])} of {result['total']} checks failed. "
+          "Each failure above says what the checker expected and why.")
+dbutils.notebook.exit(json.dumps(result))

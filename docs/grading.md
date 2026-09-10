@@ -17,25 +17,32 @@ structurally cannot.
 
 ## Tier 1: unit tests
 
-Each assignment declares an **output contract** in its README — produce a table at
-a given name, with a given schema and given semantics. A pytest suite asserts
-against that contract:
+Each section has a grader under `grading/<SECTION>/`: `grade.py` runs the
+`tests/` suite in-process against the tables the learner produced, using the
+fixtures in `expected.json` that the reference solution generated. It returns a
+structured result through the notebook's exit value:
 
-- `assertSchemaEqual` on the required output schema
-- row counts, and that deduplication actually happened
-- **known-answer probes** — precomputed expected values for specific keys, so the
-  tests never need the reference solution to be present
-- **edge-case assertions** targeting hazards that exist in the assignment's dataset
-  but not in the lesson's
+```json
+{"section": "ASSOC-S3", "passed": false, "total": 9,
+ "failed": [{"test": "test_row_count", "outcome": "failed", "message": "assert 870 == 600 ..."}],
+ "tests": [...], "report_tail": "..."}
+```
 
-That last category is the important one. It's what makes pasting the lesson's code
-into the assignment *fail* rather than merely score badly.
+**From the study app** (the normal path): the section page's *Grade my
+assignment* button triggers the `grade_<section>` job as the app's service
+principal, polls it, and shows the result inline: a pass, or the failing checks
+with their messages. The learner never opens the job or the grader. Results are
+kept per user in Lakebase (`study.grading_runs`) and the Learn home shows a
+*Graded* chip once a section passes.
 
-Run them in-workspace, which needs no local setup:
+**From a terminal** (the same job, by hand):
 
 ```bash
-databricks bundle run grade_<section> -t free --profile FREE
+databricks bundle run grade_assoc_s3 -t free --profile FREE
 ```
+
+The verdict is binary and the tests are the contract: a test that cannot be
+satisfied from the README's output contract is a bug in the assignment.
 
 ### This tier is also exam content
 

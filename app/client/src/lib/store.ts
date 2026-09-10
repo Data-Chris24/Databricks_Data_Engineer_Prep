@@ -18,6 +18,7 @@ import type {
   AttemptStart,
   AttemptSummary,
   ExamId,
+  GradingRun,
   Me,
   OptionKey,
   ProgressPatch,
@@ -50,6 +51,15 @@ export class BankTooSmallError extends ApiError {
   }
 }
 
+export class GradingInProgressError extends ApiError {
+  readonly run: GradingRun;
+  constructor(run: GradingRun) {
+    super(409, { error: 'grading_in_progress' });
+    this.name = 'GradingInProgressError';
+    this.run = run;
+  }
+}
+
 export class AttemptActiveError extends ApiError {
   readonly attemptId: string;
   constructor(attemptId: string) {
@@ -73,6 +83,12 @@ export interface StudyStore {
   attempt(id: string): Promise<Attempt>;
   answer(id: string, questionId: string, key: OptionKey): Promise<void>;
   submit(id: string, auto: boolean): Promise<ScoreResult>;
+  /** Latest grading run per section of the exam. */
+  grading(exam: ExamId): Promise<Record<string, GradingRun>>;
+  /** Latest grading run for a section, refreshed against the job; configured=false means no job is bound. */
+  gradingRun(sectionId: string): Promise<{ run: GradingRun | null; configured: boolean }>;
+  /** Trigger the section's grading job. */
+  grade(sectionId: string): Promise<GradingRun>;
 }
 
 // ------------------------------------------------------------------ api
@@ -89,6 +105,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   if (!res.ok) {
     if (data.error === 'bank_too_small') throw new BankTooSmallError(Number(data.have), Number(data.need));
     if (data.error === 'attempt_active') throw new AttemptActiveError(String(data.attemptId));
+    if (data.error === 'grading_in_progress') throw new GradingInProgressError(data.run as GradingRun);
     throw new ApiError(res.status, data);
   }
   return data as T;
@@ -134,6 +151,15 @@ export class ApiStore implements StudyStore {
   submit(id: string, auto: boolean) {
     return request<ScoreResult>('POST', `/api/tests/attempts/${id}/submit`, { auto });
   }
+  grading(exam: ExamId) {
+    return request<Record<string, GradingRun>>('GET', `/api/grading/exam/${exam}`);
+  }
+  gradingRun(sectionId: string) {
+    return request<{ run: GradingRun | null; configured: boolean }>('GET', `/api/grading/section/${sectionId}`);
+  }
+  grade(sectionId: string) {
+    return request<GradingRun>('POST', `/api/grading/section/${sectionId}/run`);
+  }
 }
 
 // --------------------------------------------------------------- memory
@@ -159,6 +185,7 @@ export class MemoryStore implements StudyStore {
   private progress = new Map<string, ProgressRow & { exam: ExamId }>();
   private review = new Map<string, ReviewState>();
   private attemptsById = new Map<string, MemoryAttempt>();
+  private gradingRuns = new Map<string, GradingRun>();
   private seq = 0;
 
   constructor(opts: MemoryOptions = {}) {
@@ -311,6 +338,46 @@ export class MemoryStore implements StudyStore {
       submittedAt: a.submittedAt,
       perQuestion: result.perQuestion,
     };
+  }
+
+  private settleGrading(run: GradingRun): GradingRun {
+    // A pretend grader: finishes a few seconds after it starts, passing.
+    if (run.status !== 'running' || this.now() - Date.parse(run.startedAt) < 3000) return run;
+    const done: GradingRun = {
+      ...run,
+      status: 'passed',
+      finishedAt: new Date(this.now()).toISOString(),
+      result: { section: run.sectionId, passed: true, total: 3, failed: [], tests: [], report_tail: '3 passed' },
+    };
+    this.gradingRuns.set(run.sectionId, done);
+    return done;
+  }
+  async grading(exam: ExamId) {
+    const ex = examById(exam);
+    const out: Record<string, GradingRun> = {};
+    for (const [sid, run] of this.gradingRuns) if (ex?.sections.some((s) => s.id === sid)) out[sid] = this.settleGrading(run);
+    return out;
+  }
+  async gradingRun(sectionId: string) {
+    const run = this.gradingRuns.get(sectionId);
+    return { run: run ? this.settleGrading(run) : null, configured: true };
+  }
+  async grade(sectionId: string): Promise<GradingRun> {
+    const current = this.gradingRuns.get(sectionId);
+    if (current && this.settleGrading(current).status === 'running') throw new GradingInProgressError(current);
+    this.seq += 1;
+    const run: GradingRun = {
+      id: `grade-${this.seq}`,
+      sectionId,
+      runId: this.seq,
+      status: 'running',
+      startedAt: new Date(this.now()).toISOString(),
+      finishedAt: null,
+      result: null,
+      error: null,
+    };
+    this.gradingRuns.set(sectionId, run);
+    return run;
   }
 }
 

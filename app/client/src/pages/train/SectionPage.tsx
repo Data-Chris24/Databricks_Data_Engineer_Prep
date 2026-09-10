@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 
 import { notebooks, notes, questionsFor, sectionById } from '../../../../shared/content';
 import type { AppConfig, ProgressRow } from '../../../../shared/types';
+import { GradingPanel } from '../../components/GradingPanel';
 import { Icon } from '../../components/Icon';
 import { useExam } from '../../lib/exam';
 import { workspaceUrl } from '../../lib/links';
@@ -267,12 +268,7 @@ export function SectionPage() {
                   <div className="title">Then the assignment, on a dataset the lesson code will not survive</div>
                   <div className="sub">
                     {nbs.assignment.notebook ? 'Starter notebook, task and output contract inside.' : 'Read the task in the README, then build it in your own notebook.'}
-                    {nbs.assignment.grade_job ? (
-                      <>
-                        {' '}
-                        Grade with <code>databricks bundle run {nbs.assignment.grade_job} -t free</code>
-                      </>
-                    ) : null}
+                    {' '}Then come back here and grade it.
                   </div>
                 </div>
                 {(() => {
@@ -288,6 +284,8 @@ export function SectionPage() {
                 })()}
               </div>
             ) : null}
+
+            {nbs?.assignment ? <GradingPanel sectionId={section.id} gradeJob={nbs.assignment.grade_job} /> : null}
 
             <div className="end-actions">
               <button

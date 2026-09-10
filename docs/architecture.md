@@ -263,6 +263,16 @@ What replaced it, and why each choice:
   guarantee, not a security one. Fine for a personal study tool; serving test
   questions without keys is the hardening step if that ever matters.
 
+- **Grading runs from the app, and the answers stay out of the learner's path.**
+  Learners deploy their own fork as admins of their own workspace, so nothing can
+  be hidden by permission. Instead the assignment folder holds only the task and
+  the starter, graders live under `grading/<SEC>/` (deployed, because the app
+  runs them through the jobs plugin with CAN_MANAGE_RUN), and `solutions/` is
+  excluded from every learner target's sync: only the maintainer `verify` target
+  deploys reference solutions and the jobs that run them. A learner who goes
+  looking can read the tests in their workspace and learn what is checked; they
+  cannot find the solution there. That is friction, and the honest limit.
+
 Verified against the live workspace before merge: `${workspace.file_path}` does
 interpolate into the app resource's `config.env` (so notebook links get their
 root), and `bundle validate --strict` accepts the app resource on Free Edition.

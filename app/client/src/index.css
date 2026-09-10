@@ -1501,3 +1501,79 @@ button {
 .ring {
   display: block;
 }
+
+/* ------------------------------------------------------------------ grading */
+.grading {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+.grade-result {
+  border-radius: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  background: var(--raised);
+}
+.grade-result.passed {
+  border-color: var(--good);
+  background: var(--good-soft);
+  color: var(--good);
+}
+.grade-result.failed {
+  border-color: var(--bad);
+  background: var(--bad-soft);
+}
+.grade-result.error {
+  border-color: var(--warn);
+  background: var(--warn-soft);
+}
+.grade-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 14.5px;
+}
+.grade-fails {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--ink);
+}
+.grade-fails li {
+  margin-bottom: 8px;
+}
+.grade-fails code {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.grade-fails pre {
+  margin: 4px 0 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--ink-dim);
+}
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.state.graded {
+  color: var(--good);
+  background: var(--good-soft);
+}
