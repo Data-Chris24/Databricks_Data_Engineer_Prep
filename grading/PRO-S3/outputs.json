@@ -1,0 +1,6 @@
+{
+  "_comment": "What the PRO-S3 assignment produces, per its README's output contract. A reset drops exactly these. Never list an assess input.",
+  "tables": [
+    "workspace.de_prep.pro_s3_quality_findings"
+  ]
+}

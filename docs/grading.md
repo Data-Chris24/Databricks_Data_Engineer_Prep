@@ -32,8 +32,12 @@ structured result through the notebook's exit value:
 locked until every hands-on notebook of that section has been opened from the
 app. It then creates the learner's own copy of the starter under the app
 principal's `learners/<email>/<SECTION>/` folder (the deployed copy is never
-edited) and can reset that copy to the starter at any time. Sections whose
-starter has not been written yet link to the README instead.
+edited). *Reset* puts the starter back in that copy, drops the objects the
+section's `grading/<SECTION>/outputs.json` names (the tables the contract asks
+for; for PRO-S4 the share and recipient; never an assess input) through the
+`reset_assignment` job, and forgets the grades recorded for the section, so a
+fresh attempt cannot pass on old work. Sections whose starter has not been
+written yet link to the README instead, and can still reset their tables.
 
 **From the study app** (the normal path): the section page's *Grade my
 assignment* button triggers the `grade_<section>` job as the app's service

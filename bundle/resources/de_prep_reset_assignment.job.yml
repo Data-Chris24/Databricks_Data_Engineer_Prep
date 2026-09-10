@@ -1,0 +1,18 @@
+resources:
+  jobs:
+    reset_assignment:
+      name: "[DE prep] Reset an assignment's outputs"
+      description: >-
+        Triggered by the study app when a learner resets a section. Drops the
+        objects that section's grading/<SECTION>/outputs.json names, never the
+        assess inputs. Runs as the deploying principal, which needs MANAGE on the
+        assignment schemas (docs/ci-cd.md, step 2c).
+      parameters:
+        - name: section
+          default: ""
+      tasks:
+        - task_key: reset
+          notebook_task:
+            notebook_path: ../../grading/reset_assignment.py
+      queue:
+        enabled: true

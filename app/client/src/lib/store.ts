@@ -289,10 +289,11 @@ export class MemoryStore implements StudyStore {
     return {
       sectionId,
       hasStarters: (starters[sectionId] ?? []).length > 0,
-      provisioned: Boolean(copy),
-      folder: copy?.folder ?? null,
-      notebook: copy?.notebook ?? null,
+      provisioned: Boolean(copy?.notebook),
+      folder: copy?.folder || null,
+      notebook: copy?.notebook || null,
       resetCount: copy?.resetCount ?? 0,
+      resetting: false,
       gate: assignmentGate(lessonPaths(sectionId), this.visits),
     };
   }
@@ -309,8 +310,9 @@ export class MemoryStore implements StudyStore {
   }
   async resetAssignment(sectionId: string) {
     const copy = this.copies.get(sectionId);
-    if (!copy) throw new ApiError(409, { error: 'not_provisioned' });
-    copy.resetCount += 1;
+    if (copy) copy.resetCount += 1;
+    else this.copies.set(sectionId, { folder: '', notebook: '', resetCount: 1 });
+    this.gradingRuns.delete(sectionId);
     return this.assignment(sectionId);
   }
 
