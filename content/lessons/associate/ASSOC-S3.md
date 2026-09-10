@@ -10,10 +10,11 @@ Bronze should be faithful to the source. CSV has no types, so a bronze table loa
 from CSV is honestly all `STRING`; typing it there just makes loads fail. Cast on the
 way to silver instead.
 
-`CAST` returns `NULL` when a value will not convert — it does not raise and does not
-drop the row. So a schema change upstream shows up as a quietly growing null count,
-not as a failure. Count your nulls after casting; `try_cast()` makes the intent
-explicit.
+What `CAST` does with a value that will not convert depends on ANSI mode. With ANSI
+on (the default on serverless compute and Spark 4) it raises `CAST_INVALID_INPUT` and
+the write fails; with ANSI off it returns `NULL` and the row survives, so a schema
+change upstream shows up as a quietly growing null count. `try_cast()` returns `NULL`
+in both modes and states the intent. Either way, count your nulls after casting.
 
 **Nulls have meanings.** Before filling one, ask whether it means *unknown* or
 *a specific value*. A null discount that the business says means "no discount" should
@@ -51,8 +52,11 @@ side is small, broadcasting it to every executor avoids shuffling the large side
 all. Automatic below `spark.sql.autoBroadcastJoinThreshold` (10 MB default); `-1`
 disables it.
 
-**`UNION` deduplicates, `UNION ALL` does not.** Deduplication means a shuffle, so
-prefer `UNION ALL` and deduplicate deliberately.
+**In SQL, `UNION` deduplicates and `UNION ALL` does not.** Deduplication means a
+shuffle, so prefer `UNION ALL` and deduplicate deliberately. The DataFrame API is the
+trap: `df.union()` matches columns by *position* and never deduplicates (it is
+`UNION ALL`); `unionByName()` matches by name, with `allowMissingColumns=True` to fill
+gaps with nulls.
 
 ## Reshaping — `ASSOC-S3-O3`
 
@@ -90,7 +94,7 @@ exactness is choosing to be slower for nothing.
 |---|---|---|
 | `spark.sql.shuffle.partitions` | post-shuffle partition count (default 200) | hundreds of sub-second tasks = too many; long spilling tasks = too few |
 | `spark.sql.autoBroadcastJoinThreshold` | auto-broadcast size limit | unnecessary shuffles, or driver OOM if too high |
-| `spark.driver.memory` | driver heap | **not** the fix for `collect()` on a big result |
+| `spark.driver.memory` | driver heap; set at cluster creation, not at runtime | a bigger driver postpones a `collect()` OOM and more executors never help; bring less back instead |
 | `spark.executor.memory` | executor heap | spill and GC pressure |
 
 `collect()` pulls every row to the driver. Cluster size is irrelevant — the driver is
@@ -121,3 +125,23 @@ succeeds, the row count still looks right, and the data is quietly wrong.
 
 After a join meant to enrich without changing grain, assert the row count is
 unchanged. One cheap check catches both fan-out and unintended drops.
+
+## Further reading
+
+Official documentation for what this section tests, one link per topic:
+
+- [Transform data](https://docs.databricks.com/aws/en/transform/) — the overview of DataFrame and SQL transformation.
+- [PySpark basics](https://docs.databricks.com/aws/en/pyspark/basics) — select, filter, join, groupBy and friends with examples.
+- [Window functions](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-window-functions) — `row_number`, frames, `PARTITION BY`.
+- [PIVOT clause](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-syntax-qry-select-pivot) — reshaping long to wide.
+- [LATERAL VIEW and explode](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-syntax-qry-select-lateral-view) — reshaping wide to long.
+- [Adaptive query execution](https://docs.databricks.com/aws/en/optimizations/aqe) — why 200 shuffle partitions is a ceiling, not a count.
+- [Materialized views](https://docs.databricks.com/aws/en/views/materialized) — when a gold object should be recomputed rather than queried.
+- [CREATE STREAMING TABLE](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-syntax-ddl-create-streaming-table) — the append-only gold object.
+- [Constraints on Databricks](https://docs.databricks.com/aws/en/tables/constraints) — `NOT NULL`, `CHECK`, informational primary keys.
+- [Pipeline expectations](https://docs.databricks.com/aws/en/ldp/expectations) — warn, drop or fail, and where the metrics go.
+
+Videos for another angle on the hard parts (channel, length):
+
+- [Medallion Architecture in Data Lakehouse](https://www.youtube.com/watch?v=29FJvrulEAM) — Ease With Data, 3 min. What each layer is allowed to change.
+- [Slowly Changing Dimensions: types 0 to 4 explained with real examples](https://www.youtube.com/watch?v=1JswR_4XUdU) — SleekData, 7 min. The modelling vocabulary behind the dimension questions.

@@ -11,9 +11,10 @@ When Unity Catalog owns a table's layout it can maintain it: **predictive
 optimization** runs `OPTIMIZE` (compaction and clustering) and `VACUUM`
 automatically, based on how the table is used. On an external table that work is
 yours to schedule, and the usual failure is that nobody does until a query gets
-slow or storage bills climb from files nobody references. Managed tables also
-get the newer features first (liquid clustering, deletion vectors) and their
-lifecycle follows the catalog: drop the table, the files go.
+slow or storage bills climb from files nobody references. Some features are
+managed-only: predictive optimization, `CLUSTER BY AUTO` and `UNDROP TABLE`
+(liquid clustering and deletion vectors work on external Delta tables too). And
+the lifecycle follows the catalog: drop a managed table and the files go.
 
 ## Delta's optimisation features — `PRO-S6-O2`
 
@@ -82,3 +83,26 @@ query execution can split at runtime.
 
 A table can suffer several of these at once, and clustering fixes exactly one of
 them. That is the point of this section's assignment.
+
+## Further reading
+
+Official documentation for what this section tests, one link per topic:
+
+- [Managed tables](https://docs.databricks.com/aws/en/tables/managed) — what predictive optimization needs.
+- [Liquid clustering](https://docs.databricks.com/aws/en/delta/clustering) — keys, `OPTIMIZE`, `CLUSTER BY AUTO`.
+- [OPTIMIZE](https://docs.databricks.com/aws/en/delta/optimize) — compaction and target file size.
+- [VACUUM](https://docs.databricks.com/aws/en/delta/vacuum) — retention and the deletion-vector trap.
+- [Data skipping](https://docs.databricks.com/aws/en/delta/data-skipping) — file statistics and the 32-column default.
+- [Deletion vectors](https://docs.databricks.com/aws/en/delta/deletion-vectors) — soft deletes and `REORG ... APPLY (PURGE)`.
+- [Predictive optimization](https://docs.databricks.com/aws/en/optimizations/predictive-optimization) — what runs, on which tables.
+- [Change data feed](https://docs.databricks.com/aws/en/delta/delta-change-data-feed) — `readChangeFeed`, `_change_type`, retention.
+- [Tune file size](https://docs.databricks.com/aws/en/delta/tune-file-size) — optimized writes and auto compaction.
+- [Query profile](https://docs.databricks.com/aws/en/sql/user/queries/query-profile) — reading the plan and its metrics.
+- [Optimization recommendations](https://docs.databricks.com/aws/en/optimizations/) — the overview page.
+- [Photon](https://docs.databricks.com/aws/en/compute/photon) — what it accelerates and what falls out of it.
+
+Videos for another angle on the hard parts (channel, length):
+
+- [Delta tables: deletion vectors and liquid clustering](https://www.youtube.com/watch?v=qovye-vdn8I) — Ease With Data, 13 min. Both features side by side.
+- [Deletion Vectors on Delta Lake tables: introduction](https://www.youtube.com/watch?v=fTj2iXTrp5Q) — Apostolos Athanasiou, 17 min. What a soft delete leaves on disk.
+- [Understanding Spark UI in Depth: jobs, stages, tasks](https://www.youtube.com/watch?v=t-42lC167k4) — DataBeli, 19 min. The UI behind the query profile.

@@ -19,7 +19,8 @@ Comments and tags are not alternatives. A **comment** says *what this is*; a
 **tag** says *what class of thing this is*, and only the second is queryable at
 scale: "show me every column holding PII" is a query over `column_tags`, not a
 conversation. Every securable takes a comment (catalog, schema, table, column,
-volume, function); tags go on tables and columns.
+volume, function), and tags go on every securable too, from catalogs and schemas
+down to columns and volumes.
 
 Two properties of `information_schema` to internalise before building on it:
 
@@ -77,3 +78,21 @@ Groups make this manageable: grant to groups, and membership changes without
 touching a grant. Service principals are principals like users, and appear in
 `information_schema` by application id, so an audit deliverable has to join to a
 display name.
+
+## Further reading
+
+Official documentation for what this section tests, one link per topic:
+
+- [What is Unity Catalog?](https://docs.databricks.com/aws/en/data-governance/unity-catalog/) — the object model.
+- [Tags](https://docs.databricks.com/aws/en/database-objects/tags) — applying and querying tags on securables.
+- [Information schema](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-information-schema) — `column_tags`, `table_privileges`, `inherited_from`.
+- [Data lineage](https://docs.databricks.com/aws/en/data-governance/unity-catalog/data-lineage) — what is captured and where.
+- [Privilege types and inheritance](https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/privileges) — the full list and the inheritance rule.
+- [Privileges reference](https://docs.databricks.com/aws/en/data-governance/unity-catalog/access-control/privileges-reference) — every privilege by securable.
+- [Ownership](https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/ownership) — who can grant.
+- [Unity Catalog best practices](https://docs.databricks.com/aws/en/data-governance/unity-catalog/best-practices) — how to structure catalogs and grants.
+
+Videos for another angle on the hard parts (channel, length):
+
+- [Lineage System Table in Unity Catalog](https://www.youtube.com/watch?v=bZXswjZ0avA) — Databricks, 32 min. Lineage as a governance query.
+- [Unity Catalog, Delta Sharing and Data Mesh on Databricks Lakehouse](https://www.youtube.com/watch?v=75QGOtqBj2k) — Databricks, 36 min. The governance model end to end.

@@ -92,3 +92,22 @@ hatches cost something: `skipChangeCommits` steps over such versions (the
 downstream never learns about the update); `ignoreChanges` re-emits the
 rewritten files as if new (the downstream must be idempotent to survive it).
 Keeping bronze append-only means never making that choice under pressure.
+
+## Further reading
+
+Official documentation for what this section tests, one link per topic:
+
+- [Ingest data into Databricks](https://docs.databricks.com/aws/en/ingestion/) — the menu of ingestion paths.
+- [Auto Loader schema inference and evolution](https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/schema) — `schemaEvolutionMode` and `_rescued_data`.
+- [Auto Loader options](https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/options) — every option with its default.
+- [COPY INTO](https://docs.databricks.com/aws/en/ingestion/copy-into/) — the file-level idempotent alternative.
+- [read_files](https://docs.databricks.com/aws/en/sql/language-manual/functions/read_files) — the table-valued function behind streaming tables.
+- [JSON files](https://docs.databricks.com/aws/en/query/formats/json) — `multiLine`, corrupt records, nested fields.
+- [VARIANT](https://docs.databricks.com/aws/en/semi-structured/variant) — semi-structured data without a fixed schema.
+- [Delta table streaming reads and writes](https://docs.databricks.com/aws/en/structured-streaming/delta-lake) — `ignoreDeletes`, `skipChangeCommits`, `txnAppId`.
+- [Delta table properties](https://docs.databricks.com/aws/en/delta/table-properties) — `delta.appendOnly` and the rest.
+
+Videos for another angle on the hard parts (channel, length):
+
+- [Auto Loader in Databricks: schema evolution modes and file detection modes](https://www.youtube.com/watch?v=g7d1U2_dWS8) — Ease With Data, 23 min. The options this section keeps naming.
+- [Stop Building Batch Jobs! Use Databricks Auto Loader Instead](https://www.youtube.com/watch?v=YHJQ5HmlclA) — Data Analytics Talks, 12 min. Incremental ingestion argued from cost.

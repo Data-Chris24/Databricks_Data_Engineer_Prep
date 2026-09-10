@@ -38,8 +38,9 @@ column is a decision you are stuck with — changing it means rewriting the tabl
 choosing badly gives you either huge skewed partitions or millions of tiny files.
 Clustering keys can be changed with `ALTER TABLE`, and the layout adapts incrementally.
 
-**Predictive optimization** runs maintenance — compaction, clustering, vacuum —
-automatically on managed tables, because Unity Catalog owns the layout.
+**Predictive optimization** runs maintenance — `OPTIMIZE`, `VACUUM` and statistics
+collection — automatically, and only on Unity Catalog *managed* tables, because the
+catalog owns their layout; external tables are yours to maintain.
 
 **Deletion vectors** mark rows as deleted rather than rewriting files, making deletes
 and updates much cheaper; the files are cleaned up later during maintenance.
@@ -59,3 +60,23 @@ single JVM; more executors do not help. Write the result to a table instead.
 > On serverless compute there are no clusters to configure, so these particular
 > failures cannot occur — and cannot be practised. This objective is theory on Free
 > Edition.
+
+## Further reading
+
+Official documentation for what this section tests, one link per topic:
+
+- [Monitor jobs](https://docs.databricks.com/aws/en/jobs/monitor) — run history, matrix view and duration trends.
+- [Diagnose cost and performance with the Spark UI](https://docs.databricks.com/aws/en/optimizations/spark-ui-guide/) — the guided walk from job to stage to task.
+- [Skew and spill](https://docs.databricks.com/aws/en/optimizations/spark-ui-guide/long-spark-stage-page) — the two fingerprints and how to tell them apart.
+- [Liquid clustering](https://docs.databricks.com/aws/en/delta/clustering) — `CLUSTER BY`, changing keys, `OPTIMIZE`.
+- [OPTIMIZE and compaction](https://docs.databricks.com/aws/en/delta/optimize) — small files and the target size.
+- [VACUUM](https://docs.databricks.com/aws/en/delta/vacuum) — the 7-day default and what it does to time travel.
+- [Predictive optimization](https://docs.databricks.com/aws/en/optimizations/predictive-optimization) — managed tables only, and what it runs.
+- [Deletion vectors](https://docs.databricks.com/aws/en/delta/deletion-vectors) — why deletes stopped rewriting files.
+- [Compute configuration best practices](https://docs.databricks.com/aws/en/compute/cluster-config-best-practices) — the sizing and failure-mode advice.
+- [Libraries](https://docs.databricks.com/aws/en/libraries/) — notebook-scoped vs cluster-scoped, and init scripts.
+
+Videos for another angle on the hard parts (channel, length):
+
+- [Understanding Spark UI in Depth: jobs, stages, tasks](https://www.youtube.com/watch?v=t-42lC167k4) — DataBeli, 19 min. Reading the UI the way the exam expects.
+- [Databricks Liquid Clustering Introduction](https://www.youtube.com/watch?v=na3Wp-j855g) — Apostolos Athanasiou, 13 min. Clustering versus partitioning and Z-order, demonstrated.

@@ -64,3 +64,21 @@ time. A dataset where every value casts, nothing is null and nothing is negative
 can still be wrong *between* rows: a cumulative value that decreases, a 15-minute
 cadence with a gap, two readings at the same instant. Those are window checks,
 and they are what this section's assignment is about.
+
+## Further reading
+
+Official documentation for what this section tests, one link per topic:
+
+- [Transform data](https://docs.databricks.com/aws/en/transform/) — the transformation overview.
+- [Window functions](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-window-functions) — frames, `rowsBetween` vs `rangeBetween`.
+- [window function (time windows)](https://docs.databricks.com/aws/en/sql/language-manual/functions/window) — tumbling and sliding windows over event time.
+- [Adaptive query execution](https://docs.databricks.com/aws/en/optimizations/aqe) — skew joins and partition coalescing.
+- [pandas function APIs](https://docs.databricks.com/aws/en/pandas/pandas-function-apis) — `applyInPandas` and grouped transformations.
+- [Pipeline expectations](https://docs.databricks.com/aws/en/ldp/expectations) — warn, drop, fail and the quarantine pattern.
+- [Constraints](https://docs.databricks.com/aws/en/tables/constraints) — `CHECK` at write time vs expectations in a pipeline.
+- [PIVOT](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-syntax-qry-select-pivot) — long to wide.
+
+Videos for another angle on the hard parts (channel, length):
+
+- [Data Quality as Code: Spark Declarative Pipelines expectations](https://www.youtube.com/watch?v=CjS6ILJZP7k) — DataMindAI with Ahmed, 46 min. Expectations end to end.
+- [Watermarking and handling late data in window operations](https://www.youtube.com/watch?v=_qqMqlv8rW0) — itversity, 9 min. Why a window on an irregular series needs a time frame.

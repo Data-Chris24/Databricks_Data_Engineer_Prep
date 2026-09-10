@@ -149,6 +149,17 @@ objectives.
 
 ---
 
+### Further reading footers
+
+Every note ends with a `## Further reading` section: official documentation, one
+link per topic the section tests, then one to three videos with channel and
+length. Before adding a link, fetch it and check for a 200 (the docs site does
+return real 404s); resolve a video through `https://www.youtube.com/oembed?url=...`
+so the title and channel are what you think they are. Prefer `docs.databricks.com/aws/en/`
+paths and the Databricks or Databricks Skill Builder channels; label community
+videos with their channel. `docs/content-review.md` records the depth review the
+footers came from and the visuals plan.
+
 ## Assignments
 
 One per **section**, not per objective — 17 rather than 78. Section-level forces

@@ -334,3 +334,31 @@ def test_every_section_has_a_concise_variant():
             sections_with_variant.add(section)
     missing = sorted(all_sections - sections_with_variant)
     assert not missing, f"sections without a variant question: {missing}"
+
+
+LESSONS_DIR = Path(__file__).resolve().parents[2] / "content" / "lessons"
+
+
+@pytest.mark.parametrize(
+    "note",
+    sorted(p for p in LESSONS_DIR.glob("*/*.md")),
+    ids=lambda p: p.stem,
+)
+def test_every_note_ends_with_verified_further_reading(note):
+    """Each section note closes with a Further reading footer: official docs on the
+    docs.databricks.com/aws/en/ path (verified by fetch before adding, see the
+    authoring guide) and at least one YouTube watch link. The footer must be the
+    last H2 so it renders at the end of the page and appears last in the TOC."""
+    text = note.read_text()
+    headings = re.findall(r"^## (.+)$", text, flags=re.M)
+    assert headings and headings[-1] == "Further reading", f"{note.name}: last H2 must be Further reading"
+    footer = text.split("## Further reading", 1)[1]
+    links = re.findall(r"\]\((https?://[^)\s]+)\)", footer)
+    docs = [u for u in links if u.startswith("https://docs.databricks.com/aws/en/")]
+    videos = [u for u in links if u.startswith("https://www.youtube.com/watch?v=")]
+    other = [u for u in links if u not in docs and u not in videos
+             and not u.startswith("https://www.databricks.com/learn/certification/")]
+    assert len(docs) >= 5, f"{note.name}: only {len(docs)} official doc links"
+    assert videos, f"{note.name}: no video link"
+    assert not other, f"{note.name}: unexpected link hosts {other}"
+    assert len(links) == len(set(links)), f"{note.name}: duplicate links in the footer"

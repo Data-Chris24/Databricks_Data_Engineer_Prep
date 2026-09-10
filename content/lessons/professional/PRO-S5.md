@@ -46,9 +46,10 @@ flows ran, how many rows each expectation dropped or flagged, and pipeline-level
 errors. Query them as a table to trend data-quality counts over time rather than
 reading one run's page.
 
-> Free Edition exposes few `system.*` schemas. The exam asks which table answers
-> which question, not whether your workspace shows it. `DESCRIBE HISTORY` works
-> everywhere.
+> Free Edition exposes `system.*` too (`billing`, `access`, `lakeflow`, `compute`
+> and more, with real rows), so the queries below can be run there. The exam asks
+> which table answers which question. `DESCRIBE HISTORY` works on every table,
+> whatever the tier.
 
 ## Monitoring through the API and CLI — `PRO-S5-O3`
 
@@ -118,3 +119,24 @@ In the API and in bundles this is the `email_notifications`,
 `webhook_notifications` and `health` blocks on the job; a run that exceeds
 `RUN_DURATION_SECONDS` is the standard "it went green but took four times as
 long" catch.
+
+## Further reading
+
+Official documentation for what this section tests, one link per topic:
+
+- [System tables](https://docs.databricks.com/aws/en/admin/system-tables/) — the catalogue of `system.*` schemas.
+- [Billable usage](https://docs.databricks.com/aws/en/admin/system-tables/billing) — `system.billing.usage` and `list_prices`.
+- [Audit logs](https://docs.databricks.com/aws/en/admin/system-tables/audit-logs) — `system.access.audit` actions and columns.
+- [Lineage system tables](https://docs.databricks.com/aws/en/admin/system-tables/lineage) — table and column lineage.
+- [Jobs system tables](https://docs.databricks.com/aws/en/admin/system-tables/jobs) — `system.lakeflow` run and task timelines.
+- [Query history system table](https://docs.databricks.com/aws/en/admin/system-tables/query-history) — `system.query.history`.
+- [Monitor jobs](https://docs.databricks.com/aws/en/jobs/monitor) — run history and trends.
+- [Job notifications](https://docs.databricks.com/aws/en/jobs/notifications) — email, webhooks and the streaming backlog metrics.
+- [SQL alerts](https://docs.databricks.com/aws/en/sql/user/alerts/) — conditions, schedules and destinations.
+- [Pipeline event log](https://docs.databricks.com/aws/en/ldp/observability) — `event_log()` and the `flow_progress` payload.
+- [Query profile](https://docs.databricks.com/aws/en/sql/user/queries/query-profile) — where a single query's time went.
+
+Videos for another angle on the hard parts (channel, length):
+
+- [Monitoring Databricks with System Tables](https://www.youtube.com/watch?v=VfqLBJvqomM) — Dustin Vannoy, 16 min. Usage and audit queries you can copy.
+- [Lineage System Table in Unity Catalog](https://www.youtube.com/watch?v=bZXswjZ0avA) — Databricks, 32 min. Lineage as data.
