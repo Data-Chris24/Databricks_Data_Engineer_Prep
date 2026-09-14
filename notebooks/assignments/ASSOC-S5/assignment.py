@@ -2,7 +2,7 @@
 # MAGIC %md
 # MAGIC # ASSOC-S5 assignment — your work goes here
 # MAGIC
-# MAGIC Read `README.md` in this folder for the task and the output contract.
+# MAGIC The task and the output contract are in the next cell (the same text as `README.md` in the repo).
 # MAGIC
 # MAGIC **The lesson hardcoded its destination. Here the work is mostly outside this notebook: a job definition whose destination is a bundle variable.**
 # MAGIC
@@ -12,6 +12,93 @@
 # MAGIC
 # MAGIC When you are done, go back to the study app and press **Grade my assignment**.
 # MAGIC Each failing check says what it expected and why.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- task:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC ## Assignment — `ASSOC-S5` Implementing CI/CD
+# MAGIC
+# MAGIC **Objectives:** `ASSOC-S5-O1`, `O2`, `O3`, `O4`
+# MAGIC
+# MAGIC ### Before you start
+# MAGIC
+# MAGIC Work the two lessons in `notebooks/lessons/associate/S5/`, and generate the data
+# MAGIC (`databricks bundle run generate_datasets_assoc_s5 -t free`).
+# MAGIC
+# MAGIC > **The lesson hardcoded its destination.** That is fine for one environment and
+# MAGIC > wrong for two. Copy it and staging gets production's data — or nothing at all.
+# MAGIC
+# MAGIC ### The task
+# MAGIC
+# MAGIC Publish a channel summary to **two environments from one job definition**.
+# MAGIC
+# MAGIC The two environments are two schemas on this workspace, standing in for staging and
+# MAGIC production:
+# MAGIC
+# MAGIC | Environment | Schema |
+# MAGIC |---|---|
+# MAGIC | staging | `workspace.de_prep_staging` |
+# MAGIC | production | `workspace.de_prep` |
+# MAGIC
+# MAGIC ### Requirements
+# MAGIC
+# MAGIC 1. **One job definition.** Not two jobs, not two notebooks. The same resource,
+# MAGIC    deployed to two targets.
+# MAGIC 2. **The destination comes from a bundle variable overridden per target** — the
+# MAGIC    notebook must not contain either schema name.
+# MAGIC 3. **Both environments end up with the same summary**, each row stamped with the
+# MAGIC    schema it was written to in an `environment` column.
+# MAGIC 4. The notebook must **fail loudly** if the parameters are missing, rather than
+# MAGIC    quietly defaulting to one environment.
+# MAGIC
+# MAGIC ### The output contract
+# MAGIC
+# MAGIC `s5_channel_summary`, in **both** schemas:
+# MAGIC
+# MAGIC | Column | Type |
+# MAGIC |---|---|
+# MAGIC | `channel` | `STRING` |
+# MAGIC | `txns` | `BIGINT` |
+# MAGIC | `revenue` | `DOUBLE` |
+# MAGIC | `environment` | `STRING` |
+# MAGIC
+# MAGIC ### Grading
+# MAGIC
+# MAGIC ```bash
+# MAGIC databricks bundle run grade_assoc_s5 -t free --profile FREE
+# MAGIC ```
+# MAGIC
+# MAGIC The suite checks both schemas, that the numbers match, and that each row records the
+# MAGIC environment it landed in — which is only possible if the destination was genuinely
+# MAGIC parameterised.
+# MAGIC
+# MAGIC ### Hints
+# MAGIC
+# MAGIC <details><summary>How does a target override a variable?</summary>
+# MAGIC
+# MAGIC ```yaml
+# MAGIC variables:
+# MAGIC   schema:
+# MAGIC     default: de_prep
+# MAGIC
+# MAGIC targets:
+# MAGIC   staging:
+# MAGIC     variables:
+# MAGIC       schema: de_prep_staging
+# MAGIC ```
+# MAGIC </details>
+# MAGIC
+# MAGIC <details><summary>How does the notebook receive it?</summary>
+# MAGIC
+# MAGIC `base_parameters` on the task, read with `dbutils.widgets.get()`.
+# MAGIC </details>
+# MAGIC
+# MAGIC <details><summary>Both schemas have identical `environment` values</summary>
+# MAGIC
+# MAGIC The stamp is hardcoded rather than derived from the parameter.
+# MAGIC </details>
+# MAGIC <!-- task:end -->
 
 # COMMAND ----------
 

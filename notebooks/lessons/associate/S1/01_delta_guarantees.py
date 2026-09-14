@@ -51,19 +51,49 @@ print("current  :", spark.table("s1_teach_catalog").count(), "rows")
 # MAGIC %md
 # MAGIC ## 3. Schema enforcement
 # MAGIC
-# MAGIC A write that does not fit is **rejected**, rather than silently reshaping the
-# MAGIC table. That refusal is a feature: it is what stops a broken upstream job quietly
-# MAGIC changing your schema.
+# MAGIC A write whose **shape or types** do not fit is **rejected**, rather than silently
+# MAGIC reshaping the table. That refusal is a feature: it is what stops a broken
+# MAGIC upstream job quietly changing your schema. Two things are refused: a column
+# MAGIC the table does not have (`DELTA_METADATA_MISMATCH`), and a value that cannot be
+# MAGIC cast to the column's type (`CAST_INVALID_INPUT`; a compatible value *is* cast).
 
 # COMMAND ----------
 
-wrong = spark.createDataFrame([("SKU-99999", "machines")], "sku STRING, category STRING")
+extra = spark.createDataFrame(
+    [("SKU-99999", "machines", 9.5, None, "blue")],
+    "sku STRING, category STRING, price DOUBLE, listed_on DATE, colour STRING",
+)
 try:
-    wrong.write.mode("append").saveAsTable("s1_teach_catalog")
-    print("UNEXPECTED: the mismatched write was accepted")
+    extra.write.mode("append").saveAsTable("s1_teach_catalog")
+    print("UNEXPECTED: the extra column was accepted")
 except Exception as e:
-    print(f"rejected as designed: {type(e).__name__}")
-    print("A write missing columns cannot append without an explicit schema change.")
+    print(f"extra column rejected as designed: {type(e).__name__}")
+
+wrong_type = spark.createDataFrame(
+    [("SKU-99999", "machines", "cheap", None)],
+    "sku STRING, category STRING, price STRING, listed_on DATE",
+)
+try:
+    wrong_type.write.mode("append").saveAsTable("s1_teach_catalog")
+    print("UNEXPECTED: the STRING price was accepted into a DOUBLE column")
+except Exception as e:
+    print(f"incompatible type rejected as designed: {type(e).__name__}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **What enforcement does *not* check: completeness.** A write that is *missing*
+# MAGIC columns is accepted, and the gaps are filled with `NULL`. If a column must
+# MAGIC always be present, say so with a `NOT NULL` constraint; the schema alone will
+# MAGIC not defend it. (This cell puts the table back as it found it.)
+
+# COMMAND ----------
+
+missing = spark.createDataFrame([("SKU-99999", "machines")], "sku STRING, category STRING")
+missing.write.mode("append").saveAsTable("s1_teach_catalog")
+display(spark.sql("SELECT * FROM s1_teach_catalog WHERE sku = 'SKU-99999'"))
+spark.sql("DELETE FROM s1_teach_catalog WHERE sku = 'SKU-99999'")
+print("missing columns were accepted as NULL; the demo row is deleted again")
 
 # COMMAND ----------
 
@@ -95,7 +125,7 @@ print(f"{before} -> {after}; the intermediate state was never visible to a reade
 # MAGIC |---|---|
 # MAGIC | ACID transactions | the ordered log |
 # MAGIC | Time travel | every version being retained |
-# MAGIC | Schema enforcement | the log recording the schema |
+# MAGIC | Schema enforcement (extra columns, incompatible types; not missing columns) | the log recording the schema |
 # MAGIC | Columnar storage, compression | Parquet underneath |
 # MAGIC
 # MAGIC When a question asks for reliable rollback, an audit trail, and one governed copy

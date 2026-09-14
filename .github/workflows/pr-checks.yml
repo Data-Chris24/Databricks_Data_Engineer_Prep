@@ -35,6 +35,9 @@ jobs:
       - name: App content JSON must match content/ and notebooks/
         run: python tools/build_app_content.py --check
 
+      - name: Assignment starters embed their README
+        run: python tools/sync_assignment_tasks.py --check
+
   app:
     name: Study app
     runs-on: ubuntu-latest

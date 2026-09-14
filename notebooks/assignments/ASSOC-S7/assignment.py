@@ -2,12 +2,95 @@
 # MAGIC %md
 # MAGIC # ASSOC-S7 assignment — your work goes here
 # MAGIC
-# MAGIC Read `README.md` in this folder for the task and the output contract.
+# MAGIC The task and the output contract are in the next cell (the same text as `README.md` in the repo).
 # MAGIC
 # MAGIC **The lesson's single mask will not satisfy this. One of the requirements cannot be met by masking at all.**
 # MAGIC
 # MAGIC When you are done, go back to the study app and press **Grade my assignment**.
 # MAGIC Each failing check says what it expected and why.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- task:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC ## Assignment — `ASSOC-S7` Governance and Security
+# MAGIC
+# MAGIC **Objectives:** `ASSOC-S7-O1`, `O2`, `O3`, `O4`
+# MAGIC
+# MAGIC ### Before you start
+# MAGIC
+# MAGIC Work the two lessons in `notebooks/lessons/associate/S7/`, and generate the data
+# MAGIC (`databricks bundle run generate_datasets_assoc_s7 -t free`).
+# MAGIC
+# MAGIC > **The lesson's single mask will not satisfy this.** It had one sensitive column and
+# MAGIC > one audience. This has three kinds of sensitivity and three audiences, and one of
+# MAGIC > the requirements cannot be met by masking at all.
+# MAGIC
+# MAGIC ### The task
+# MAGIC
+# MAGIC `workspace.de_prep.s7_assess_employees` holds employee records. Publish a governed
+# MAGIC table that HR can use fully, regional managers can use for their own region, and
+# MAGIC everyone else can use for headcount analysis without seeing anything personal.
+# MAGIC
+# MAGIC | Column | Sensitivity | Required treatment |
+# MAGIC |---|---|---|
+# MAGIC | `national_id` | direct identifier | **Must not exist in the published table.** Publish an irreversible hash instead |
+# MAGIC | `case_note` | free text, may contain anything | Suppressed outside HR |
+# MAGIC | `salary` | aggregate-safe, row-unsafe | Null outside HR |
+# MAGIC | `region` | scoping attribute | Rows restricted to the viewer's region |
+# MAGIC
+# MAGIC ### The output contract
+# MAGIC
+# MAGIC **`workspace.de_prep.s7_governed_employees`**
+# MAGIC
+# MAGIC | Column | Type |
+# MAGIC |---|---|
+# MAGIC | `employee_id` | `STRING` |
+# MAGIC | `full_name` | `STRING` |
+# MAGIC | `national_id_hash` | `STRING` |
+# MAGIC | `region` | `STRING` |
+# MAGIC | `department` | `STRING` |
+# MAGIC | `salary` | `DOUBLE` |
+# MAGIC | `case_note` | `STRING` |
+# MAGIC | `hired_on` | `DATE` |
+# MAGIC
+# MAGIC #### Requirements
+# MAGIC
+# MAGIC 1. **`national_id` must not appear in the published table.** A mask is not enough —
+# MAGIC    masks can be dropped by anyone who can alter the table. Hash it irreversibly.
+# MAGIC 2. **`salary` and `case_note` must carry column masks** that reveal them only to HR.
+# MAGIC 3. **A row filter must scope rows by region**, so a regional manager sees only theirs.
+# MAGIC 4. **Do not lock yourself out.** Every rule must keep a break-glass principal;
+# MAGIC    a policy that excludes everyone is unauditable and unrecoverable.
+# MAGIC 5. Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC ### Grading
+# MAGIC
+# MAGIC ```bash
+# MAGIC databricks bundle run grade_assoc_s7 -t free --profile FREE
+# MAGIC ```
+# MAGIC
+# MAGIC ### Hints
+# MAGIC
+# MAGIC <details><summary>Which group function do I use?</summary>
+# MAGIC
+# MAGIC `is_account_group_member('x')` tests an **account**-level group; `is_member('x')`
+# MAGIC tests a **workspace**-level one. They are different, and on Free Edition a workspace
+# MAGIC admin belongs to no account group of that name. Pick wrong and your policy denies
+# MAGIC everyone.
+# MAGIC </details>
+# MAGIC
+# MAGIC <details><summary>My table shows no rows at all</summary>
+# MAGIC
+# MAGIC Requirement 4. Your row filter excluded you too.
+# MAGIC </details>
+# MAGIC
+# MAGIC <details><summary>Can I just mask national_id?</summary>
+# MAGIC
+# MAGIC Requirement 1. Ask what happens when someone runs `ALTER TABLE ... DROP MASK`. A hash
+# MAGIC removes the value from the data; a mask only hides it.
+# MAGIC </details>
+# MAGIC <!-- task:end -->
 
 # COMMAND ----------
 

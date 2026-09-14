@@ -113,3 +113,22 @@ def test_graders_report_short_uncoloured_failures():
         text = grade.read_text()
         assert '"--color=no"' in text, f"{grade}: pytest output would carry colour codes into the app"
         assert "reprcrash" in text, f"{grade}: failure messages would be stack-trace tails"
+
+
+def test_every_starter_embeds_its_current_readme():
+    """The learner's starter is provisioned without the README next to it, so the
+    task text lives in the starter's second cell, generated from README.md."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from sync_assignment_tasks import ASSIGNMENTS, BEGIN, END, synced
+
+    checked = 0
+    for section in sorted(p for p in ASSIGNMENTS.iterdir() if p.is_dir()):
+        readme, starter = section / "README.md", section / "assignment.py"
+        if not readme.exists() or not starter.exists():
+            continue
+        source = starter.read_text()
+        assert BEGIN in source and END in source, f"{section.name}: starter has no embedded task cell"
+        assert synced(source, readme.read_text()) == source, f"{section.name}: starter is stale; run tools/sync_assignment_tasks.py"
+        assert "Read `README.md`" not in source, f"{section.name}: still tells the learner to read a README that is not there"
+        checked += 1
+    assert checked == 17

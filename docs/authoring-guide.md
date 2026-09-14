@@ -198,6 +198,14 @@ A learner who wants to peek can still open `grading/<SECTION>/tests/` in their
 workspace and read what is checked and the expected numbers. That is friction,
 not secrecy, and it is the honest limit of a public repo.
 
+### The README travels inside the starter
+
+A learner's copy of `assignment.py` is provisioned alone into their workspace
+folder, so the starter's second cell carries the README's text, generated
+between `task:begin` / `task:end` markers. Edit `README.md`, then run
+`python tools/sync_assignment_tasks.py`; CI runs it with `--check` and fails on
+a stale starter. Never edit the generated cell by hand.
+
 ### The output contract
 
 State exactly what the learner must produce: table name, required schema, and the

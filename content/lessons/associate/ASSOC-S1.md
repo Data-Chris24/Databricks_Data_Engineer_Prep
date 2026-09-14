@@ -10,8 +10,11 @@ storage and compression; the *log* gives everything that matters for reliability
 - **ACID transactions** — a write is atomic, so readers never see it half-finished
 - **Time travel** — every version is numbered and queryable, so a bad load is
   recoverable with `RESTORE`
-- **Schema enforcement** — writes that do not fit are rejected rather than silently
-  reshaping the table
+- **Schema enforcement** — a write with a column the table lacks, or a value that
+  cannot be cast to the column's type, is rejected rather than silently reshaping
+  the table. A write that
+  is *missing* columns is accepted with `NULL`s: completeness is a `NOT NULL`
+  constraint's job, not the schema's
 
 **Unity Catalog** governs across workspaces: a three-level namespace
 (`catalog.schema.table`), one permission model for tables, volumes, models and
