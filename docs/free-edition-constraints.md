@@ -79,6 +79,25 @@ startup by listing the jobs it can see (`server/lib/bootstrap.ts`): the grader
 and reset jobs have stable names, and their notebook paths reveal the files root.
 Values passed by the bundle still win when present.
 
+### The Lakebase endpoint can be disabled
+
+Separate from scale-to-zero (the endpoint shows `IDLE` and wakes on the first
+connection), an endpoint can be **disabled**, and then nothing connects: the app
+starts, logs `[db] migration failed: The endpoint has been disabled. Enable it
+using the API and retry.`, and every page that needs progress fails; a bundle
+deploy fails too, at the step that grants the app's principal access to the
+database. Seen 2026-09-14 (`status.disabled: true` on the `primary` endpoint,
+four days after the last use). Check and re-enable with:
+
+```bash
+databricks postgres get-endpoint projects/de-prep/branches/production/endpoints/primary --profile FREE -o json | jq .status.disabled
+databricks postgres update-endpoint projects/de-prep/branches/production/endpoints/primary spec.disabled \
+  --json '{"spec":{"disabled":false}}' --profile FREE
+```
+
+Then restart the app (Start in the UI, `databricks apps start`, or re-run the
+deploy workflow) so the migration step runs against a live endpoint.
+
 ### The study app
 
 `app/` deploys as the `de-prep-study` app through the bundle, **from CI only**.
