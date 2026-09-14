@@ -24,6 +24,7 @@ export function SectionPage() {
 
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [visited, setVisited] = useState<Set<string>>(() => new Set());
+  const [visitError, setVisitError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressRow | null>(null);
   const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
   const [scrollPct, setScrollPct] = useState(0);
@@ -47,16 +48,34 @@ export function SectionPage() {
   }, [store]);
 
   useEffect(() => {
+    // Merge, never replace: a click that beat this response must not be undone.
     store
       .training(examId)
-      .then((t) => setVisited(new Set(t.visited)))
+      .then((t) => setVisited((prev) => new Set([...prev, ...t.visited])))
       .catch(() => {});
   }, [store, examId]);
 
   const markVisited = (path: string) => {
     if (visited.has(path)) return;
     setVisited((prev) => new Set(prev).add(path));
-    store.visitNotebook(path).catch(() => {});
+    setVisitError(null);
+    // The mark is optimistic; the gate is decided server-side. If the record
+    // fails (an app restart mid-click, a dropped connection), retry once, then
+    // take the mark back and say so rather than showing an "opened" that the
+    // server never heard about.
+    const record = () => store.visitNotebook(path);
+    record().catch(() =>
+      new Promise((r) => setTimeout(r, 1500))
+        .then(record)
+        .catch(() => {
+          setVisited((prev) => {
+            const next = new Set(prev);
+            next.delete(path);
+            return next;
+          });
+          setVisitError('The app could not record that you opened this notebook. Click it again.');
+        }),
+    );
   };
 
   // Mark the section visited on arrival and restore the last position.
@@ -279,6 +298,12 @@ export function SectionPage() {
                 );
               })}
             </div>
+
+            {visitError ? (
+              <div className="error-banner" style={{ marginTop: 12 }}>
+                {visitError}
+              </div>
+            ) : null}
 
             {nbs ? <AssignmentBand sectionId={section.id} notebooks={nbs} config={config} visited={visited} /> : null}
 

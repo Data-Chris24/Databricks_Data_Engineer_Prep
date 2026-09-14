@@ -2,12 +2,94 @@
 # MAGIC %md
 # MAGIC # ASSOC-S4 assignment — your work goes here
 # MAGIC
-# MAGIC Read `README.md` in this folder for the task and the output contract.
+# MAGIC The task and the output contract are in the next cell (the same text as `README.md` in the repo).
 # MAGIC
 # MAGIC **The lesson's linear chain will not survive this source. One file has a value that will not cast, and there is a directory the main glob never looks at.**
 # MAGIC
 # MAGIC When you are done, go back to the study app and press **Grade my assignment**.
 # MAGIC Each failing check says what it expected and why.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- task:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC ## Assignment — `ASSOC-S4` Working with Lakeflow Jobs
+# MAGIC
+# MAGIC **Objectives:** `ASSOC-S4-O1`, `O2`, `O3`, `O4`
+# MAGIC
+# MAGIC ### Before you start
+# MAGIC
+# MAGIC Work the two lessons in `notebooks/lessons/associate/S4/`, and generate the data
+# MAGIC (`databricks bundle run generate_datasets_assoc_s4 -t free`).
+# MAGIC
+# MAGIC > **The lesson's linear chain will not survive this source.** One region's file
+# MAGIC > contains a value that will not cast, and a chain that reads everything at once dies
+# MAGIC > with it. There is also a directory the lesson never looked at.
+# MAGIC
+# MAGIC ### The task
+# MAGIC
+# MAGIC Build a pipeline over `/Volumes/workspace/de_prep/raw/s4_assess/` that publishes
+# MAGIC regional order data — **without letting one bad region stop the others**.
+# MAGIC
+# MAGIC ### The output contract
+# MAGIC
+# MAGIC **`workspace.de_prep.s4_gold_regional_orders`**
+# MAGIC
+# MAGIC | Column | Type |
+# MAGIC |---|---|
+# MAGIC | `order_id` | `STRING` |
+# MAGIC | `region` | `STRING` |
+# MAGIC | `units` | `INT` |
+# MAGIC | `ordered_on` | `DATE` |
+# MAGIC
+# MAGIC **`workspace.de_prep.s4_quarantine_orders`** — every row that could not be published,
+# MAGIC with its raw values preserved and the file it came from.
+# MAGIC
+# MAGIC | Column | Type |
+# MAGIC |---|---|
+# MAGIC | `order_id` | `STRING` |
+# MAGIC | `region` | `STRING` |
+# MAGIC | `raw_units` | `STRING` |
+# MAGIC | `raw_ordered_on` | `STRING` |
+# MAGIC | `source_file` | `STRING` |
+# MAGIC
+# MAGIC #### Requirements
+# MAGIC
+# MAGIC 1. **A bad row must not stop the pipeline.** Publish everything that is valid.
+# MAGIC 2. **Nothing is silently dropped.** Every row that does not publish appears in
+# MAGIC    quarantine with its original values.
+# MAGIC 3. **Include the late arrivals.** There is a subdirectory the main glob will not pick
+# MAGIC    up. Its rows belong in the published table.
+# MAGIC 4. **Be idempotent.** The grader runs your job **twice**. Row counts must be identical
+# MAGIC    after the second run.
+# MAGIC 5. Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC ### Grading
+# MAGIC
+# MAGIC ```bash
+# MAGIC databricks bundle run grade_assoc_s4 -t free --profile FREE
+# MAGIC ```
+# MAGIC
+# MAGIC ### Hints
+# MAGIC
+# MAGIC <details><summary>My job fails reading the files</summary>
+# MAGIC
+# MAGIC Requirement 1. What happens if you read with a declared `INT` schema and one value is
+# MAGIC `"twelve"`? Read as text and separate good from bad yourself — `try_cast` returns null
+# MAGIC where `cast` raises.
+# MAGIC </details>
+# MAGIC
+# MAGIC <details><summary>I published 360 rows</summary>
+# MAGIC
+# MAGIC Two things are missing: the 89 good rows from the region that also has a bad one, and
+# MAGIC the late arrivals.
+# MAGIC </details>
+# MAGIC
+# MAGIC <details><summary>The second run doubled my data</summary>
+# MAGIC
+# MAGIC Requirement 4. `append` is not idempotent.
+# MAGIC </details>
+# MAGIC <!-- task:end -->
 
 # COMMAND ----------
 

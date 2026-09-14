@@ -2,12 +2,91 @@
 # MAGIC %md
 # MAGIC # ASSOC-S1 assignment — your work goes here
 # MAGIC
-# MAGIC Read `README.md` in this folder for the task and the output contract.
+# MAGIC The task and the output contract are in the next cell (the same text as `README.md` in the repo).
 # MAGIC
 # MAGIC **A query against the current table cannot produce the right answer. The data is not there any more; it is still recoverable.**
 # MAGIC
 # MAGIC When you are done, go back to the study app and press **Grade my assignment**.
 # MAGIC Each failing check says what it expected and why.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- task:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC ## Assignment — `ASSOC-S1` Databricks Intelligence Platform
+# MAGIC
+# MAGIC **Objectives:** `ASSOC-S1-O1`, `ASSOC-S1-O2`
+# MAGIC
+# MAGIC ### Before you start
+# MAGIC
+# MAGIC Work the two lessons in `notebooks/lessons/associate/S1/`, and generate the data
+# MAGIC (`databricks bundle run generate_datasets_assoc_s1 -t free`).
+# MAGIC
+# MAGIC > **A query against the current table cannot produce the right answer.** The data you
+# MAGIC > need is not there any more. It is still recoverable.
+# MAGIC
+# MAGIC ### The scenario
+# MAGIC
+# MAGIC `workspace.de_prep.s1_assess_catalog` was overwritten by a broken upstream job. The
+# MAGIC load succeeded, nothing errored, and the table still looks plausible — it just holds
+# MAGIC fewer rows and every price is zero.
+# MAGIC
+# MAGIC Recover the data and write up what happened.
+# MAGIC
+# MAGIC ### The output contract
+# MAGIC
+# MAGIC **`workspace.de_prep.s1_recovered_catalog`** — the last good state of the table.
+# MAGIC
+# MAGIC | Column | Type |
+# MAGIC |---|---|
+# MAGIC | `sku` | `STRING` |
+# MAGIC | `category` | `STRING` |
+# MAGIC | `price` | `DOUBLE` |
+# MAGIC | `listed_on` | `DATE` |
+# MAGIC
+# MAGIC **`workspace.de_prep.s1_incident_report`** — exactly one row.
+# MAGIC
+# MAGIC | Column | Type | Meaning |
+# MAGIC |---|---|---|
+# MAGIC | `bad_version` | `INT` | The version that caused the damage |
+# MAGIC | `good_version` | `INT` | The last version before it |
+# MAGIC | `rows_lost` | `INT` | How many rows the bad load destroyed |
+# MAGIC | `value_lost` | `DOUBLE` | How much `price` value it destroyed |
+# MAGIC | `detail` | `STRING` | A sentence a colleague could act on |
+# MAGIC
+# MAGIC #### Requirements
+# MAGIC
+# MAGIC 1. **Identify the last good version by measurement**, not assumption. Do not hardcode
+# MAGIC    a version number you guessed.
+# MAGIC 2. **Do not restore the source table in place.** The damaged history is the evidence.
+# MAGIC 3. `rows_lost` and `value_lost` are the difference between the good version and the
+# MAGIC    current one.
+# MAGIC 4. Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC ### Grading
+# MAGIC
+# MAGIC In the study app, open **Learn → ASSOC-S1** and press **Grade my assignment**: it
+# MAGIC runs this section's checks against the tables you produced and shows what
+# MAGIC passed and what didn't. The same job from a terminal:
+# MAGIC
+# MAGIC ```bash
+# MAGIC databricks bundle run grade_assoc_s1 -t free --profile FREE
+# MAGIC ```
+# MAGIC
+# MAGIC ### Hints
+# MAGIC
+# MAGIC <details><summary>How do I see earlier versions?</summary>
+# MAGIC
+# MAGIC `DESCRIBE HISTORY <table>` lists them. `SELECT * FROM <table> VERSION AS OF <n>`
+# MAGIC queries one.
+# MAGIC </details>
+# MAGIC
+# MAGIC <details><summary>Which version is the good one?</summary>
+# MAGIC
+# MAGIC Requirement 1 — profile them. The bad load zeroed every price, so check each version
+# MAGIC for how many rows have `price = 0.0`.
+# MAGIC </details>
+# MAGIC <!-- task:end -->
 
 # COMMAND ----------
 

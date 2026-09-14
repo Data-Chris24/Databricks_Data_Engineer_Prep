@@ -2,12 +2,91 @@
 # MAGIC %md
 # MAGIC # PRO-S7 assignment — your work goes here
 # MAGIC
-# MAGIC Read `README.md` in this folder for the task and the output contract.
+# MAGIC The task and the output contract are in the next cell (the same text as `README.md` in the repo).
 # MAGIC
 # MAGIC **The lesson masked the columns it knew held PII. That leaves this dataset non-compliant in three separate ways: retained subjects, expired records, and PII hiding in free text.**
 # MAGIC
 # MAGIC When you are done, go back to the study app and press **Grade my assignment**.
 # MAGIC Each failing check says what it expected and why.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- task:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC ## Assignment — `PRO-S7` Data Security and Compliance
+# MAGIC
+# MAGIC **Objectives:** `PRO-S7-O3`, `O4`, `O5`
+# MAGIC
+# MAGIC ### Before you start
+# MAGIC
+# MAGIC Work the two lessons in `notebooks/lessons/professional/S7/`, and generate the data
+# MAGIC (`databricks bundle run generate_datasets_pro_s7 -t free`).
+# MAGIC
+# MAGIC > **The lesson masked the columns it knew held PII.** That approach leaves this
+# MAGIC > dataset non-compliant in three separate ways.
+# MAGIC
+# MAGIC ### The task
+# MAGIC
+# MAGIC Publish a compliant version of `workspace.de_prep.pro_s7_assess_records`.
+# MAGIC
+# MAGIC Today's date, for retention purposes, is **2026-03-31**.
+# MAGIC
+# MAGIC ### The output contract
+# MAGIC
+# MAGIC **`workspace.de_prep.pro_s7_compliant_records`**
+# MAGIC
+# MAGIC | Column | Type |
+# MAGIC |---|---|
+# MAGIC | `record_id` | `STRING` |
+# MAGIC | `subject_hash` | `STRING` |
+# MAGIC | `record_type` | `STRING` |
+# MAGIC | `case_note` | `STRING` |
+# MAGIC | `created_on` | `DATE` |
+# MAGIC
+# MAGIC #### Requirements
+# MAGIC
+# MAGIC 1. **Subjects in `pro_s7_assess_erasure_requests` must be gone**, not masked. A
+# MAGIC    masked row is a retained row.
+# MAGIC 2. **Retention differs by `record_type`** — expire anything older than its own limit:
+# MAGIC
+# MAGIC    | `record_type` | Retain for |
+# MAGIC    |---|---|
+# MAGIC    | `support_ticket` | 365 days |
+# MAGIC    | `marketing_event` | 90 days |
+# MAGIC    | `transaction_log` | 2555 days |
+# MAGIC
+# MAGIC 3. **`case_note` is free text and some of it contains PII** — email addresses and
+# MAGIC    phone numbers. It must not survive.
+# MAGIC 4. **`subject_id` and `full_name` must not appear.** Publish a salted hash of the
+# MAGIC    subject instead, so records remain groupable by subject.
+# MAGIC 5. Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC ### Grading
+# MAGIC
+# MAGIC ```bash
+# MAGIC databricks bundle run grade_pro_s7 -t free --profile FREE
+# MAGIC ```
+# MAGIC
+# MAGIC ### Hints
+# MAGIC
+# MAGIC <details><summary>Does order matter?</summary>
+# MAGIC
+# MAGIC Yes. Purge erasure subjects first — masking them and then deleting is wasted work,
+# MAGIC and masking them *instead* of deleting is the mistake requirement 1 is testing.
+# MAGIC </details>
+# MAGIC
+# MAGIC <details><summary>How do I find PII inside prose?</summary>
+# MAGIC
+# MAGIC Pattern matching. `rlike` finds it; `regexp_replace` removes it. Test that none
+# MAGIC survives rather than assuming your pattern caught everything.
+# MAGIC </details>
+# MAGIC
+# MAGIC <details><summary>Why hash the subject rather than drop it?</summary>
+# MAGIC
+# MAGIC Requirement 4 — records must stay groupable by subject. Suppression would destroy
+# MAGIC that; a deterministic hash preserves it.
+# MAGIC </details>
+# MAGIC <!-- task:end -->
 
 # COMMAND ----------
 
