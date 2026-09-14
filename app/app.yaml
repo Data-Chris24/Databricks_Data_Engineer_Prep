@@ -1,0 +1,10 @@
+# Runtime config for deployments that do NOT come from the bundle: pressing
+# Start or Deploy in the Databricks Apps UI, or `databricks apps deploy`. The
+# bundle (bundle/resources/de_prep_study_app.app.yml) passes its own command
+# and environment with each deployment, and those override this file. What the
+# bundle would have set and this file cannot (job ids, the files root) the
+# server resolves at startup by job name - see server/lib/bootstrap.ts.
+command: ["npm", "run", "start"]
+env:
+  - name: LAKEBASE_ENDPOINT
+    valueFrom: postgres

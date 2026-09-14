@@ -64,8 +64,20 @@ databricks apps start de-prep-study --profile FREE                  # restart wi
 databricks apps get de-prep-study --profile FREE -o json | jq .app_status.state
 ```
 
-Or merge anything to `main`: the deploy workflow redeploys, which also restarts it.
-Progress lives in Lakebase, so a stopped app loses nothing.
+Or press **Start** on the app's page in the workspace, or merge anything to
+`main` (the deploy workflow redeploys, which also restarts it). Progress lives in
+Lakebase, so a stopped app loses nothing.
+
+**Why Start from the UI used to fail (fixed 2026-09-14).** `bundle run study_app`
+sends the command and every environment variable (the Lakebase endpoint, the job
+ids, the files root) *inside the deployment request*; nothing is written next to
+the source. A Start or Deploy from the UI creates a fresh deployment from the same
+source folder, and that deployment sees only `app/app.yaml`, which knew nothing.
+The app exited with `Missing required resources ... set DATABRICKS_JOB_ID`. Now
+`app.yaml` names the Lakebase resource, and the server fills the rest in at
+startup by listing the jobs it can see (`server/lib/bootstrap.ts`): the grader
+and reset jobs have stable names, and their notebook paths reveal the files root.
+Values passed by the bundle still win when present.
 
 ### The study app
 

@@ -1,6 +1,7 @@
 import { createApp, jobs, lakebase, server } from '@databricks/appkit';
 
 import { migrate } from './db/migrate';
+import { bootstrapEnv } from './lib/bootstrap';
 import type { AppKitLike } from './lib/appkit';
 import { userMiddleware } from './lib/http';
 import { createLearnerWorkspace } from './lib/workspace';
@@ -11,10 +12,15 @@ import { registerPracticeRoutes } from './routes/practice';
 import { registerTestRoutes } from './routes/tests';
 import { registerTrainingRoutes } from './routes/training';
 
+// A deployment started from the Apps UI (or `apps deploy`) has app.yaml's
+// environment only; the job ids and files root the bundle would have passed are
+// recovered by name first. See lib/bootstrap.ts.
+await bootstrapEnv();
+
 createApp({
   // jobs(): one grading job per section, discovered from DATABRICKS_JOB_GRADE_* env
-  // (set by the bundle). With none set the plugin registers nothing and the
-  // grading routes answer 503, which the UI turns into the CLI fallback.
+  // (set by the bundle, or resolved above). With none set the plugin refuses to
+  // start, so bootstrapEnv also sets DATABRICKS_JOB_ID.
   plugins: [lakebase(), jobs(), server()],
   async onPluginsReady(appkit: AppKitLike) {
     try {

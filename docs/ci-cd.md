@@ -413,6 +413,13 @@ app (and redeploys it when it is already running). Databricks runs `npm install`
 and `npm run build` remotely, which is why `deploy.yml` sets up no Node toolchain. Check it afterwards with
 `databricks apps get de-prep-study --profile FREE -o json`.
 
+The command and environment the bundle passes travel *inside the deployment
+request* (visible in `databricks apps get-deployment`), not as a file in the
+source folder. `app/app.yaml` exists for every other way a deployment can start
+(Start or Deploy in the UI after the 24-hour auto-stop, `apps deploy`): it names
+the Lakebase resource, and the server recovers job ids and the files root by job
+name at startup. See `docs/free-edition-constraints.md`.
+
 ---
 
 ## Gotchas worth knowing
