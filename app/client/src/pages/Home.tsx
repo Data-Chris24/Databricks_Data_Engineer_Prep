@@ -10,8 +10,7 @@ import { useStore } from '../lib/store';
 
 const AREA_WORD: Record<Area, string> = { learn: 'learning', test: 'testing' };
 
-export function headline(side: Area | null, lastArea: Area | null): string {
-  if (side) return `Let's get started ${AREA_WORD[side]} Databricks Data Engineering!`;
+export function headline(lastArea: Area | null): string {
   if (lastArea) return `Continue ${AREA_WORD[lastArea]} Databricks Data Engineering skills?`;
   return 'How would you like to begin?';
 }
@@ -21,7 +20,6 @@ export function Home() {
   const navigate = useNavigate();
   const { examId, exam } = useExam();
   const [lastArea, setLastArea] = useState<Area | null>(null);
-  const [side, setSide] = useState<Area | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -34,33 +32,32 @@ export function Home() {
     };
   }, [store]);
 
-  const begin = () => {
-    if (!side) return;
-    void navigate(side === 'learn' ? `/train/${examId}` : `/test/${examId}`);
+  // One click, no confirmation: choosing a side is the decision.
+  const go = (area: Area) => {
+    void navigate(area === 'learn' ? `/train/${examId}` : `/test/${examId}`);
   };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === 'ArrowLeft') setSide('learn');
-      else if (e.key === 'ArrowRight') setSide('test');
-      else if (e.key === 'Enter' && side) begin();
+      if (e.key === 'ArrowLeft') go('learn');
+      else if (e.key === 'ArrowRight') go('test');
+      else if (e.key === 'Enter' && lastArea) go(lastArea);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  const returning = lastArea !== null && side === null;
+  const returning = lastArea !== null;
   const sectionCount = exam.sections.length;
   const notebookCount = exam.sections.reduce((n, s) => n + (notebooks[s.id]?.lessons.length ?? 0), 0);
   const noteCount = exam.sections.filter((s) => notes[s.id]).length;
   const families = familiesFor(examId);
-  const half = (which: Area) =>
-    ['home-half', which, side === which ? 'chosen' : '', side && side !== which ? 'dimmed' : ''].join(' ');
+  const half = (which: Area) => `home-half ${which}`;
 
   return (
     <main className="home">
-      <button type="button" className={half('learn')} onClick={() => setSide('learn')} aria-pressed={side === 'learn'} aria-label="Learn">
+      <button type="button" className={half('learn')} onClick={() => go('learn')} aria-label="Learn">
         <div className="home-glow" />
         <div className="home-body">
           <span style={{ color: 'var(--accent)' }}>
@@ -82,7 +79,7 @@ export function Home() {
         ) : null}
       </button>
 
-      <button type="button" className={half('test')} onClick={() => setSide('test')} aria-pressed={side === 'test'} aria-label="Test">
+      <button type="button" className={half('test')} onClick={() => go('test')} aria-label="Test">
         <div className="home-glow" />
         <div className="home-body">
           <span style={{ color: 'var(--good)' }}>
@@ -116,18 +113,17 @@ export function Home() {
 
       <div className="home-headline">
         <div className="kicker">{lastArea ? 'Welcome back' : `Databricks Certified Data Engineer · ${exams.length} exams`}</div>
-        <h1 className="home-h1" key={headline(side, lastArea)}>
-          {headline(side, lastArea)}
+        <h1 className="home-h1" key={headline(lastArea)}>
+          {headline(lastArea)}
         </h1>
-        {side ? (
-          <button type="button" className="btn primary home-begin" onClick={begin}>
-            Begin <Icon name="arrow-right" size={18} stroke={2} />
-          </button>
-        ) : (
-          <div className="muted">
-            Press <span className="kbd">←</span> or <span className="kbd">→</span> to choose, <span className="kbd">Enter</span> to begin
-          </div>
-        )}
+        <div className="muted">
+          Press <span className="kbd">←</span> for Learn, <span className="kbd">→</span> for Test
+          {returning ? (
+            <>
+              , <span className="kbd">Enter</span> to continue
+            </>
+          ) : null}
+        </div>
       </div>
     </main>
   );

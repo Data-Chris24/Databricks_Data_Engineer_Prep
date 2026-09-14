@@ -8,15 +8,11 @@ import { headline, Home } from './Home';
 
 describe('home headline', () => {
   it('asks how to begin on a first visit', () => {
-    expect(headline(null, null)).toBe('How would you like to begin?');
+    expect(headline(null)).toBe('How would you like to begin?');
   });
   it('offers to continue the last area on a return visit', () => {
-    expect(headline(null, 'learn')).toBe('Continue learning Databricks Data Engineering skills?');
-    expect(headline(null, 'test')).toBe('Continue testing Databricks Data Engineering skills?');
-  });
-  it('confirms the chosen side, whatever the history', () => {
-    expect(headline('learn', null)).toBe("Let's get started learning Databricks Data Engineering!");
-    expect(headline('test', 'learn')).toBe("Let's get started testing Databricks Data Engineering!");
+    expect(headline('learn')).toBe('Continue learning Databricks Data Engineering skills?');
+    expect(headline('test')).toBe('Continue testing Databricks Data Engineering skills?');
   });
 });
 
@@ -35,6 +31,18 @@ describe('<Home />', () => {
     expect(html).toContain('aria-label="Learn"');
     expect(html).toContain('aria-label="Test"');
     expect(html).toContain('45 items · 90 min');
+    // One click goes straight in: no Begin step, no chosen/dimmed state.
     expect(html).not.toContain('Begin');
+    expect(html).not.toMatch(/home-half[^>]*aria-pressed/);
+  });
+});
+
+describe('reset notice', () => {
+  it('describes the running reset, then its result', async () => {
+    const { resetNoticeText } = await import('./train/resetNotice');
+    expect(resetNoticeText(7, false)).toBe(
+      'Resetting 7 assignments: notebooks back to their starters, output tables being dropped (about a minute).',
+    );
+    expect(resetNoticeText(1, true)).toBe('1 assignment reset: notebooks are back to their starters and the output tables are gone.');
   });
 });
