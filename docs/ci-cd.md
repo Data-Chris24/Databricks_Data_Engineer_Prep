@@ -234,15 +234,20 @@ for every current and future table in the schema:
 ```bash
 for schema in de_prep de_prep_staging; do
   databricks grants update schema workspace.$schema --profile FREE \
-    --json '{"changes":[{"principal":"<DATABRICKS_CLIENT_ID>","add":["USE_SCHEMA","SELECT","MANAGE"]}]}'
+    --json '{"changes":[{"principal":"<DATABRICKS_CLIENT_ID>","add":["USE_SCHEMA","SELECT","MODIFY","CREATE TABLE","MANAGE"]}]}'
 done
-databricks grants get schema workspace.de_prep --profile FREE      # confirm MANAGE, SELECT, USE_SCHEMA
+databricks grants get schema workspace.de_prep --profile FREE      # confirm all five
 ```
 
 `SELECT` is for grading; `MANAGE` is for *Reset*, which runs the
 `reset_assignment` job to drop the tables the section's `grading/<SECTION>/outputs.json`
-names (MANAGE on the schema inherits to every table in it). `de_prep_staging`
-matters for ASSOC-S5, whose contract publishes to both schemas.
+names (MANAGE on the schema inherits to every table in it). `MODIFY` and
+`CREATE TABLE` are for the lesson-runner jobs (`[DE prep] Run <SECTION> lessons`),
+which execute every lesson notebook as the principal to prove it runs; lessons
+that write to the teach tables (ASSOC-S1's schema-enforcement demo appends and
+deletes a row) fail with `PERMISSION_DENIED ... INSERT` without them (seen
+2026-09-14). `de_prep_staging` matters for ASSOC-S5, whose contract publishes to
+both schemas.
 
 Run it once as the schema owner (this is the Unity Catalog grants API, so no
 warehouse or notebook is needed). Confirmed 2026-09-10: before the grant a grade
