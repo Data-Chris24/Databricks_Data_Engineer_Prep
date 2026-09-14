@@ -7,9 +7,14 @@ import { Icon } from '../../components/Icon';
 import { ProgressRing } from '../../components/ProgressRing';
 import { useExam } from '../../lib/exam';
 import { useStore } from '../../lib/store';
+import { resetNoticeText } from './resetNotice';
 import { ResumeModal } from './ResumeModal';
 
 const ASKED_KEY = (exam: string) => `de-prep.resume-asked.${exam}`;
+
+const RESET_POLL_MS = 5000;
+const RESET_GIVE_UP_MS = 5 * 60 * 1000;
+const RESET_DONE_SHOWN_MS = 12000;
 
 export function TrainingHome() {
   const store = useStore();
@@ -21,6 +26,38 @@ export function TrainingHome() {
   const [askResume, setAskResume] = useState(false);
   const [startOverOpen, setStartOverOpen] = useState(false);
   const [resetNotice, setResetNotice] = useState<string | null>(null);
+  /** Sections whose reset job is still running; polled until it finishes. */
+  const [resetting, setResetting] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (!resetting?.length) return;
+    const [probe] = resetting;
+    const count = resetting.length;
+    const startedAt = Date.now();
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const finish = () => {
+      if (!alive) return;
+      setResetNotice(resetNoticeText(count, true));
+      setResetting(null);
+      timer = setTimeout(() => alive && setResetNotice(null), RESET_DONE_SHOWN_MS);
+    };
+    const poll = async () => {
+      try {
+        const a = await store.assignment(probe);
+        if (!alive) return;
+        if (!a.resetting || Date.now() - startedAt > RESET_GIVE_UP_MS) return finish();
+      } catch {
+        /* keep polling; a transient error should not strand the banner */
+      }
+      if (alive) timer = setTimeout(() => void poll(), RESET_POLL_MS);
+    };
+    timer = setTimeout(() => void poll(), RESET_POLL_MS);
+    return () => {
+      alive = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [resetting, store]);
 
   useEffect(() => {
     let alive = true;
@@ -82,7 +119,8 @@ export function TrainingHome() {
             if (resetAssignments) {
               const r = await store.resetAllAssignments(examId);
               setGrades({});
-              setResetNotice(`Resetting ${r.sections.length} assignments: notebooks back to their starters, output tables being dropped (about a minute).`);
+              setResetNotice(resetNoticeText(r.sections.length, false));
+              setResetting(r.sections);
             }
             markAsked();
             setStartOverOpen(false);
@@ -135,7 +173,7 @@ export function TrainingHome() {
         <section>
           <div className="row-between" style={{ padding: '0 4px 10px' }}>
             <span className="rail-title">Sections in exam order</span>
-            <span className="muted">Badge = share of the real exam</span>
+            <span className="muted">Weight = share of the real exam</span>
           </div>
           <div className="section-list">
             {exam.sections.map((s) => {
@@ -166,7 +204,9 @@ export function TrainingHome() {
                       <Icon name="check" size={14} stroke={2.5} /> Graded
                     </span>
                   ) : null}
-                  <span className={`chip${s.weight >= 20 ? ' hot' : ''}`}>{s.weight}%</span>
+                  <span className={`chip${s.weight >= 20 ? ' hot' : ''}`} title="Share of the real exam">
+                    {s.weight}% of exam
+                  </span>
                   <span className={`state ${stateClass}`}>
                     {p?.completed ? (
                       <>
