@@ -18,7 +18,7 @@ Verified 2026-09-09 against an AWS-backed Free Edition workspace.
 | SQL warehouse | **One**, fixed at **2X-Small** | Measured — `Serverless Starter Warehouse`, 2X-Small |
 | Lakeflow Jobs | **5 concurrent job tasks** | Documented |
 | Lakeflow Pipelines | **1 active pipeline per type** | Documented |
-| Lakebase | **1 project per account**, scale-to-zero | Documented |
+| Lakebase | **1 project per account**, scale-to-zero; the endpoint is **disabled after ~3 idle days** and stays disabled until re-enabled | Documented; disable measured 2026-09-14 |
 | Languages | **No R, no Scala** | Documented — irrelevant, both exams are Python + SQL |
 | Egress | Docs say "a limited set of trusted domains", not customisable. **Measured looser than that** — see below | Partly measured |
 | DABs | Work. Deploy from a local machine, use serverless, avoid job clusters | **Measured** — validate + deploy + destroy all succeeded |
@@ -86,8 +86,11 @@ connection), an endpoint can be **disabled**, and then nothing connects: the app
 starts, logs `[db] migration failed: The endpoint has been disabled. Enable it
 using the API and retry.`, and every page that needs progress fails; a bundle
 deploy fails too, at the step that grants the app's principal access to the
-database. Seen 2026-09-14 (`status.disabled: true` on the `primary` endpoint,
-four days after the last use). Check and re-enable with:
+database. **Databricks does this itself on Free Edition**: on 2026-09-14 the
+`primary` endpoint went `status.disabled: true` at 17:25 UTC, with nobody having
+touched it; the last connection had been the app's deploy on 2026-09-10 at 23:18
+UTC and the app auto-stopped a day after that, so the endpoint was idle for about
+three days first. Expect it after any gap of a few days. Check and re-enable with:
 
 ```bash
 databricks postgres get-endpoint projects/de-prep/branches/production/endpoints/primary --profile FREE -o json | jq .status.disabled
@@ -95,8 +98,11 @@ databricks postgres update-endpoint projects/de-prep/branches/production/endpoin
   --json '{"spec":{"disabled":false}}' --profile FREE
 ```
 
-Then restart the app (Start in the UI, `databricks apps start`, or re-run the
-deploy workflow) so the migration step runs against a live endpoint.
+Then restart the app (Start in the UI or `databricks apps start`) so the
+migration step runs against a live endpoint. The deploy workflow does both on
+its own: its "Wake the Lakebase endpoint" step re-enables a disabled endpoint
+before the bundle deploys (the CI principal's CAN_MANAGE on the project covers
+it), so `gh workflow run deploy.yml --ref main` is a one-command restore.
 
 ### The study app
 

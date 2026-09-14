@@ -50,6 +50,27 @@ jobs:
         working-directory: bundle
         run: databricks bundle validate -t free
 
+      # Free Edition disables the Lakebase endpoint after a few idle days
+      # (measured 2026-09-14, see docs/free-edition-constraints.md). A disabled
+      # endpoint fails the deploy at the step that grants the app access to the
+      # database, and an app started against it cannot migrate. The CI principal
+      # holds CAN_MANAGE on the project, so re-enable it here. Non-fatal: if this
+      # cannot run, the deploy still tries and its own error says why.
+      - name: Wake the Lakebase endpoint
+        env:
+          ENDPOINT: projects/de-prep/branches/production/endpoints/primary
+        run: |
+          state=$(databricks postgres get-endpoint "$ENDPOINT" -o json | jq -r '.status.disabled') || {
+            echo "::warning::could not read the Lakebase endpoint state; continuing"; exit 0; }
+          if [ "$state" = "true" ]; then
+            echo "Lakebase endpoint is disabled; enabling it"
+            databricks postgres update-endpoint "$ENDPOINT" spec.disabled --json '{"spec":{"disabled":false}}' -o json \
+              | jq '{disabled: .status.disabled, state: .status.current_state}' \
+              || echo "::warning::could not enable the Lakebase endpoint; the deploy will show whether that matters"
+          else
+            echo "Lakebase endpoint is enabled (disabled=$state)"
+          fi
+
       - name: Deploy bundle
         working-directory: bundle
         run: databricks bundle deploy -t free
