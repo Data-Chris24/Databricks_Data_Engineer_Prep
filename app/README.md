@@ -27,6 +27,14 @@ whichever principal deploys it:
 The Lakebase project (`projects/de-prep`) is created once by hand and is not a
 bundle resource, so no bundle command can delete learner progress.
 
+**Restarting after the 24-hour auto-stop** is safe from the workspace UI
+(Start) as well as from the CLI or a redeploy. The bundle passes its command and
+environment inside each deployment request, so a UI-started deployment sees only
+`app.yaml`; that file names the Lakebase resource and `server/lib/bootstrap.ts`
+recovers the job ids and files root by listing the jobs by name. Bundle-provided
+values always win. If the log says `[bootstrap] still missing ...`, the bundle's
+jobs are not deployed or the app's principal cannot see them.
+
 ## Local development
 
 **Deploy before you develop.** The app's service principal must be the role that

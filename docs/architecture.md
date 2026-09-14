@@ -247,6 +247,14 @@ What replaced it, and why each choice:
   one project. It is created once by hand and referenced by name.
 - **CI is the only deployer.** Development-mode bundles prefix resource names, so
   a laptop deploy would create a second app and consume one of three slots.
+- **The app can start without the bundle.** `bundle run` passes its command and
+  environment inside the deployment request, so a Start from the Apps UI (the
+  normal move after the 24-hour auto-stop) produced a deployment with no Lakebase
+  endpoint and no job ids, and the jobs plugin refused to start (2026-09-14).
+  `app/app.yaml` now names the Lakebase resource for such deployments, and the
+  server resolves job ids and the files root at startup by listing the jobs it
+  can see: the graders have stable names and their notebook paths sit under
+  `<files root>/grading/`. Bundle-provided values still take precedence.
 - **Section completion = reaching the end of the page** (a sentinel in view for a
   second), with a manual toggle either way. Clicking the notebook link was
   rejected as the signal because people who read first and lab later would never
