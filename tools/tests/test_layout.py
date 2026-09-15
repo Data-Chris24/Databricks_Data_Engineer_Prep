@@ -132,3 +132,17 @@ def test_every_starter_embeds_its_current_readme():
         assert "Read `README.md`" not in source, f"{section.name}: still tells the learner to read a README that is not there"
         checked += 1
     assert checked == 17
+
+
+def test_starters_carry_no_answers_even_commented_out():
+    """A commented-out solution with one blank to fill is still the solution.
+    See tools/starter_rules.py for what a starter may contain."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from starter_rules import offending_lines
+
+    found = {}
+    for starter in sorted((REPO_ROOT / "notebooks" / "assignments").glob("*/assignment.py")):
+        bad = offending_lines(starter.read_text())
+        if bad:
+            found[starter.parent.name] = bad[:3]
+    assert not found, f"answer code left in starters: {found}"

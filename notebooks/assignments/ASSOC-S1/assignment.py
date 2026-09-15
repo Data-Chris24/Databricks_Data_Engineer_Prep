@@ -118,8 +118,6 @@ display(spark.sql(f"DESCRIBE HISTORY {SOURCE}"))
 # COMMAND ----------
 
 # for v in range(...):
-#     df = spark.read.option("versionAsOf", v).table(SOURCE)
-#     print(v, df.count(), df.filter("price = 0.0").count())
 
 # COMMAND ----------
 
@@ -142,10 +140,6 @@ display(spark.sql(f"DESCRIBE HISTORY {SOURCE}"))
 
 # COMMAND ----------
 
-# spark.read.option("versionAsOf", good_version).table(SOURCE) \
-#     .select("sku", "category", "price", "listed_on") \
-#     .write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(RECOVERED)
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -155,9 +149,6 @@ display(spark.sql(f"DESCRIBE HISTORY {SOURCE}"))
 
 # COMMAND ----------
 
-# report = spark.createDataFrame([(bad_version, good_version, rows_lost, value_lost, detail)],
-#                                 "bad_version INT, good_version INT, rows_lost INT, value_lost DOUBLE, detail STRING")
-# report.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(REPORT)
 
 # COMMAND ----------
 

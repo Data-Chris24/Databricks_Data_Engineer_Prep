@@ -123,8 +123,6 @@ metrics = spark.table(SOURCE).orderBy("run_date")
 
 # COMMAND ----------
 
-# typed = metrics.withColumn("day_type", F.when(F.dayofweek("run_date").isin(1, 7), "weekend").otherwise("weekday"))
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -133,9 +131,6 @@ metrics = spark.table(SOURCE).orderBy("run_date")
 # MAGIC Only earlier days count (no peeking), and days without enough history are excluded.
 
 # COMMAND ----------
-
-# w = Window.partitionBy("day_type").orderBy("run_date").rowsBetween(-N, -1)
-# with_base = typed.withColumn("baseline", F.avg("rows_processed").over(w)).filter("baseline IS NOT NULL")
 
 # COMMAND ----------
 
@@ -146,9 +141,6 @@ metrics = spark.table(SOURCE).orderBy("run_date")
 
 # COMMAND ----------
 
-# evaluated = with_base.withColumn("pct_of_baseline", F.col("rows_processed") * 100.0 / F.col("baseline")) \
-#                      .withColumn("should_alert", ...)
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -158,9 +150,6 @@ metrics = spark.table(SOURCE).orderBy("run_date")
 
 # COMMAND ----------
 
-# evaluated.select("run_date", "day_type", "rows_processed", "baseline", "pct_of_baseline", "should_alert") \
-#     .write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(TARGET)
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -168,4 +157,3 @@ metrics = spark.table(SOURCE).orderBy("run_date")
 
 # COMMAND ----------
 
-# e = spark.table(TARGET); display(e.filter("should_alert").orderBy("run_date"))

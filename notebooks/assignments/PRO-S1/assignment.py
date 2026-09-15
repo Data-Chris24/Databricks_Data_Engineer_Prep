@@ -105,7 +105,6 @@ changes = spark.table(SOURCE)
 
 # COMMAND ----------
 
-# display(changes.groupBy("op").count())
 # display(changes.orderBy("customer_id", "seq_num").limit(20))
 
 # COMMAND ----------
@@ -117,9 +116,6 @@ changes = spark.table(SOURCE)
 
 # COMMAND ----------
 
-# w = Window.partitionBy("customer_id").orderBy(F.desc("seq_num"))
-# winners = changes.withColumn("rn", F.row_number().over(w)).filter("rn = 1")
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -128,8 +124,6 @@ changes = spark.table(SOURCE)
 # MAGIC Requirements 3 and 4: a key whose winner is a delete is absent; a key deleted and later updated is present.
 
 # COMMAND ----------
-
-# current = winners.filter(...)
 
 # COMMAND ----------
 
@@ -140,9 +134,6 @@ changes = spark.table(SOURCE)
 
 # COMMAND ----------
 
-# current.select("customer_id", "tier", "balance", F.col("seq_num").alias("last_seq"), F.col("event_ts").alias("last_event_ts")) \
-#     .write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(TARGET)
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -150,4 +141,3 @@ changes = spark.table(SOURCE)
 
 # COMMAND ----------
 
-# t = spark.table(TARGET); print(t.count(), t.select("customer_id").distinct().count()); t.printSchema()

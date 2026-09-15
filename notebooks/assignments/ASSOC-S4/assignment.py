@@ -123,9 +123,6 @@ for f in dbutils.fs.ls(RAW):
 
 # COMMAND ----------
 
-# raw = (spark.read.option("header", True).csv(...)
-#            .withColumn("source_file", F.col("_metadata.file_path")))
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -135,10 +132,6 @@ for f in dbutils.fs.ls(RAW):
 
 # COMMAND ----------
 
-# typed = raw.withColumn("units", F.expr("try_cast(raw_units AS INT)")) ...
-# good = typed.filter(...)
-# bad = typed.filter(...)
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -147,9 +140,6 @@ for f in dbutils.fs.ls(RAW):
 # MAGIC Requirement 4: the grader runs this twice. `append` doubles the data; choose a mode that does not.
 
 # COMMAND ----------
-
-# good.select("order_id", "region", "units", "ordered_on").write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(GOLD)
-# bad.select("order_id", "region", "raw_units", "raw_ordered_on", "source_file").write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(QUARANTINE)
 
 # COMMAND ----------
 

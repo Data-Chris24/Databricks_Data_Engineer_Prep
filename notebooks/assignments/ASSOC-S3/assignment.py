@@ -112,8 +112,6 @@ display(plans.orderBy("plan_id", "valid_from"))
 
 # How many rows would a naive equi-join produce? Compare it to the event count.
 # print("events:", events.count())
-# print("naive :", events.join(plans, on="plan_id").count())
-
 
 # COMMAND ----------
 
@@ -122,9 +120,6 @@ display(plans.orderBy("plan_id", "valid_from"))
 
 # COMMAND ----------
 
-
-
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -132,18 +127,12 @@ display(plans.orderBy("plan_id", "valid_from"))
 
 # COMMAND ----------
 
-
-
-
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## Step 3 — write the contracted table
 
 # COMMAND ----------
-
-# final.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(TARGET)
-
 
 # COMMAND ----------
 
@@ -153,6 +142,4 @@ display(plans.orderBy("plan_id", "valid_from"))
 # COMMAND ----------
 
 # t = spark.table(TARGET)
-# print("rows:", t.count(), "| distinct billing_id:", t.select("billing_id").distinct().count())
-# print("orphans:", t.filter("plan_missing").count())
 # t.printSchema()

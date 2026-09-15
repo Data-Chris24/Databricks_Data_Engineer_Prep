@@ -99,9 +99,6 @@ daily = spark.table(SOURCE)
 
 # COMMAND ----------
 
-# display(daily.groupBy("run_date").agg(F.sum("rows").alias("rows")).orderBy("run_date"))
-# display(daily.groupBy("source_system").agg(F.max("run_date").alias("last_seen")))
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -135,9 +132,6 @@ daily = spark.table(SOURCE)
 
 # COMMAND ----------
 
-# spark.createDataFrame([(first_bad_date, missing_source, degraded_days, rows_lost, detail)],
-#                       "first_bad_date STRING, missing_source STRING, degraded_days INT, rows_lost INT, detail STRING") \
-#     .write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(TARGET)
 
 # COMMAND ----------
 
