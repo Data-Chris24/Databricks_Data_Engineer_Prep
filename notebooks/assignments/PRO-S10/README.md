@@ -5,7 +5,7 @@
 ## Before you start
 
 Work the lesson in `notebooks/lessons/professional/S10/`, and generate the data
-(the study app runs the `generate_datasets_pro_s10` job the first time you open this section; `databricks bundle run generate_datasets_pro_s10 -t free` does the same from a terminal).
+(the study app generates the data the first time you open this section; `databricks bundle run generate_datasets_pro_s10 -t free` does the same from a terminal).
 
 > **The lesson's dimension does not change. This one does.** In the lesson,
 > `customer_id` identified a customer *and* a row, so a natural-key join was correct

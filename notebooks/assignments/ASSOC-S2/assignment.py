@@ -25,8 +25,7 @@
 # MAGIC ### Before you start
 # MAGIC
 # MAGIC 1. Work through the three lessons in `notebooks/lessons/associate/S2/`.
-# MAGIC 2. The datasets: the study app runs the `generate_datasets_assoc_s2` job the
-# MAGIC    first time you open this section (`databricks bundle run
+# MAGIC 2. The datasets: the study app generates the data the first time you open this section (`databricks bundle run
 # MAGIC    generate_datasets_assoc_s2 -t free` does the same from a terminal).
 # MAGIC
 # MAGIC > **The lesson's code will not solve this.** The assignment uses a different

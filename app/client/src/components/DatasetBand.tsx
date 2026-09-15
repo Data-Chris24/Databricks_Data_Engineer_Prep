@@ -97,7 +97,7 @@ export function DatasetBand({ sectionId }: { sectionId: string }) {
       ) : status === 'unconfigured' ? (
         <span>
           <strong>The app cannot prepare this section&apos;s data here.</strong> Run{' '}
-          <code>databricks bundle run generate_datasets_{sectionId.toLowerCase().replace('-', '_')} -t free</code> from a terminal.
+          <code>databricks bundle run generate_datasets -t free --params section={sectionId}</code> from a terminal.
         </span>
       ) : (
         <>

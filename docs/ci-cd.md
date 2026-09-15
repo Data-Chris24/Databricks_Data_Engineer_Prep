@@ -418,9 +418,11 @@ app (and redeploys it when it is already running). Databricks runs `npm install`
 and `npm run build` remotely, which is why `deploy.yml` sets up no Node toolchain. Check it afterwards with
 `databricks apps get de-prep-study --profile FREE -o json`.
 
-The app is bound to every grading job, the reset job and the 17 dataset
-generation jobs with `CAN_MANAGE_RUN`, all through the bundle; a fork gets the
-same bindings from `bundle deploy` with no extra step.
+The app is bound to every grading job, the reset job and the dataset-generation
+dispatcher (`generate_datasets`) with `CAN_MANAGE_RUN`, all through the bundle;
+a fork gets the same bindings from `bundle deploy` with no extra step. That is
+20 resources, the platform's maximum for one app, so a new job the app must run
+has to replace or parameterise an existing one.
 
 The command and environment the bundle passes travel *inside the deployment
 request* (visible in `databricks apps get-deployment`), not as a file in the

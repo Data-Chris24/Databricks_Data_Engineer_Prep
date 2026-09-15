@@ -5,7 +5,7 @@
 ## Before you start
 
 Work the two lessons in `notebooks/lessons/associate/S5/`, and generate the data
-(the study app runs the `generate_datasets_assoc_s5` job the first time you open this section; `databricks bundle run generate_datasets_assoc_s5 -t free` does the same from a terminal).
+(the study app generates the data the first time you open this section; `databricks bundle run generate_datasets_assoc_s5 -t free` does the same from a terminal).
 
 > **The lesson hardcoded its destination.** That is fine for one environment and
 > wrong for two. Copy it and staging gets production's data — or nothing at all.

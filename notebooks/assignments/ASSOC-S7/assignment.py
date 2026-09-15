@@ -20,7 +20,7 @@
 # MAGIC ### Before you start
 # MAGIC
 # MAGIC Work the two lessons in `notebooks/lessons/associate/S7/`, and generate the data
-# MAGIC (the study app runs the `generate_datasets_assoc_s7` job the first time you open this section; `databricks bundle run generate_datasets_assoc_s7 -t free` does the same from a terminal).
+# MAGIC (the study app generates the data the first time you open this section; `databricks bundle run generate_datasets_assoc_s7 -t free` does the same from a terminal).
 # MAGIC
 # MAGIC > **The lesson's single mask will not satisfy this.** It had one sensitive column and
 # MAGIC > one audience. This has three kinds of sensitivity and three audiences, and one of

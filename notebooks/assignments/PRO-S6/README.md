@@ -5,7 +5,7 @@
 ## Before you start
 
 Work the two lessons in `notebooks/lessons/professional/S6/`, and generate the data
-(the study app runs the `generate_datasets_pro_s6` job the first time you open this section; `databricks bundle run generate_datasets_pro_s6 -t free` does the same from a terminal).
+(the study app generates the data the first time you open this section; `databricks bundle run generate_datasets_pro_s6 -t free` does the same from a terminal).
 
 > **The lesson's table was slow for one reason and clustering fixed it.** This one is
 > slow for three unrelated reasons, and clustering addresses one of them. Applying

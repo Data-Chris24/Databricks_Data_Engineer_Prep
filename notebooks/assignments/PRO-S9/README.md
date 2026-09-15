@@ -5,7 +5,7 @@
 ## Before you start
 
 Work the two lessons in `notebooks/lessons/professional/S9/`, and generate the data
-(the study app runs the `generate_datasets_pro_s9` job the first time you open this section; `databricks bundle run generate_datasets_pro_s9 -t free` does the same from a terminal).
+(the study app generates the data the first time you open this section; `databricks bundle run generate_datasets_pro_s9 -t free` does the same from a terminal).
 
 > **There is no error to read.** Every run of this pipeline succeeded. There is no
 > exception, no error class, no failed task in the history. The lesson's first

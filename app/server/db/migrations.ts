@@ -134,4 +134,20 @@ export const migrations: Migration[] = [
       ALTER TABLE study.assignment_copies ADD COLUMN IF NOT EXISTS reset_run_id BIGINT;
     `,
   },
+  {
+    version: 5,
+    name: 'dataset_runs',
+    sql: `
+      -- Workspace-wide, not per user: a section's data is shared by every learner.
+      CREATE TABLE IF NOT EXISTS study.dataset_runs (
+        section_id  TEXT PRIMARY KEY,
+        run_id      BIGINT NOT NULL,
+        status      TEXT NOT NULL CHECK (status IN ('queued', 'running', 'succeeded', 'failed')),
+        started_by  TEXT,
+        started_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+        finished_at TIMESTAMPTZ,
+        error       TEXT
+      );
+    `,
+  },
 ];

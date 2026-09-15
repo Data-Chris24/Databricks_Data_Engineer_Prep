@@ -36,7 +36,7 @@ createApp({
     appkit.server.extend((app) => {
       app.use('/api', userMiddleware(appkit.lakebase));
       registerConfigRoutes(app, appkit.lakebase);
-      registerDatasetRoutes(app, appkit);
+      registerDatasetRoutes(app, appkit.lakebase, appkit);
       registerTrainingRoutes(app, appkit.lakebase);
       registerPracticeRoutes(app, appkit.lakebase);
       registerTestRoutes(app, appkit.lakebase);

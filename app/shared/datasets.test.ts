@@ -1,29 +1,27 @@
 import { describe, expect, it } from 'vitest';
 
-import { datasetStatus, type RunSummary } from './datasets';
+import { type DatasetRunRow, fromRow, settleRun } from './datasets';
 
-const run = (over: Partial<RunSummary>): RunSummary => ({ runId: 1, lifeCycle: 'TERMINATED', result: 'SUCCESS', message: null, startTime: 1000, endTime: 2000, ...over });
+const row = (over: Partial<DatasetRunRow>): DatasetRunRow => ({ sectionId: 'X-S1', runId: 7, status: 'succeeded', startedAt: '2026-09-15T10:00:00Z', finishedAt: '2026-09-15T10:01:00Z', error: null, ...over });
 
-describe('datasetStatus', () => {
-  it('is missing when the generate job has never run', () => {
-    expect(datasetStatus('X-S1', []).status).toBe('missing');
+describe('fromRow', () => {
+  it('is missing with no recorded run, unconfigured with no job', () => {
+    expect(fromRow('X-S1', null).status).toBe('missing');
+    expect(fromRow('X-S1', null, false).status).toBe('unconfigured');
   });
-  it('is unconfigured when no job is bound', () => {
-    expect(datasetStatus('X-S1', [], false).status).toBe('unconfigured');
+  it('maps recorded statuses', () => {
+    expect(fromRow('X-S1', row({})).status).toBe('ready');
+    expect(fromRow('X-S1', row({ status: 'queued', finishedAt: null })).status).toBe('preparing');
+    expect(fromRow('X-S1', row({ status: 'running', finishedAt: null })).status).toBe('preparing');
+    expect(fromRow('X-S1', row({ status: 'failed', error: 'boom' }))).toMatchObject({ status: 'failed', error: 'boom', runId: 7 });
   });
-  it('is ready once any run succeeded, even after a later failure', () => {
-    const s = datasetStatus('X-S1', [run({ runId: 1 }), run({ runId: 2, startTime: 5000, result: 'FAILED', message: 'boom' })]);
-    expect(s.status).toBe('ready');
-    expect(s.runId).toBe(1);
-    expect(s.finishedAt).toBe('1970-01-01T00:00:02.000Z');
-  });
-  it('is preparing while a run is active, whatever the history', () => {
-    const s = datasetStatus('X-S1', [run({ runId: 1 }), run({ runId: 3, startTime: 9000, lifeCycle: 'RUNNING', result: null, endTime: null })]);
-    expect(s.status).toBe('preparing');
-    expect(s.runId).toBe(3);
-  });
-  it('is failed when every completed run failed', () => {
-    const s = datasetStatus('X-S1', [run({ result: 'FAILED', message: 'notebook raised' })]);
-    expect(s).toMatchObject({ status: 'failed', error: 'notebook raised' });
+});
+
+describe('settleRun', () => {
+  it('succeeds only on SUCCESS and keeps the job message otherwise', () => {
+    expect(settleRun('SUCCESS', null)).toEqual({ status: 'succeeded', error: null });
+    expect(settleRun('FAILED', 'notebook raised')).toEqual({ status: 'failed', error: 'notebook raised' });
+    expect(settleRun('CANCELED', '')).toEqual({ status: 'failed', error: 'CANCELED' });
+    expect(settleRun(null, null)).toEqual({ status: 'failed', error: 'the generate job failed' });
   });
 });

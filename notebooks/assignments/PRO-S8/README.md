@@ -5,7 +5,7 @@
 ## Before you start
 
 Work both lessons in `notebooks/lessons/professional/S8/`, and build the structures
-(the study app runs the `generate_datasets_pro_s8` job the first time you open this section; `databricks bundle run generate_datasets_pro_s8 -t free` does the same from a terminal).
+(the study app generates the data the first time you open this section; `databricks bundle run generate_datasets_pro_s8 -t free` does the same from a terminal).
 
 > **In the lesson, every grant sat on the table it named.** That made
 > `information_schema.table_privileges` a complete and truthful answer, and the audit

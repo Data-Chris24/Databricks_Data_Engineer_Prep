@@ -20,7 +20,7 @@
 # MAGIC ### Before you start
 # MAGIC
 # MAGIC Work the two lessons in `notebooks/lessons/professional/S7/`, and generate the data
-# MAGIC (the study app runs the `generate_datasets_pro_s7` job the first time you open this section; `databricks bundle run generate_datasets_pro_s7 -t free` does the same from a terminal).
+# MAGIC (the study app generates the data the first time you open this section; `databricks bundle run generate_datasets_pro_s7 -t free` does the same from a terminal).
 # MAGIC
 # MAGIC > **The lesson masked the columns it knew held PII.** That approach leaves this
 # MAGIC > dataset non-compliant in three separate ways.

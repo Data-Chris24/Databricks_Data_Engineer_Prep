@@ -19,7 +19,7 @@
 # MAGIC ### Before you start
 # MAGIC
 # MAGIC Work both lessons in `notebooks/lessons/professional/S2/`, and generate the data
-# MAGIC (the study app runs the `generate_datasets_pro_s2` job the first time you open this section; `databricks bundle run generate_datasets_pro_s2 -t free` does the same from a terminal).
+# MAGIC (the study app generates the data the first time you open this section; `databricks bundle run generate_datasets_pro_s2 -t free` does the same from a terminal).
 # MAGIC
 # MAGIC > **In the lesson, the sources agreed with each other.** Three formats, same column
 # MAGIC > order, same types, each record delivered once — so `union` and `unionByName` gave
