@@ -268,7 +268,10 @@ What replaced it, and why each choice:
   the run it started per section in `study.dataset_runs` and settles it against
   the job; data generated from a terminal before the app existed is not
   visible to it, so such a section is generated once more on first open (the
-  generators overwrite, so that is safe).
+  generators overwrite, so that is safe). The rebuilt tables belong to the
+  deploying principal, so the dispatcher ends by granting `account users`
+  read, write and create on the prep schemas; Unity Catalog ownership does not
+  pass down from the schema owner (seen 2026-09-15).
 - **Section completion = a passing grade on the assignment.** The first cut
   completed a section when the notes had been read to the end (a sentinel in
   view for a second), with a manual toggle; in use that showed "Complete" on a
