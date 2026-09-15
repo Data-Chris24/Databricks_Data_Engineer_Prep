@@ -7,6 +7,7 @@
 import { createContext, useContext } from 'react';
 
 import { examById, lessonPaths, questionById, questions, starters } from '../../../shared/content';
+import { applyCompletion } from '../../../shared/completion';
 import { grade } from '../../../shared/grading';
 import { sampleTest, BankTooSmallError as SamplerBankTooSmall } from '../../../shared/sampler';
 import { assignmentGate } from '../../../shared/gate';
@@ -255,12 +256,17 @@ export class MemoryStore implements StudyStore {
     rows.sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
     const sections: Record<string, ProgressRow> = {};
     for (const r of rows) sections[r.sectionId] = r;
-    const completed = rows.filter((r) => r.completed).length;
+    const passedAt: Record<string, string> = {};
+    for (const [sid, run] of this.gradingRuns) {
+      const settled = this.settleGrading(run);
+      if (settled.status === 'passed' && settled.finishedAt) passedAt[sid] = settled.finishedAt;
+    }
+    const completion = applyCompletion(sections, passedAt, ex.sections.map((s) => s.id));
     const paths = new Set(ex.sections.flatMap((s) => lessonPaths(s.id)));
     return {
-      sections,
+      sections: completion.sections,
       resume: rows[0] ? { sectionId: rows[0].sectionId, anchor: rows[0].lastAnchor } : null,
-      percentComplete: Math.round((completed / ex.sections.length) * 100),
+      percentComplete: completion.percentComplete,
       visited: [...this.visits].filter((p) => paths.has(p)),
     };
   }
@@ -268,13 +274,13 @@ export class MemoryStore implements StudyStore {
     const key = `${exam}:${sectionId}`;
     const prev = this.progress.get(key);
     const nowIso = new Date(this.now()).toISOString();
-    const completed = patch.completed ?? prev?.completed ?? false;
     const row = {
       exam,
       sectionId,
       visited: true,
-      completed,
-      completedAt: completed ? (prev?.completedAt ?? nowIso) : null,
+      read: patch.read ?? prev?.read ?? false,
+      completed: false,
+      completedAt: null,
       lastAnchor: patch.anchor ?? prev?.lastAnchor ?? null,
       scrollPct: patch.scrollPct ?? prev?.scrollPct ?? null,
       lastSeen: nowIso,

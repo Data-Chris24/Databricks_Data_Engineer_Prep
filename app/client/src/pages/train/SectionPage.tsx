@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
 import { notebooks, notes, questionsFor, sectionById } from '../../../../shared/content';
-import type { AppConfig, ProgressRow } from '../../../../shared/types';
+import type { AppConfig, GradingRun, ProgressRow } from '../../../../shared/types';
 import { AssignmentBand } from '../../components/AssignmentBand';
 import { GradingPanel } from '../../components/GradingPanel';
 import { Icon } from '../../components/Icon';
@@ -154,17 +154,18 @@ export function SectionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note]);
 
-  // Reaching the end of the page (for a second) completes the section.
+  // Reaching the end of the page (for a second) marks the notes as read. It
+  // does not complete the section: only a passing grade on the assignment does.
   useEffect(() => {
     const el = sentinelRef.current;
-    if (!el || !section || progress?.completed) return;
+    if (!el || !section || progress?.read) return;
     let seenAt: number | null = null;
     const io = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) {
         seenAt = Date.now();
         window.setTimeout(() => {
           if (seenAt && Date.now() - seenAt >= 1000) {
-            store.touchSection(examId, section.id, { completed: true }).then(setProgress).catch(() => {});
+            store.touchSection(examId, section.id, { read: true }).then(setProgress).catch(() => {});
             io.disconnect();
           }
         }, 1050);
@@ -174,7 +175,7 @@ export function SectionPage() {
     });
     io.observe(el);
     return () => io.disconnect();
-  }, [store, examId, section, progress?.completed]);
+  }, [store, examId, section, progress?.read]);
 
   if (!section || !exam.sections.some((s) => s.id === section.id)) {
     return (
@@ -188,8 +189,14 @@ export function SectionPage() {
   }
 
   const questionCount = questionsFor(examId, section.id).length;
-  const toggleComplete = () => {
-    void store.touchSection(examId, section.id, { completed: !progress?.completed }).then(setProgress).catch(() => {});
+  // A pass reported by the grading panel completes the section; re-read the
+  // server's view rather than guessing.
+  const onGraded = (run: GradingRun) => {
+    if (run.status !== 'passed' || progress?.completed) return;
+    store
+      .training(examId)
+      .then((t) => setProgress(t.sections[section.id] ?? null))
+      .catch(() => {});
   };
 
   return (
@@ -307,7 +314,7 @@ export function SectionPage() {
 
             {nbs ? <AssignmentBand sectionId={section.id} notebooks={nbs} config={config} visited={visited} /> : null}
 
-            {nbs?.assignment ? <GradingPanel sectionId={section.id} gradeJob={nbs.assignment.grade_job} /> : null}
+            {nbs?.assignment ? <GradingPanel sectionId={section.id} gradeJob={nbs.assignment.grade_job} onResult={onGraded} /> : null}
 
             <div className="end-actions">
               <button
@@ -318,16 +325,13 @@ export function SectionPage() {
               >
                 Practice this section · {questionCount} question{questionCount === 1 ? '' : 's'}
               </button>
-              <button type="button" className={`btn ${progress?.completed ? 'good' : 'ghost'}`} onClick={toggleComplete}>
-                {progress?.completed ? (
-                  <>
-                    <Icon name="check" size={14} stroke={2.5} /> Marked complete
-                  </>
-                ) : (
-                  'Mark complete'
-                )}
-              </button>
-              <span className="muted">Completes automatically when you reach the end.</span>
+              {progress?.completed ? (
+                <span className="state done">
+                  <Icon name="check" size={14} stroke={2.5} /> Section complete · assignment passed
+                </span>
+              ) : (
+                <span className="muted">The section is complete once the assignment passes.</span>
+              )}
             </div>
             <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
           </div>

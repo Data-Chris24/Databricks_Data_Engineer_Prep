@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 
 import { notebooks, notes } from '../../../../shared/content';
-import type { GradingRun, TrainingState } from '../../../../shared/types';
+import type { TrainingState } from '../../../../shared/types';
 import { Icon } from '../../components/Icon';
 import { ProgressRing } from '../../components/ProgressRing';
 import { useExam } from '../../lib/exam';
@@ -21,7 +21,6 @@ export function TrainingHome() {
   const navigate = useNavigate();
   const { examId, exam } = useExam();
   const [state, setState] = useState<TrainingState | null>(null);
-  const [grades, setGrades] = useState<Record<string, GradingRun>>({});
   const [error, setError] = useState<string | null>(null);
   const [askResume, setAskResume] = useState(false);
   const [startOverOpen, setStartOverOpen] = useState(false);
@@ -61,10 +60,6 @@ export function TrainingHome() {
 
   useEffect(() => {
     let alive = true;
-    store
-      .grading(examId)
-      .then((g) => alive && setGrades(g))
-      .catch(() => {});
     store
       .training(examId)
       .then((s) => {
@@ -118,7 +113,6 @@ export function TrainingHome() {
             await store.resetTraining(examId);
             if (resetAssignments) {
               const r = await store.resetAllAssignments(examId);
-              setGrades({});
               setResetNotice(resetNoticeText(r.sections.length, false));
               setResetting(r.sections);
             }
@@ -199,11 +193,6 @@ export function TrainingHome() {
                       </span>
                     ) : null}
                   </span>
-                  {grades[s.id]?.status === 'passed' ? (
-                    <span className="state graded" title="Assignment passed">
-                      <Icon name="check" size={14} stroke={2.5} /> Graded
-                    </span>
-                  ) : null}
                   <span className={`chip${s.weight >= 20 ? ' hot' : ''}`} title="Share of the real exam">
                     {s.weight}% of exam
                   </span>

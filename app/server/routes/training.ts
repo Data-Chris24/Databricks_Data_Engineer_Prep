@@ -1,3 +1,4 @@
+import { applyCompletion } from '../../shared/completion';
 import type { Application } from 'express';
 import { z } from 'zod';
 
@@ -16,15 +17,18 @@ function examLessonPaths(examId: string): string[] {
 const Patch = z.object({
   anchor: z.string().max(200).optional(),
   scrollPct: z.number().int().min(0).max(100).optional(),
-  completed: z.boolean().optional(),
+  read: z.boolean().optional(),
 });
 
 export function toProgressRow(r: Record<string, unknown>): ProgressRow {
   return {
     sectionId: String(r.section_id),
     visited: Boolean(r.visited),
-    completed: Boolean(r.completed),
-    completedAt: iso(r.completed_at),
+    // The `completed` column records "read to the end"; completion itself is
+    // derived from grading runs in the GET handler (shared/completion.ts).
+    read: Boolean(r.completed),
+    completed: false,
+    completedAt: null,
     lastAnchor: (r.last_anchor as string | null) ?? null,
     scrollPct: r.scroll_pct === null || r.scroll_pct === undefined ? null : num(r.scroll_pct),
     lastSeen: iso(r.last_seen) ?? new Date(0).toISOString(),
@@ -54,15 +58,27 @@ export function registerTrainingRoutes(app: Application, db: Db) {
         sections[p.sectionId] = p;
       }
       const latest = rows[0] ? toProgressRow(rows[0]) : null;
-      const completed = Object.values(sections).filter((s) => s.completed).length;
+      const { rows: passes } = await db.query(
+        `SELECT section_id, min(finished_at) AS passed_at
+           FROM study.grading_runs
+          WHERE user_id = $1 AND status = 'passed'
+          GROUP BY section_id`,
+        [user.userId],
+      );
+      const passedAt: Record<string, string> = {};
+      for (const p of passes) {
+        const at = iso(p.passed_at);
+        if (at) passedAt[String(p.section_id)] = at;
+      }
+      const completion = applyCompletion(sections, passedAt, exam.sections.map((s) => s.id));
       const paths = examLessonPaths(exam.id);
       const { rows: visits } = paths.length
         ? await db.query('SELECT path FROM study.notebook_visits WHERE user_id = $1 AND path = ANY($2::text[])', [user.userId, paths])
         : { rows: [] };
       const body: TrainingState = {
-        sections,
+        sections: completion.sections,
         resume: latest ? { sectionId: latest.sectionId, anchor: latest.lastAnchor } : null,
-        percentComplete: Math.round((completed / exam.sections.length) * 100),
+        percentComplete: completion.percentComplete,
         visited: visits.map((v) => String(v.path)),
       };
       res.json(body);
@@ -104,7 +120,7 @@ export function registerTrainingRoutes(app: Application, db: Db) {
           section.id,
           body.anchor ?? null,
           body.scrollPct ?? null,
-          body.completed ?? null,
+          body.read ?? null,
         ],
       );
       res.json(toProgressRow(rows[0]));

@@ -118,6 +118,9 @@ export interface AppConfig {
 export interface ProgressRow {
   sectionId: string;
   visited: boolean;
+  /** The notes were read to the end (the page's end sentinel was in view). */
+  read: boolean;
+  /** The assignment has a passing grade; derived from grading runs, never set directly. */
   completed: boolean;
   completedAt: string | null;
   lastAnchor: string | null;
@@ -136,7 +139,7 @@ export interface TrainingState {
 export interface ProgressPatch {
   anchor?: string;
   scrollPct?: number;
-  completed?: boolean;
+  read?: boolean;
 }
 
 export interface ReviewRow {
