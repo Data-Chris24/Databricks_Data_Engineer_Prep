@@ -85,16 +85,19 @@ def fact(spark):
 # --------------------------------------------------------------------- contract
 
 def test_dimension_schema_matches_the_contract(dim):
+    """The dimension has exactly the contracted columns, types and order."""
     assertSchemaEqual(dim.schema, DIM_SCHEMA)
 
 
 def test_fact_schema_matches_the_contract(fact):
+    """The fact table has exactly the contracted columns, types and order."""
     assertSchemaEqual(fact.schema, FACT_SCHEMA)
 
 
 # ------------------------------------------------------------------- dimension
 
 def test_dimension_keeps_every_version(dim, expected):
+    """The dimension carries one row per customer version; collapsing to the current row throws away the history the facts need."""
     assert dim.count() == expected["dim_rows"], (
         "The dimension must carry one row per customer *version*. Collapsing to the "
         "current row throws away the history the facts need."
@@ -102,6 +105,7 @@ def test_dimension_keeps_every_version(dim, expected):
 
 
 def test_surrogate_key_identifies_one_version(dim, expected):
+    """customer_sk is unique per version; a repeating surrogate key is the natural key wearing a different name."""
     n = dim.select("customer_sk").distinct().count()
     assert n == expected["distinct_surrogate_keys"], (
         f"{n} distinct surrogate keys for {expected['dim_rows']} versions. A surrogate "
@@ -111,6 +115,7 @@ def test_surrogate_key_identifies_one_version(dim, expected):
 
 
 def test_surrogate_key_is_not_the_natural_key(dim, expected):
+    """There are more surrogate keys than customers: customer_id alone cannot key a dimension with several versions per customer."""
     natural = dim.select("customer_id").distinct().count()
     assert natural == expected["customers"]
     assert expected["distinct_surrogate_keys"] > natural, (
@@ -120,12 +125,14 @@ def test_surrogate_key_is_not_the_natural_key(dim, expected):
 
 
 def test_exactly_one_current_row_per_customer(dim, expected):
+    """Each customer has exactly one row with is_current = true."""
     bad = (dim.filter("is_current").groupBy("customer_id").count()
               .filter("count <> 1").count())
     assert bad == 0, f"{bad} customers have zero or several rows flagged is_current."
 
 
 def test_validity_windows_do_not_overlap(spark, dim):
+    """No two versions of a customer have overlapping [valid_from, valid_to) windows; an overlap lets one order match two versions."""
     dim.createOrReplaceTempView("_dim_check")
     overlaps = spark.sql("""
         SELECT count(*) AS n FROM _dim_check a JOIN _dim_check b
@@ -141,6 +148,7 @@ def test_validity_windows_do_not_overlap(spark, dim):
 # ------------------------------------------------------------------------ fact
 
 def test_fact_preserves_the_order_grain(fact, expected):
+    """The fact table has one row per order: more means the join matched several versions, fewer means orders were dropped."""
     assert fact.count() == expected["fact_rows"], (
         "The fact table must stay at one row per order. More rows means the join "
         "matched several dimension versions; fewer means orders were dropped."
@@ -148,12 +156,14 @@ def test_fact_preserves_the_order_grain(fact, expected):
 
 
 def test_every_order_is_present_exactly_once(spark, fact, expected):
+    """Every source order appears in the fact table exactly once."""
     assert fact.select("order_id").distinct().count() == expected["source_orders"]
     missing = spark.table(ORDERS).select("order_id").subtract(fact.select("order_id")).count()
     assert missing == 0, f"{missing} orders from the source are absent from the fact table."
 
 
 def test_no_order_lost_its_customer(fact):
+    """Every order matched a dimension version (no null customer_sk); gaps between windows or a wrong boundary comparison lose orders."""
     nulls = fact.filter("customer_sk IS NULL").count()
     assert nulls == 0, (
         f"{nulls} orders did not match any dimension version. Either the validity "
@@ -162,6 +172,7 @@ def test_no_order_lost_its_customer(fact):
 
 
 def test_fact_references_a_real_surrogate_key(fact, dim, expected):
+    """Every customer_sk in the fact table exists in the dimension exactly once."""
     joined = fact.join(dim, on="customer_sk", how="inner").count()
     assert joined == expected["fact_rows"], (
         "Every customer_sk in the fact table must exist in the dimension exactly once."
@@ -169,7 +180,7 @@ def test_fact_references_a_real_surrogate_key(fact, dim, expected):
 
 
 def test_each_fact_joins_to_the_version_valid_at_its_own_date(fact, dim):
-    """The whole point of the section, expressed as a single assertion."""
+    """Every order is attached to the customer version in effect on its order date (valid_from <= ordered_on < valid_to); a current-version join returns an answer, and the answer is wrong."""
     d = dim.select("customer_sk", F.col("customer_id").alias("d_customer_id"),
                    "valid_from", "valid_to")
     wrong = (fact.join(d, on="customer_sk", how="left")
@@ -184,6 +195,7 @@ def test_each_fact_joins_to_the_version_valid_at_its_own_date(fact, dim):
 
 
 def test_attributes_come_from_the_joined_version(fact, dim):
+    """segment_at_order and region_at_order are the attributes of the version the surrogate key points at."""
     d = dim.select("customer_sk", F.col("segment").alias("d_segment"),
                    F.col("region").alias("d_region"))
     bad = (fact.join(d, on="customer_sk")
@@ -198,6 +210,7 @@ def test_attributes_come_from_the_joined_version(fact, dim):
 # ------------------------------------------------- known answers (the real check)
 
 def test_revenue_by_segment_at_order(fact, expected):
+    """Revenue per segment_at_order matches the reference; a current-version join lands close enough to look plausible."""
     got = {r["segment_at_order"]: round(r["revenue"], 2) for r in
            fact.groupBy("segment_at_order")
                .agg(F.round(F.sum("amount"), 2).alias("revenue")).collect()}
@@ -209,12 +222,14 @@ def test_revenue_by_segment_at_order(fact, expected):
 
 
 def test_order_counts_by_segment_at_order(fact, expected):
+    """Order counts per segment_at_order match the reference."""
     got = {r["segment_at_order"]: r["n"] for r in
            fact.groupBy("segment_at_order").agg(F.count("*").alias("n")).collect()}
     assert got == expected["orders_by_segment_at_order"], got
 
 
 def test_total_revenue_is_conserved(fact, expected):
+    """Total fact revenue equals total source revenue; a join that changes the total has changed the grain."""
     total = round(fact.agg(F.sum("amount")).collect()[0][0], 2)
     assert total == expected["total_revenue"], (
         f"Fact revenue {total} does not equal source revenue {expected['total_revenue']}. "
@@ -223,6 +238,7 @@ def test_total_revenue_is_conserved(fact, expected):
 
 
 def test_probe_orders_carry_their_historical_attributes(fact, expected):
+    """Spot-check of specific orders: the segment and region at the time of the order, not the customer's segment today."""
     probes = {p["order_id"]: p for p in expected["probe_orders"]}
     rows = {r["order_id"]: r for r in
             fact.filter(F.col("order_id").isin(list(probes))).collect()}
@@ -239,7 +255,7 @@ def test_probe_orders_carry_their_historical_attributes(fact, expected):
 
 
 def test_result_actually_differs_from_the_naive_join(spark, fact, expected):
-    """If this passes trivially, the fixtures no longer prove anything."""
+    """Guards the fixtures: the point-in-time result differs from a current-version join on the expected number of orders."""
     current = spark.table(VERSIONS).filter("is_current").select(
         "customer_id", F.col("segment").alias("current_segment"))
     differ = (fact.join(current, on="customer_id")

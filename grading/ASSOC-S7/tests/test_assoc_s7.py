@@ -62,11 +62,12 @@ def df(spark):
 
 
 def test_schema_matches_the_contract(df):
+    """Column names, types and order match the README's output contract exactly."""
     assertSchemaEqual(df.schema, EXPECTED_SCHEMA)
 
 
 def test_national_id_is_absent(df, expected):
-    """Requirement 1 - a mask is not enough; the value must not be in the table."""
+    """Requirement 1: national_id is not in the published table at all. A mask can be dropped by anyone who can alter the table; publish a hash instead."""
     for col in expected["forbidden_columns"]:
         assert col not in df.columns, (
             f"'{col}' is still present. Masking it is not sufficient - a mask can be "
@@ -75,6 +76,7 @@ def test_national_id_is_absent(df, expected):
 
 
 def test_hash_is_irreversible_and_unique(df, expected):
+    """national_id_hash is a 64-character sha2-256 digest with one distinct value per employee, so rows stay linkable without the identifier."""
     lengths = df.select(F.length("national_id_hash").alias("n")).distinct().collect()
     assert [r["n"] for r in lengths] == [expected["hash_length"]], (
         f"expected every hash to be {expected['hash_length']} characters (sha2-256), "
@@ -88,7 +90,7 @@ def test_hash_is_irreversible_and_unique(df, expected):
 
 
 def test_all_source_rows_published(df, expected):
-    """Requirement 4 in effect - a break-glass caller sees everything."""
+    """Requirement 4: a break-glass caller (you, grading) sees every row; a row filter that excludes everyone hides the whole table."""
     n = df.count()
     assert n == expected["visible_rows_admin"], (
         f"expected {expected['visible_rows_admin']} rows visible to a break-glass "
@@ -97,7 +99,7 @@ def test_all_source_rows_published(df, expected):
 
 
 def test_masks_are_attached(spark, expected):
-    """Requirement 2 - checked against the catalog, not by inspecting values."""
+    """Requirement 2: column masks are attached in the catalog to the salary and case_note columns (checked via DESCRIBE EXTENDED and information_schema.column_masks)."""
     cols = spark.sql(f"DESCRIBE EXTENDED {TABLE}").collect()
     text = " ".join(str(r.asDict()) for r in cols).lower()
     for col in expected["masked_columns"]:
@@ -115,7 +117,7 @@ def test_masks_are_attached(spark, expected):
 
 
 def test_row_filter_is_attached(spark):
-    """Requirement 3."""
+    """Requirement 3: a row filter is attached to the governed table (checked via information_schema.row_filters)."""
     if not _has_info_schema(spark):
         pytest.skip("system.information_schema not readable here")
     rows = spark.sql("""
@@ -126,11 +128,13 @@ def test_row_filter_is_attached(spark):
 
 
 def test_regions_intact(df, expected):
+    """Every region in the source appears in the governed table."""
     got = sorted(r["region"] for r in df.select("region").distinct().collect())
     assert got == expected["regions"], f"expected regions {expected['regions']}, got {got}"
 
 
 def test_row_count_matches_source(spark, df, expected):
+    """The governed table has the same number of rows as the source: governing the data must not drop rows for a break-glass caller."""
     src = spark.table(SOURCE).count()
     assert src == expected["source_rows"]
     assert df.count() == src, "governing the data must not drop rows for a break-glass caller"

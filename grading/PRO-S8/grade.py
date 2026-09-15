@@ -33,10 +33,22 @@ import pytest
 
 
 class _Collect:
-    """Per-test outcomes, so the result can be returned as data and not only as text."""
+    """Per-test outcomes, so the result can be returned as data and not only as text.
+
+    Each test's docstring travels with its outcome as `expects`: it is written for
+    the learner and says what the check wants and why, so a failure reads as
+    "expected X (because Y); got Z" in the app rather than a bare assertion.
+    """
 
     def __init__(self):
         self.results = []
+        self.expects = {}
+
+    def pytest_collection_modifyitems(self, session, config, items):
+        for item in items:
+            doc = (getattr(item, "obj", None).__doc__ or "").strip()
+            # First paragraph only; the rest is for the author.
+            self.expects[item.nodeid] = re.sub(r"\s+", " ", doc.split("\n\n")[0])
 
     def pytest_runtest_logreport(self, report):
         if report.when == "call" or (report.when == "setup" and report.outcome != "passed"):
@@ -44,6 +56,7 @@ class _Collect:
                 "test": report.nodeid.split("::")[-1],
                 "outcome": report.outcome,
                 "message": _short_failure(report) if report.failed else "",
+                "expects": self.expects.get(report.nodeid, ""),
             })
 
 

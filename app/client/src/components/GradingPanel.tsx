@@ -6,6 +6,15 @@ import { Icon } from './Icon';
 
 const POLL_MS = 8000;
 
+/** `test_detail_is_actionable[probe-1]` reads as "Detail is actionable (probe-1)". */
+export function checkTitle(test: string): string {
+  const m = /^test_(.+?)(?:\[(.+)\])?$/.exec(test);
+  if (!m) return test;
+  const words = m[1].replace(/_/g, ' ');
+  const title = words.charAt(0).toUpperCase() + words.slice(1);
+  return m[2] ? `${title} (${m[2]})` : title;
+}
+
 /**
  * "Grade my assignment": triggers the section's grading job on the learner's
  * behalf and shows the result inline. The learner never opens the job.
@@ -95,8 +104,17 @@ export function GradingPanel({ sectionId, gradeJob, onResult }: { sectionId: str
               <ul className="grade-fails">
                 {run.result?.failed.map((f) => (
                   <li key={f.test}>
-                    <code>{f.test}</code>
-                    {f.message ? <pre>{f.message}</pre> : null}
+                    <div className="grade-fail-title">{checkTitle(f.test)}</div>
+                    {f.expects ? (
+                      <div className="grade-expects">
+                        <span className="grade-label">This check expects</span> {f.expects}
+                      </div>
+                    ) : null}
+                    {f.message ? (
+                      <pre>
+                        <span className="grade-label">Found</span> {f.message}
+                      </pre>
+                    ) : null}
                   </li>
                 ))}
               </ul>

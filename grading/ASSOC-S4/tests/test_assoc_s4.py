@@ -68,15 +68,17 @@ def quar(spark):
 
 
 def test_published_schema(pub):
+    """The published table has exactly the contracted columns, types and order."""
     assertSchemaEqual(pub.schema, PUBLISHED_SCHEMA)
 
 
 def test_quarantine_schema(quar):
+    """The quarantine table has exactly the contracted columns, types and order."""
     assertSchemaEqual(quar.schema, QUARANTINE_SCHEMA)
 
 
 def test_bad_row_did_not_stop_the_pipeline(pub, expected):
-    """Requirements 1 and 3."""
+    """Requirements 1 and 3: every good row is published, including the poisoned region's good rows and the late arrivals."""
     n = pub.count()
     assert n == expected["published_rows"], (
         f"expected {expected['published_rows']} published rows, got {n}. "
@@ -86,7 +88,7 @@ def test_bad_row_did_not_stop_the_pipeline(pub, expected):
 
 
 def test_nothing_silently_dropped(quar, expected):
-    """Requirement 2 - the bad row is kept, not discarded."""
+    """Requirement 2: the row that could not be typed is in quarantine with its raw value and its source_file, not filtered away."""
     n = quar.count()
     assert n == expected["quarantined_rows"], (
         f"expected {expected['quarantined_rows']} quarantined row(s), got {n}. "
@@ -98,7 +100,7 @@ def test_nothing_silently_dropped(quar, expected):
 
 
 def test_good_rows_from_the_poisoned_region_survived(pub, expected):
-    """The whole point of quarantining rather than skipping the file."""
+    """The good rows from the region whose file holds the bad row are published; skipping the whole file loses them."""
     region = expected["quarantined_region"]
     n = pub.filter(F.col("region") == region).count()
     assert n == expected["rows_by_region"][region], (
@@ -108,7 +110,7 @@ def test_good_rows_from_the_poisoned_region_survived(pub, expected):
 
 
 def test_late_arrivals_included(pub, expected):
-    """Requirement 3 - a directory the main glob does not reach."""
+    """Requirement 3: the late arrivals, which live in a subdirectory the main glob does not reach, are published under region late_arrivals."""
     n = pub.filter(F.col("region") == "late_arrivals").count()
     assert n == expected["rows_by_region"]["late_arrivals"], (
         f"expected {expected['rows_by_region']['late_arrivals']} late-arrival rows, got "
@@ -117,22 +119,26 @@ def test_late_arrivals_included(pub, expected):
 
 
 def test_all_regions_present(pub, expected):
+    """Every region in the source appears in the published table."""
     got = sorted(r["region"] for r in pub.select("region").distinct().collect())
     assert got == expected["regions"], f"expected regions {expected['regions']}, got {got}"
 
 
 def test_rows_by_region(pub, expected):
+    """The published row count per region matches the reference."""
     got = {r["region"]: r["n"] for r in
            pub.groupBy("region").agg(F.count("*").alias("n")).collect()}
     assert got == expected["rows_by_region"]
 
 
 def test_units_total(pub, expected):
+    """The total of units in the published table matches the reference."""
     total = pub.agg(F.sum("units")).collect()[0][0]
     assert total == expected["total_units"]
 
 
 def test_no_nulls_in_published(pub):
+    """No published row has a null order_id, region, units or ordered_on; a row that could not be typed belongs in quarantine."""
     for c in ("order_id", "region", "units", "ordered_on"):
         assert pub.filter(F.col(c).isNull()).count() == 0, (
             f"{c} has nulls - a row that could not be typed belongs in quarantine"

@@ -59,11 +59,12 @@ def df(spark):
 
 
 def test_schema_matches_the_contract(df):
+    """Column names, types and order match the README's output contract exactly."""
     assertSchemaEqual(df.schema, EXPECTED_SCHEMA)
 
 
 def test_direct_identifiers_absent(df, expected):
-    """Requirement 4."""
+    """Requirement 4: subject_id and full_name are not in the published table; the salted subject hash keeps records groupable without them."""
     for col in expected["forbidden_columns"]:
         assert col not in df.columns, (
             f"'{col}' is still published. Hash the subject instead so records stay "
@@ -72,6 +73,7 @@ def test_direct_identifiers_absent(df, expected):
 
 
 def test_subject_hash_is_deterministic_and_long(df, expected):
+    """subject_hash is a 64-character sha2-256 digest, never null, and the same subject always hashes to the same value."""
     lengths = {r["n"] for r in df.select(F.length("subject_hash").alias("n")).distinct().collect()}
     assert lengths == {expected["hash_length"]}, (
         f"expected every hash to be {expected['hash_length']} characters, got {lengths}"
@@ -83,7 +85,7 @@ def test_subject_hash_is_deterministic_and_long(df, expected):
 
 
 def test_erasure_subjects_are_gone(spark, df):
-    """Requirement 1 - purged, not masked."""
+    """Requirement 1: no record of a subject in the erasure-request table is published; a masked row is a retained row."""
     erasure = spark.table(ERASURE).select("subject_id")
     src = spark.table(SOURCE).select("record_id", "subject_id")
     should_be_gone = (src.join(erasure, on="subject_id", how="inner")
@@ -99,7 +101,7 @@ def test_erasure_subjects_are_gone(spark, df):
 
 
 def test_no_pii_survives_in_free_text(df):
-    """Requirement 3 - the part column-by-column masking misses."""
+    """Requirement 3: no case_note contains an email address or phone number; column-by-column masking misses PII inside free text."""
     leaky = df.filter(F.col("case_note").rlike(EMAIL) | F.col("case_note").rlike(PHONE))
     n = leaky.count()
     assert n == 0, (
@@ -109,7 +111,7 @@ def test_no_pii_survives_in_free_text(df):
 
 
 def test_pii_was_actually_redacted_not_dropped(df, expected):
-    """The notes must survive with markers - deleting the column is not a fix."""
+    """case_note is scrubbed with [EMAIL REDACTED] / [PHONE REDACTED] markers and kept; emptying or nulling the column is not a fix."""
     redacted = df.filter(F.col("case_note").rlike(r"\[(EMAIL|PHONE) REDACTED\]")).count()
     assert redacted == pytest.approx(expected["redacted_notes"], rel=0.15), (
         f"expected about {expected['redacted_notes']} redacted notes, got {redacted}. "
@@ -121,7 +123,7 @@ def test_pii_was_actually_redacted_not_dropped(df, expected):
 
 
 def test_per_type_retention_applied(df, expected):
-    """Requirement 2 - a single cutoff is wrong in both directions."""
+    """Requirement 2: no record is older than its own record_type's retention limit (365, 90 or 2555 days from the README's date)."""
     today = date.fromisoformat(expected["today"])
     for rec_type, days in expected["retention_days"].items():
         cutoff = today - timedelta(days=days)
@@ -134,7 +136,7 @@ def test_per_type_retention_applied(df, expected):
 
 
 def test_retention_did_not_over_delete(df, expected):
-    """A single aggressive cutoff would strip transaction_log records that must be kept."""
+    """All three record types survive: applying the shortest retention to everything strips the transaction logs that must be kept."""
     kept_types = {r["record_type"] for r in df.select("record_type").distinct().collect()}
     assert kept_types == set(expected["record_types"]), (
         f"expected all of {expected['record_types']} to survive, got {sorted(kept_types)}. "
@@ -143,6 +145,7 @@ def test_retention_did_not_over_delete(df, expected):
 
 
 def test_published_row_count(df, expected):
+    """The published row count matches the reference (within 2%)."""
     n = df.count()
     assert n == pytest.approx(expected["published_rows"], rel=0.02), (
         f"expected about {expected['published_rows']} published rows, got {n}"

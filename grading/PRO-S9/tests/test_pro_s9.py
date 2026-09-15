@@ -61,11 +61,12 @@ def row(df):
 
 
 def test_schema_matches_the_contract(df):
+    """Column names, types and order match the README's output contract exactly."""
     assertSchemaEqual(df.schema, EXPECTED_SCHEMA)
 
 
 def test_first_bad_date(row, expected):
-    """Requirement 1 - when it started, not merely that it is broken."""
+    """Requirement 1: first_bad_date is the first day the number of reporting sources drops and does not recover."""
     assert row["first_bad_date"] == expected["first_bad_date"], (
         f"expected the first degraded day to be {expected['first_bad_date']}, got "
         f"{row['first_bad_date']!r}. It is the first date where the source count drops "
@@ -74,19 +75,21 @@ def test_first_bad_date(row, expected):
 
 
 def test_missing_source(row, expected):
+    """missing_source names the source system that stopped reporting."""
     assert row["missing_source"] == expected["missing_source"], (
         f"expected {expected['missing_source']}, got {row['missing_source']!r}"
     )
 
 
 def test_degraded_days(row, expected):
+    """degraded_days is the number of days from the first bad date to the end of the history."""
     assert row["degraded_days"] == expected["degraded_days"], (
         f"expected {expected['degraded_days']} degraded days, got {row['degraded_days']}"
     )
 
 
 def test_rows_lost_estimate(row, expected):
-    """Requirement 3 - within 10%, since it is an estimate."""
+    """Requirement 3: rows_lost is the healthy daily average minus the degraded daily average, times the degraded days (within 10%)."""
     want = expected["rows_lost"]
     got = row["rows_lost"]
     assert got == pytest.approx(want, rel=0.10), (
@@ -96,13 +99,14 @@ def test_rows_lost_estimate(row, expected):
 
 
 def test_detail_is_actionable(row):
+    """detail is a sentence a colleague could act on: at least 30 characters and it cites at least one number from the report (a date, a day count or a row count), e.g. 'source crm stopped on 2026-03-04; 21 days and about 8,400 rows missing'."""
     d = (row["detail"] or "").strip()
     assert len(d) >= 30, f"detail is too thin to act on: {d!r}"
-    assert any(ch.isdigit() for ch in d), "detail cites no number"
+    assert any(ch.isdigit() for ch in d), "detail cites no number; put the date, the day count or the rows lost in the sentence"
 
 
 def test_the_failure_really_was_silent(spark):
-    """Guards the premise: if the history contains a failure, the exercise is different."""
+    """Guards the premise: the source history contains no failed operation; this assignment is about failures that leave no error."""
     ops = [r["operation"] for r in spark.sql(f"DESCRIBE HISTORY {SOURCE}").collect()]
     assert not [o for o in ops if "FAIL" in o.upper()], (
         "the source history contains a failed operation; this assignment is about "
@@ -111,7 +115,7 @@ def test_the_failure_really_was_silent(spark):
 
 
 def test_source_not_modified(spark, expected):
-    """Requirement 4."""
+    """Requirement 4: the source is left as found (same row count, same number of healthy sources). This is graded on diagnosis; backfilling destroys the evidence."""
     t = spark.table(SOURCE)
     assert t.count() == expected["total_rows"], (
         "the source table has been changed. This is graded on diagnosis; backfilling "

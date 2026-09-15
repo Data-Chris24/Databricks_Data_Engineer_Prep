@@ -151,3 +151,13 @@ non-negotiables:
    broken — fix the datasets, not the tests.
 3. **Fixtures are committed**, generated from the reference solution, so the tests
    stand alone.
+
+## What the learner sees when a check fails
+
+Each test function's docstring is the learner-facing explanation. The grader
+returns it with the outcome as `expects`, and the app shows it above the
+assertion message ("This check expects … / Found …"). Write it for the learner:
+what the check wants, why it matters, and what a common wrong answer looks like.
+The assertion message then carries the observed values. The layout test refuses a
+grader check with no docstring or one under 40 characters (a bare "Requirement
+3." explains nothing on its own).

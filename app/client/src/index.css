@@ -1635,3 +1635,26 @@ button {
 .data-band code {
   font-size: 12.5px;
 }
+
+/* A failed check: title, what it expects, what it found. */
+.grade-fail-title {
+  font-family: var(--cond);
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+.grade-expects {
+  font-size: 13.5px;
+  line-height: 1.45;
+  margin-bottom: 6px;
+}
+.grade-label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-right: 6px;
+}
+.grade-fails pre .grade-label {
+  font-family: var(--sans, inherit);
+}

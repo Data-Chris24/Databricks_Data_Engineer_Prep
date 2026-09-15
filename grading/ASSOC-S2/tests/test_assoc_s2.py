@@ -89,11 +89,12 @@ def df(spark):
 
 
 def test_schema_matches_the_contract(df):
-    """Column names, types and order, exactly as the README specifies."""
+    """Column names, types and order match the README's output contract exactly."""
     assertSchemaEqual(df.schema, EXPECTED_SCHEMA)
 
 
 def test_row_count(df, expected):
+    """One row per distinct reading. The source replays some readings in a later file, so the raw count is too high until they are deduplicated."""
     actual = df.count()
     assert actual == expected["row_count"], (
         f"expected {expected['row_count']} rows, got {actual}. "
@@ -103,7 +104,7 @@ def test_row_count(df, expected):
 
 
 def test_event_id_is_unique(df, expected):
-    """Requirement 2. The source replays some readings in a later file."""
+    """Requirement 2: event_id is unique, so every reading appears exactly once."""
     distinct = df.select("event_id").distinct().count()
     total = df.count()
     assert distinct == total, (
@@ -116,12 +117,7 @@ def test_event_id_is_unique(df, expected):
 
 
 def test_timestamps_are_plausible(df, expected):
-    """Requirement 3 - the epoch-unit trap.
-
-    Casting epoch MILLISECONDS straight to TIMESTAMP reads them as seconds and
-    lands ~58,000 years in the future. It raises no error, which is what makes it
-    worth a test.
-    """
+    """Requirement 3: recorded_at is a real timestamp. The source stores epoch milliseconds; casting them as seconds lands 58,000 years in the future without any error."""
     lo = df.agg(F.min("recorded_at")).collect()[0][0]
     hi = df.agg(F.max("recorded_at")).collect()[0][0]
     assert lo is not None and hi is not None, "recorded_at is entirely null"
@@ -138,11 +134,7 @@ def test_timestamps_are_plausible(df, expected):
 
 
 def test_battery_column_survived(df, expected):
-    """Requirement 4 - the schema-merge trap.
-
-    battery_pct exists in only one source file. A read that samples the others
-    drops it silently.
-    """
+    """Requirement 4: battery_pct is populated on the readings that reported it. It exists in only one source file, so a read that samples the others drops the column silently."""
     non_null = df.filter(F.col("battery_pct").isNotNull()).count()
     assert non_null == expected["rows_with_battery"], (
         f"expected {expected['rows_with_battery']} rows with battery_pct, got "
@@ -152,7 +144,7 @@ def test_battery_column_survived(df, expected):
 
 
 def test_early_readings_have_no_battery(df, expected):
-    """The column must be null where the devices did not report it, not zero."""
+    """battery_pct is null, not zero, for readings taken before the devices reported it; filling an unknown invents data."""
     nulls = df.filter(F.col("battery_pct").isNull()).count()
     assert nulls == expected["row_count"] - expected["rows_with_battery"], (
         "Readings taken before battery reporting must be null, not filled with a "
@@ -165,7 +157,7 @@ def test_early_readings_have_no_battery(df, expected):
 
 @pytest.mark.parametrize("event_id", ["EVT-0000001", "EVT-0000050", "EVT-0000137"])
 def test_known_readings(df, expected, event_id):
-    """Spot-checks against precomputed answers, including one battery row."""
+    """Spot-check of specific event_ids against precomputed values (device, temperature, humidity), including one battery row."""
     want = expected["probes"][event_id]
     rows = df.filter(F.col("event_id") == event_id).collect()
     assert len(rows) == 1, f"expected exactly one row for {event_id}, got {len(rows)}"
@@ -187,6 +179,7 @@ def test_known_readings(df, expected, event_id):
 
 
 def test_devices_and_sites_are_populated(df, expected):
+    """device_id, site and firmware are populated on every row: they come from the document header, so every exploded reading carries them."""
     assert df.select("device_id").distinct().count() == expected["distinct_devices"]
     for col in ("device_id", "site", "firmware"):
         assert df.filter(F.col(col).isNull()).count() == 0, (

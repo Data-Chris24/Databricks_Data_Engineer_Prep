@@ -58,11 +58,12 @@ def rows(df):
 
 
 def test_schema_matches_the_contract(df):
+    """Column names, types and order match the README's output contract exactly."""
     assertSchemaEqual(df.schema, EXPECTED_SCHEMA)
 
 
 def test_all_three_findings_present(df, expected):
-    """The lesson's single query finds one of these."""
+    """The report names all three findings (duplicate_keys, null_regression, skew), one row each. Two of them leave the row count and distinct-key count looking normal."""
     got = sorted(r["finding"] for r in df.select("finding").distinct().collect())
     assert got == expected["expected_findings"], (
         f"expected findings {expected['expected_findings']}, got {got}. "
@@ -72,6 +73,7 @@ def test_all_three_findings_present(df, expected):
 
 
 def test_duplicate_keys_finding(rows, expected):
+    """The duplicate_keys finding names order_id and its metric is the number of redelivered rows: count(*) minus count(distinct order_id)."""
     r = rows.get("duplicate_keys")
     assert r is not None, "no duplicate_keys finding"
     assert r["column_name"] == "order_id"
@@ -82,6 +84,7 @@ def test_duplicate_keys_finding(rows, expected):
 
 
 def test_null_regression_finding(rows, expected):
+    """The null_regression finding names channel and its metric is the number of nulls after the regression began, not the total."""
     r = rows.get("null_regression")
     assert r is not None, "no null_regression finding"
     assert r["column_name"] == "channel"
@@ -92,6 +95,7 @@ def test_null_regression_finding(rows, expected):
 
 
 def test_skew_finding(rows, expected):
+    """The skew finding names region and its metric is the largest region's share of rows as a percentage."""
     r = rows.get("skew")
     assert r is not None, "no skew finding"
     assert r["column_name"] == "region"
@@ -101,7 +105,7 @@ def test_skew_finding(rows, expected):
 
 
 def test_details_are_actionable(df):
-    """Requirement 4 - a colleague should know what to do next."""
+    """Requirement 4: each finding's detail is a sentence a colleague could act on: at least 25 characters and it cites the number behind the finding, e.g. '412 orders were delivered twice; deduplicate on order_id before the join'."""
     for r in df.collect():
         d = (r["detail"] or "").strip()
         assert len(d) >= 25, (
@@ -114,7 +118,7 @@ def test_details_are_actionable(df):
 
 
 def test_source_was_not_modified(spark, expected):
-    """Graded on diagnosis, not on a fix - the table must be left as found."""
+    """The source table is left as found (duplicates still present). This assignment is graded on diagnosis; cleaning the data destroys the evidence."""
     t = spark.table(SOURCE)
     total, distinct = t.count(), t.select("order_id").distinct().count()
     assert total - distinct == expected["duplicate_rows"], (

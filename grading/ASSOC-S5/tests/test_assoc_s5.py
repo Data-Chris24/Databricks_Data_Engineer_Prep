@@ -61,11 +61,13 @@ def _table(spark, schema):
 
 @pytest.mark.parametrize("schema", ["de_prep", "de_prep_staging"])
 def test_schema_matches_contract(spark, schema):
+    """The summary table in each environment has exactly the contracted columns, types and order."""
     assertSchemaEqual(_table(spark, schema).schema, EXPECTED_SCHEMA)
 
 
 @pytest.mark.parametrize("schema", ["de_prep", "de_prep_staging"])
 def test_row_count(spark, schema, expected):
+    """The summary in each environment has one row per channel."""
     n = _table(spark, schema).count()
     assert n == expected["rows_per_environment"], (
         f"{schema}: expected {expected['rows_per_environment']} rows, got {n}"
@@ -73,16 +75,13 @@ def test_row_count(spark, schema, expected):
 
 
 def test_both_environments_exist(spark, expected):
-    """Requirement 1 - a single hardcoded destination cannot produce both."""
+    """Requirement 1: the summary exists in both schemas; a hardcoded destination can only produce one."""
     for schema in expected["environments"]:
         assert _table(spark, schema).count() > 0, f"{schema} received no data"
 
 
 def test_environment_column_records_where_it_landed(spark, expected):
-    """Requirement 3 - the strongest evidence the destination was parameterised.
-
-    A hardcoded notebook stamps the same value in both schemas.
-    """
+    """Requirement 3: the environment column names the schema the row landed in, derived from the job parameter; a hardcoded value shows the same name in both schemas."""
     seen = {}
     for schema in expected["environments"]:
         vals = sorted({r["environment"] for r in
@@ -99,7 +98,7 @@ def test_environment_column_records_where_it_landed(spark, expected):
 
 
 def test_numbers_match_across_environments(spark, expected):
-    """Promotion means the same definition, so the results must agree."""
+    """The two environments hold the same numbers: promotion is one definition producing the same result in each place."""
     frames = {}
     for schema in expected["environments"]:
         frames[schema] = {
@@ -115,6 +114,7 @@ def test_numbers_match_across_environments(spark, expected):
 
 
 def test_values_are_correct(spark, expected):
+    """Transactions and revenue per channel match the reference."""
     got = {r["channel"]: (r["txns"], round(r["revenue"], 2))
            for r in _table(spark, "de_prep").collect()}
     want = {k: (v["txns"], v["revenue"]) for k, v in expected["by_channel"].items()}
@@ -122,6 +122,7 @@ def test_values_are_correct(spark, expected):
 
 
 def test_all_channels_present(spark, expected):
+    """Every channel in the source appears in the summary."""
     got = sorted(r["channel"] for r in
                  _table(spark, "de_prep").select("channel").distinct().collect())
     assert got == expected["channels"]

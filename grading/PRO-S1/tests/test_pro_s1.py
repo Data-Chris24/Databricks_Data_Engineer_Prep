@@ -57,10 +57,12 @@ def df(spark):
 
 
 def test_schema_matches_the_contract(df):
+    """Column names, types and order match the README's output contract exactly."""
     assertSchemaEqual(df.schema, EXPECTED_SCHEMA)
 
 
 def test_surviving_row_count(df, expected):
+    """One row per surviving key. Keeping one arbitrary event per key (tombstones included, sequencing ignored) gives the wrong count."""
     n = df.count()
     assert n == expected["surviving_rows"], (
         f"expected {expected['surviving_rows']} surviving keys, got {n}. "
@@ -70,11 +72,12 @@ def test_surviving_row_count(df, expected):
 
 
 def test_keys_are_unique(df):
+    """customer_id is unique in the result: current state has one row per customer."""
     assert df.count() == df.select("customer_id").distinct().count()
 
 
 def test_winning_event_is_highest_sequence(spark, df):
-    """Requirement 2 - independent of arrival order."""
+    """Requirement 2: each row carries the event with the highest seq_num for its key. The feed is shuffled, so the last row encountered is not the latest event."""
     src = spark.table(SOURCE)
     w = Window.partitionBy("customer_id").orderBy(F.desc("seq_num"))
     truth = (src.withColumn("rn", F.row_number().over(w)).filter("rn = 1")
@@ -90,7 +93,7 @@ def test_winning_event_is_highest_sequence(spark, df):
 
 
 def test_tombstoned_keys_are_absent(spark, df, expected):
-    """Requirement 3 - a delete removes the key, it does not flag it."""
+    """Requirement 3: a key whose highest-sequence event is a delete is absent from the result, not present with a flag."""
     src = spark.table(SOURCE)
     w = Window.partitionBy("customer_id").orderBy(F.desc("seq_num"))
     tombstoned = (src.withColumn("rn", F.row_number().over(w)).filter("rn = 1")
@@ -105,7 +108,7 @@ def test_tombstoned_keys_are_absent(spark, df, expected):
 
 
 def test_resurrected_keys_are_present(spark, df):
-    """Requirement 4 - deleted then updated means present, because the update wins."""
+    """Requirement 4: a key that was deleted and later updated is present, because its highest sequence is the update."""
     src = spark.table(SOURCE)
     deleted_ever = src.filter("op = 'delete'").select("customer_id").distinct()
     w = Window.partitionBy("customer_id").orderBy(F.desc("seq_num"))
@@ -123,7 +126,7 @@ def test_resurrected_keys_are_present(spark, df):
 
 
 def test_no_delete_rows_leaked(df, spark):
-    """The result is customers, not events - no op column, no delete artefacts."""
+    """The result is customers, not events: no op column, and no null tier (a delete event carried through has no tier or balance)."""
     assert "op" not in df.columns, "the op column belongs to the feed, not to current state"
     assert df.filter(F.col("tier").isNull()).count() == 0, (
         "a null tier suggests a delete event was carried through - deletes have no "
@@ -133,6 +136,7 @@ def test_no_delete_rows_leaked(df, spark):
 
 @pytest.mark.parametrize("customer_id", ["CUST-00001", "CUST-00002", "CUST-00004"])
 def test_known_rows(df, expected, customer_id):
+    """Spot-check of specific customers: tier, balance and last_seq come from the winning event."""
     want = expected["probes"][customer_id]
     rows = df.filter(F.col("customer_id") == customer_id).collect()
     assert len(rows) == 1, f"expected one row for {customer_id}, got {len(rows)}"

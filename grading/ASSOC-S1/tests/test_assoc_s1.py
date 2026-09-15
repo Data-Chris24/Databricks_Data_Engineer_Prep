@@ -71,14 +71,17 @@ def report(spark):
 
 
 def test_recovered_schema(rec):
+    """The recovered table has exactly the contracted columns, types and order: sku, category, price, listed_on."""
     assertSchemaEqual(rec.schema, RECOVERED_SCHEMA)
 
 
 def test_report_schema(report):
+    """The incident report has exactly the contracted columns, types and order (bad_version, good_version, rows_lost, value_lost, detail)."""
     assertSchemaEqual(report.schema, REPORT_SCHEMA)
 
 
 def test_recovered_row_count(rec, expected):
+    """The recovered table holds every row of the last good version. Getting the current row count means the damaged version was read instead of an earlier one."""
     n = rec.count()
     assert n == expected["recovered_rows"], (
         f"expected {expected['recovered_rows']} recovered rows, got {n}. "
@@ -87,7 +90,7 @@ def test_recovered_row_count(rec, expected):
 
 
 def test_recovered_prices_are_intact(rec):
-    """The bad load zeroed every price - the recovery must not have."""
+    """No recovered row has price 0.0: the bad load zeroed every price, so any zero means the damaged version was recovered."""
     zeros = rec.filter("price = 0.0").count()
     assert zeros == 0, (
         f"{zeros} recovered rows still have price 0.0, so this is the damaged version"
@@ -95,15 +98,18 @@ def test_recovered_prices_are_intact(rec):
 
 
 def test_recovered_value(rec, expected):
+    """The total of price in the recovered table matches the last good version's total (within 1.0)."""
     total = rec.agg(F.round(F.sum("price"), 2)).collect()[0][0]
     assert total == pytest.approx(expected["recovered_revenue"], abs=1.0)
 
 
 def test_report_is_one_row(report):
+    """The incident report is a single row describing the one incident."""
     assert report.count() == 1, "the incident report is one row"
 
 
 def test_report_identifies_the_versions(report, expected):
+    """good_version is the last version before the damage and bad_version is the version that did the damage, as DESCRIBE HISTORY numbers them."""
     r = report.collect()[0]
     assert r["good_version"] == expected["good_version"], (
         f"expected the last good version to be {expected['good_version']}, got "
@@ -113,6 +119,7 @@ def test_report_identifies_the_versions(report, expected):
 
 
 def test_report_quantifies_the_damage(report, expected):
+    """rows_lost is the good version's row count minus the damaged version's; value_lost is the price total lost the same way (within 1.0)."""
     r = report.collect()[0]
     assert r["rows_lost"] == expected["rows_lost"], (
         f"expected {expected['rows_lost']} rows lost, got {r['rows_lost']}"
@@ -121,13 +128,14 @@ def test_report_quantifies_the_damage(report, expected):
 
 
 def test_detail_is_actionable(report):
+    """detail is a sentence a colleague could act on: at least 25 characters and it cites at least one number from the report (a version, a row count or a value), e.g. 'Version 3 overwrote 120 rows; recovered from version 2'."""
     d = (report.collect()[0]["detail"] or "").strip()
     assert len(d) >= 25, f"detail is too thin to act on: {d!r}"
-    assert any(ch.isdigit() for ch in d), "detail cites no number"
+    assert any(ch.isdigit() for ch in d), "detail cites no number; put the version, the rows lost or the value lost in the sentence"
 
 
 def test_source_history_preserved(spark, expected):
-    """Requirement 2 - the damaged history is the evidence."""
+    """Requirement 2: the damaged source table is left as found (same row count, good version still in its history). Recover alongside it, never RESTORE over it."""
     cur = spark.table(SRC)
     assert cur.count() == expected["current_rows"], (
         "the source table has been restored in place. The damaged version is the "

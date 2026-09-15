@@ -58,10 +58,12 @@ def rows(df):
 
 
 def test_schema_matches_the_contract(df):
+    """Column names, types and order match the README's output contract exactly."""
     assertSchemaEqual(df.schema, EXPECTED_SCHEMA)
 
 
 def test_all_three_findings(df, expected):
+    """The report names all three findings (small_files, wide_projection, bad_cluster_key), one row each; clustering addresses only one of the three causes."""
     got = sorted(r["finding"] for r in df.select("finding").distinct().collect())
     assert got == expected["expected_findings"], (
         f"expected {expected['expected_findings']}, got {got}. Clustering addresses "
@@ -71,6 +73,7 @@ def test_all_three_findings(df, expected):
 
 
 def test_small_files_finding(rows, expected):
+    """small_files reports the table's file count as its metric and recommends compaction (OPTIMIZE)."""
     r = rows.get("small_files")
     assert r is not None
     assert r["metric"] == pytest.approx(expected["n_files"], abs=0.5), (
@@ -82,6 +85,7 @@ def test_small_files_finding(rows, expected):
 
 
 def test_wide_projection_finding(rows, expected):
+    """wide_projection reports the number of columns the query reads as its metric."""
     r = rows.get("wide_projection")
     assert r is not None
     assert r["metric"] == pytest.approx(expected["n_columns"], abs=0.5), (
@@ -90,7 +94,7 @@ def test_wide_projection_finding(rows, expected):
 
 
 def test_bad_cluster_key_finding(rows, expected):
-    """Requirement 2 - naming the wrong choice, not just any column."""
+    """Requirement 2: bad_cluster_key names the column that would be the wrong clustering choice, reports its cardinality percentage, and the detail says what to cluster on instead."""
     r = rows.get("bad_cluster_key")
     assert r is not None
     assert expected["bad_key"] in (r["recommendation"] or ""), (
@@ -106,16 +110,17 @@ def test_bad_cluster_key_finding(rows, expected):
 
 
 def test_details_cite_numbers(df):
+    """Each finding's detail is a sentence a colleague could act on: at least 25 characters and it cites the number behind the finding, e.g. '4,812 files average 1.2 MB; run OPTIMIZE to reach 128 MB files'."""
     for r in df.collect():
         d = (r["detail"] or "").strip()
         assert len(d) >= 25, f"detail for '{r['finding']}' is too thin: {d!r}"
         assert any(ch.isdigit() for ch in d), (
-            f"detail for '{r['finding']}' cites no number"
+            f"detail for '{r['finding']}' cites no number; put the metric (files, columns or percentage) in the sentence"
         )
 
 
 def test_source_not_optimised(spark, expected):
-    """Requirement 3 - the current state is the evidence."""
+    """Requirement 3: the source is left as found (same file count, no clustering). This is graded on analysis; running OPTIMIZE or CLUSTER BY destroys the evidence."""
     d = spark.sql(f"DESCRIBE DETAIL {SOURCE}").collect()[0]
     assert d["numFiles"] == expected["n_files"], (
         f"the source now has {d['numFiles']} files, not {expected['n_files']}. This "

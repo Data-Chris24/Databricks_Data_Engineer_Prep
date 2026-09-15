@@ -89,16 +89,19 @@ def docs(spark):
 # --------------------------------------------------------------------- contract
 
 def test_report_schema_matches_the_contract(report):
+    """The access report has exactly the contracted columns, types and order."""
     assertSchemaEqual(report.schema, REPORT_SCHEMA)
 
 
 def test_documentation_schema_matches_the_contract(docs):
+    """The documentation report has exactly the contracted columns, types and order."""
     assertSchemaEqual(docs.schema, DOCS_SCHEMA)
 
 
 # --------------------------------------------------------- the grants were found
 
 def test_report_covers_every_privilege(report, expected):
+    """One row per (principal, table, privilege) that applies, inherited ones included: a grant on the catalog applies to every table under it."""
     assert report.count() == expected["report_rows"], (
         "One row per (principal, table, privilege) that applies - inherited ones "
         "included. Inheritance means a grant on the catalog applies to every table "
@@ -107,6 +110,7 @@ def test_report_covers_every_privilege(report, expected):
 
 
 def test_rows_per_principal(report, expected):
+    """The number of rows per principal matches the reference."""
     got = _counts(report, "principal")
     assert got == expected["rows_by_principal"], (
         f"got {got}, expected {expected['rows_by_principal']}"
@@ -114,6 +118,7 @@ def test_rows_per_principal(report, expected):
 
 
 def test_principals_are_named_not_ids(report):
+    """Principals are identified by display name, not by application id; a report nobody can read is not a report."""
     ids = report.filter(F.col("principal").rlike("^[0-9a-f-]{36}$")).count()
     assert ids == 0, (
         f"{ids} rows identify the principal by application id. The contract asks for "
@@ -124,6 +129,7 @@ def test_principals_are_named_not_ids(report):
 # ------------------------------------------------------ where the grant really is
 
 def test_grant_level_is_resolved(report, expected):
+    """granted_at_level says where each privilege was really granted (TABLE, SCHEMA or CATALOG), from information_schema.table_privileges.inherited_from."""
     got = _counts(report, "granted_at_level")
     assert got == expected["rows_by_level"], (
         f"Levels do not match.\n  got:      {got}\n  expected: {expected['rows_by_level']}\n"
@@ -134,6 +140,7 @@ def test_grant_level_is_resolved(report, expected):
 
 
 def test_levels_are_from_the_allowed_set(report):
+    """granted_at_level is one of TABLE, SCHEMA, CATALOG; inherited_from says NONE for a direct grant, and the report wants TABLE for that."""
     bad = report.filter(~F.col("granted_at_level").isin("TABLE", "SCHEMA", "CATALOG"))
     n = bad.count()
     assert n == 0, (
@@ -146,6 +153,7 @@ def test_levels_are_from_the_allowed_set(report):
 # ------------------------------------------- held versus usable (the real check)
 
 def test_traversal_is_computed(report, expected):
+    """Effective privileges per principal match the reference: a SELECT is inert without USE CATALOG on the catalog and USE SCHEMA on the schema."""
     got = _counts(report.filter("is_effective"), "principal")
     assert got == expected["effective_by_principal"], (
         f"Effective privileges per principal do not match.\n  got:      {got}\n"
@@ -156,6 +164,7 @@ def test_traversal_is_computed(report, expected):
 
 
 def test_the_inert_privileges_are_identified(report, expected):
+    """The rows marked not effective match the reference; one principal holds SELECT across the catalog and can reach none of it."""
     n = report.filter("NOT is_effective").count()
     assert n == expected["ineffective_rows"], (
         f"{n} rows are marked unusable; expected {expected['ineffective_rows']}. "
@@ -164,6 +173,7 @@ def test_the_inert_privileges_are_identified(report, expected):
 
 
 def test_is_effective_is_the_conjunction(report):
+    """is_effective equals has_use_catalog AND has_use_schema on every row."""
     wrong = report.filter(
         F.col("is_effective") != (F.col("has_use_catalog") & F.col("has_use_schema"))
     ).count()
@@ -173,6 +183,7 @@ def test_is_effective_is_the_conjunction(report):
 
 
 def test_report_matches_row_for_row(report, expected):
+    """The access report matches the reference row for row."""
     got = sorted([[r["principal"], r["table_schema"], r["table_name"], r["privilege"],
                    r["granted_at_level"], r["has_use_catalog"], r["has_use_schema"],
                    r["is_effective"]] for r in report.collect()])
@@ -188,10 +199,12 @@ def test_report_matches_row_for_row(report, expected):
 # ------------------------------------------------------------- documentation half
 
 def test_documentation_covers_every_table(docs, expected):
+    """The documentation report has one row per table in the assessed catalog."""
     assert docs.count() == expected["doc_rows"]
 
 
 def test_pii_columns_are_found(docs, expected):
+    """has_pii_column is true exactly for the tables with a column tagged pii; tags on columns live in information_schema.column_tags, not table_tags."""
     got = sorted(r["table_name"] for r in docs.filter("has_pii_column").collect())
     assert got == expected["pii_tables"], (
         f"got {got}, expected {expected['pii_tables']}. PII is recorded as a column "
@@ -200,6 +213,7 @@ def test_pii_columns_are_found(docs, expected):
 
 
 def test_documented_is_not_just_has_a_comment(docs, expected):
+    """is_documented follows the README's definition, which counts a purpose recorded as a tag as well as a table comment; counting comments alone under-reports."""
     documented = docs.filter("is_documented").count()
     commented = docs.filter("has_table_comment").count()
     assert commented == expected["with_table_comment"]
@@ -215,6 +229,7 @@ def test_documented_is_not_just_has_a_comment(docs, expected):
 
 
 def test_documentation_matches_row_for_row(docs, expected):
+    """The documentation report matches the reference row for row."""
     got = sorted([[r["table_schema"], r["table_name"], r["has_table_comment"],
                    r["column_count"], r["documented_columns"], r["tag_count"],
                    r["has_pii_column"], r["is_documented"]] for r in docs.collect()])

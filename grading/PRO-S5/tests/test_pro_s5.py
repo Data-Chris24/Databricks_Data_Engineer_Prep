@@ -58,10 +58,12 @@ def df(spark):
 
 
 def test_schema_matches_the_contract(df):
+    """Column names, types and order match the README's output contract exactly."""
     assertSchemaEqual(df.schema, EXPECTED_SCHEMA)
 
 
 def test_evaluated_most_of_the_history(df, expected):
+    """At least three quarters of the days are evaluated; some warm-up while the baseline forms is expected, but most of the history must be scored."""
     n = df.count()
     assert n >= expected["total_days"] * 0.75, (
         f"only {n} days evaluated of {expected['total_days']}. Some warm-up is expected "
@@ -70,7 +72,7 @@ def test_evaluated_most_of_the_history(df, expected):
 
 
 def test_no_false_positives_before_the_degradation(df, expected):
-    """Requirement 2 - the single most important property of an alert."""
+    """Requirement 2: no alert fires before the degradation begins. An alert that cries wolf in the healthy period is worse than none."""
     cutoff = date.fromisoformat(expected["degradation_starts"])
     fp = df.filter(F.col("should_alert") & (F.col("run_date") < F.lit(cutoff)))
     n = fp.count()
@@ -82,7 +84,7 @@ def test_no_false_positives_before_the_degradation(df, expected):
 
 
 def test_the_benign_spike_did_not_alert(df, expected):
-    """Requirement 3 - alert on direction, not deviation."""
+    """Requirement 3: the campaign day, which is well above baseline, does not alert; alert on direction, not deviation."""
     spike = date.fromisoformat(expected["spike_date"])
     rows = df.filter(F.col("run_date") == F.lit(spike)).collect()
     if rows:
@@ -93,7 +95,7 @@ def test_the_benign_spike_did_not_alert(df, expected):
 
 
 def test_the_degradation_was_detected(df, expected):
-    """Requirement 4."""
+    """Requirement 4: at least one alert fires after the degradation begins. It is gradual and stays inside the overall range, so an absolute threshold will not see it."""
     cutoff = date.fromisoformat(expected["degradation_starts"])
     fired = df.filter(F.col("should_alert") & (F.col("run_date") >= F.lit(cutoff)))
     assert fired.count() > 0, (
@@ -103,6 +105,7 @@ def test_the_degradation_was_detected(df, expected):
 
 
 def test_detection_was_reasonably_prompt(df, expected):
+    """The first alert comes within 21 days of the degradation starting; persistence costs some latency, but three weeks is too long to be useful."""
     cutoff = date.fromisoformat(expected["degradation_starts"])
     first = (df.filter(F.col("should_alert") & (F.col("run_date") >= F.lit(cutoff)))
              .agg(F.min("run_date")).collect()[0][0])
@@ -115,7 +118,7 @@ def test_detection_was_reasonably_prompt(df, expected):
 
 
 def test_baseline_respects_the_weekly_cycle(df):
-    """Requirement 1 - a cross-day-type baseline shows up as systematic bias."""
+    """Requirement 1: weekdays and weekends both average near 100% of baseline. A baseline that mixes day types puts one group systematically high and the other low."""
     means = {r["day_type"]: r["m"] for r in
              df.groupBy("day_type").agg(F.avg("pct_of_baseline").alias("m")).collect()}
     assert set(means) == {"weekday", "weekend"}, f"expected both day types, got {means}"
@@ -128,6 +131,7 @@ def test_baseline_respects_the_weekly_cycle(df):
 
 
 def test_baseline_is_positive_where_present(df):
+    """Every evaluated row has a positive baseline; days without enough history are excluded rather than published with nulls."""
     assert df.filter(F.col("baseline") <= 0).count() == 0
     assert df.filter(F.col("baseline").isNull()).count() == 0, (
         "rows without a baseline should be excluded rather than published with nulls"
@@ -135,4 +139,5 @@ def test_baseline_is_positive_where_present(df):
 
 
 def test_source_not_modified(spark, expected):
+    """The source metrics table is left as found."""
     assert spark.table(SOURCE).count() == expected["total_days"]

@@ -226,7 +226,10 @@ export type GradeStatus = 'queued' | 'running' | 'passed' | 'failed' | 'error';
 export interface GradeTest {
   test: string;
   outcome: string;
+  /** The assertion or exception message: what was observed. */
   message?: string;
+  /** The check's docstring: what it wants and why, written for the learner. */
+  expects?: string;
 }
 
 /** What grading/<SEC>/grade.py returns through dbutils.notebook.exit. */

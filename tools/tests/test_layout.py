@@ -146,3 +146,20 @@ def test_starters_carry_no_answers_even_commented_out():
         if bad:
             found[starter.parent.name] = bad[:3]
     assert not found, f"answer code left in starters: {found}"
+
+
+def test_every_grader_check_explains_itself():
+    """Each grader test's docstring is shown to the learner as "this check expects";
+    a missing or terse one leaves a failure unexplained (seen 2026-09-15:
+    "AssertionError: detail cites no number" and nothing else)."""
+    import ast
+
+    thin = []
+    for path in sorted((REPO_ROOT / "grading").glob("*/tests/test_*.py")):
+        tree = ast.parse(path.read_text())
+        for fn in tree.body:
+            if isinstance(fn, ast.FunctionDef) and fn.name.startswith("test_"):
+                doc = ast.get_docstring(fn) or ""
+                if len(doc) < 40:
+                    thin.append(f"{path.parent.parent.name}::{fn.name}")
+    assert not thin, f"grader checks without a learner-facing docstring: {thin}"
