@@ -1658,3 +1658,14 @@ button {
 .grade-fails pre .grade-label {
   font-family: var(--sans, inherit);
 }
+
+/* End-of-section status: plain text, not a chip. */
+.section-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--good);
+  font-family: var(--cond);
+  font-weight: 600;
+  font-size: 15px;
+}

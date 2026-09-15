@@ -27,16 +27,22 @@ export function GradingPanel({ sectionId, gradeJob, onResult }: { sectionId: str
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
 
+  // Held in a ref so a parent re-render with a new callback does not restart
+  // the load effect (that was one half of a fetch loop).
+  const onResultRef = useRef(onResult);
+  useEffect(() => {
+    onResultRef.current = onResult;
+  }, [onResult]);
   const load = useCallback(() => {
     store
       .gradingRun(sectionId)
       .then((r) => {
         setRun(r.run);
         setConfigured(r.configured);
-        if (r.run && (r.run.status === 'passed' || r.run.status === 'failed')) onResult?.(r.run);
+        if (r.run && (r.run.status === 'passed' || r.run.status === 'failed')) onResultRef.current?.(r.run);
       })
       .catch((e: Error) => setError(e.message));
-  }, [store, sectionId, onResult]);
+  }, [store, sectionId]);
 
   useEffect(() => {
     load();
