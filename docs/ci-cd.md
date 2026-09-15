@@ -332,7 +332,13 @@ merging — a ruleset can.
   - `Content validation`
   - `Tests`
   - `Bundle validation`
+  - `Study app`
   - `Approved by a reviewer`
+
+  All five, and `Study app` in particular: on 2026-09-15 a PR whose app job was
+  red (a client typecheck error) merged because that job was not in the list,
+  the deploy failed and the app was down until the next PR. A required check
+  that is missing from this list is advisory only.
 
 While you're the only contributor, add yourself under **Bypass list** — see the
 section at the top for why.
