@@ -20,7 +20,7 @@
 # MAGIC ### Before you start
 # MAGIC
 # MAGIC Work the lesson in `notebooks/lessons/professional/S3/`, and generate the data
-# MAGIC (the study app runs the `generate_datasets_pro_s3` job the first time you open this section; `databricks bundle run generate_datasets_pro_s3 -t free` does the same from a terminal).
+# MAGIC (the study app generates the data the first time you open this section; `databricks bundle run generate_datasets_pro_s3 -t free` does the same from a terminal).
 # MAGIC
 # MAGIC > **Every row in this table is individually valid.** Every value casts, no nulls, no
 # MAGIC > negatives, no impossible magnitudes. The lesson's row-level rules find **nothing**,

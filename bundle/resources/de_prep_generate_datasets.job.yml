@@ -1,0 +1,26 @@
+# One dataset-generation job for every section, parameterised by `section`.
+# The study app binds this single job (a Databricks App may hold at most 20
+# resources, and Lakebase + the reset job + 17 graders already take 19) and
+# runs it the first time a learner opens a section. The per-section
+# `generate_datasets_<section>` jobs stay for the terminal and CI.
+#
+# No compute block on purpose: serverless is the only compute Free Edition
+# offers, and a notebook task without a cluster spec runs there.
+resources:
+  jobs:
+    generate_datasets:
+      name: "[DE prep] Generate a section's datasets"
+      description: >-
+        Runs notebooks/datasets/generate_<section>.py for the given section.
+        Started by the study app on first open of a section; also runnable as
+        `databricks bundle run generate_datasets -t free --params section=ASSOC-S1`.
+      parameters:
+        - name: section
+          default: ""
+      tasks:
+        - task_key: generate
+          notebook_task:
+            notebook_path: ../../notebooks/datasets/generate.py
+      max_concurrent_runs: 3
+      queue:
+        enabled: true

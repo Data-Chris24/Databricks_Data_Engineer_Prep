@@ -5,7 +5,7 @@
 ## Before you start
 
 Work the two lessons in `notebooks/lessons/professional/S5/`, and generate the data
-(the study app runs the `generate_datasets_pro_s5` job the first time you open this section; `databricks bundle run generate_datasets_pro_s5 -t free` does the same from a terminal).
+(the study app generates the data the first time you open this section; `databricks bundle run generate_datasets_pro_s5 -t free` does the same from a terminal).
 
 > **The lesson's fixed threshold cannot work here, and you can prove it.** The
 > weekend range and the degraded weekday range do not overlap the way a single number

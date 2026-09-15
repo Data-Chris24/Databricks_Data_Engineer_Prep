@@ -20,7 +20,7 @@
 # MAGIC ### Before you start
 # MAGIC
 # MAGIC Work the two lessons in `notebooks/lessons/associate/S4/`, and generate the data
-# MAGIC (the study app runs the `generate_datasets_assoc_s4` job the first time you open this section; `databricks bundle run generate_datasets_assoc_s4 -t free` does the same from a terminal).
+# MAGIC (the study app generates the data the first time you open this section; `databricks bundle run generate_datasets_assoc_s4 -t free` does the same from a terminal).
 # MAGIC
 # MAGIC > **The lesson's linear chain will not survive this source.** One region's file
 # MAGIC > contains a value that will not cast, and a chain that reads everything at once dies

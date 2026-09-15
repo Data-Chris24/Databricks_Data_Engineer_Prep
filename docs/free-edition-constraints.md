@@ -12,7 +12,7 @@ Verified 2026-09-09 against an AWS-backed Free Edition workspace.
 
 | Capability | Limit | Verified? |
 | --- | --- | --- |
-| Databricks Apps | **3 per account.** Each **auto-stops 24 hours** after being started, updated or redeployed | Measured — deployed and ran one |
+| Databricks Apps | **3 per account.** Each **auto-stops 24 hours** after being started, updated or redeployed. **At most 20 resources per app** (jobs, Lakebase, …) | Measured — deployed and ran one; the 20-resource cap refused an 18-job binding on 2026-09-15 |
 | App builds | Remote `npm install` and remote build **work** — npm/PyPI are reachable | **Measured** (see below) |
 | Compute | **Serverless only.** No custom compute configuration | Documented |
 | SQL warehouse | **One**, fixed at **2X-Small** | Measured — `Serverless Starter Warehouse`, 2X-Small |

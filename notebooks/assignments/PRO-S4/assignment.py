@@ -15,7 +15,7 @@
 # MAGIC ### Before you start
 # MAGIC
 # MAGIC Work both lessons in `notebooks/lessons/professional/S4/`, and build the objects
-# MAGIC (the study app runs the `generate_datasets_pro_s4` job the first time you open this section; `databricks bundle run generate_datasets_pro_s4 -t free` does the same from a terminal).
+# MAGIC (the study app generates the data the first time you open this section; `databricks bundle run generate_datasets_pro_s4 -t free` does the same from a terminal).
 # MAGIC
 # MAGIC > **In the lesson, the tables shared however you asked.** Deletion vectors were off,
 # MAGIC > so `WITHOUT HISTORY` just worked, and one statement per table was enough. Three of
