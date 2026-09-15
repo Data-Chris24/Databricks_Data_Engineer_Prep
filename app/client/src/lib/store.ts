@@ -45,6 +45,34 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The server answered with something that is not JSON: the HTML page the
+ * platform serves while the app restarts (after a deploy, or a Start after the
+ * 24-hour auto-stop). Without this the learner saw
+ * "Unexpected token '<', \"<!DOCTYPE\"... is not valid JSON".
+ */
+export class AppRestartingError extends ApiError {
+  constructor(status: number) {
+    super(status, { error: 'app_restarting' });
+    this.name = 'AppRestartingError';
+    this.message = 'The app is restarting (a new version is being deployed, or it was just started). Give it a minute and try again.';
+  }
+}
+
+/** Parse a JSON body; an HTML or empty-but-failed body means the app is not up yet. */
+export function parseJson(status: number, text: string): Record<string, unknown> {
+  const trimmed = text.trim();
+  if (!trimmed) return {};
+  if (trimmed.startsWith('<')) throw new AppRestartingError(status);
+  try {
+    return JSON.parse(trimmed) as Record<string, unknown>;
+  } catch {
+    throw new AppRestartingError(status);
+  }
+}
+
+const RETRY_MS = 2500;
+
 export class BankTooSmallError extends ApiError {
   readonly have: number;
   readonly need: number;
@@ -120,7 +148,7 @@ export interface StudyStore {
 
 // ------------------------------------------------------------------ api
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, retried = false): Promise<T> {
   const res = await fetch(path, {
     method,
     headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
@@ -128,7 +156,18 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   });
   if (res.status === 204) return undefined as T;
   const text = await res.text();
-  const data = text ? (JSON.parse(text) as Record<string, unknown>) : {};
+  let data: Record<string, unknown>;
+  try {
+    data = parseJson(res.status, text);
+  } catch (e) {
+    // A read can be retried once after a short wait; a write must not be
+    // repeated blindly, the caller decides.
+    if (e instanceof AppRestartingError && method === 'GET' && !retried) {
+      await new Promise((r) => setTimeout(r, RETRY_MS));
+      return request<T>(method, path, body, true);
+    }
+    throw e;
+  }
   if (!res.ok) {
     if (data.error === 'bank_too_small') throw new BankTooSmallError(Number(data.have), Number(data.need));
     if (data.error === 'attempt_active') throw new AttemptActiveError(String(data.attemptId));
