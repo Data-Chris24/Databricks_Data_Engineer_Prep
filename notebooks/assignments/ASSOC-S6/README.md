@@ -5,7 +5,7 @@
 ## Before you start
 
 Work the two lessons in `notebooks/lessons/associate/S6/`, and generate the data
-(`databricks bundle run generate_datasets_assoc_s6 -t free`).
+(the study app runs the `generate_datasets_assoc_s6` job the first time you open this section; `databricks bundle run generate_datasets_assoc_s6 -t free` does the same from a terminal).
 
 > **The lesson's `GROUP BY` finds one of three problems here.** Two of them leave the
 > row count and the distinct-key count looking perfectly normal.

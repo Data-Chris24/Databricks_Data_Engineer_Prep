@@ -20,7 +20,7 @@
 # MAGIC ### Before you start
 # MAGIC
 # MAGIC Work the lesson in `notebooks/lessons/professional/S10/`, and generate the data
-# MAGIC (`databricks bundle run generate_datasets_pro_s10 -t free`).
+# MAGIC (the study app runs the `generate_datasets_pro_s10` job the first time you open this section; `databricks bundle run generate_datasets_pro_s10 -t free` does the same from a terminal).
 # MAGIC
 # MAGIC > **The lesson's dimension does not change. This one does.** In the lesson,
 # MAGIC > `customer_id` identified a customer *and* a row, so a natural-key join was correct

@@ -5,7 +5,7 @@
 ## Before you start
 
 Work the two lessons in `notebooks/lessons/professional/S1/`, and generate the data
-(`databricks bundle run generate_datasets_pro_s1 -t free`).
+(the study app runs the `generate_datasets_pro_s1` job the first time you open this section; `databricks bundle run generate_datasets_pro_s1 -t free` does the same from a terminal).
 
 > **The lesson's pipeline reads a snapshot.** This source is a *change feed* — rows
 > are events *about* rows. Transform-and-write produces a table of events, not of

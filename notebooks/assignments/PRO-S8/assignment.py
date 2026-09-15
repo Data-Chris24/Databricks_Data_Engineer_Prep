@@ -15,7 +15,7 @@
 # MAGIC ### Before you start
 # MAGIC
 # MAGIC Work both lessons in `notebooks/lessons/professional/S8/`, and build the structures
-# MAGIC (`databricks bundle run generate_datasets_pro_s8 -t free`).
+# MAGIC (the study app runs the `generate_datasets_pro_s8` job the first time you open this section; `databricks bundle run generate_datasets_pro_s8 -t free` does the same from a terminal).
 # MAGIC
 # MAGIC > **In the lesson, every grant sat on the table it named.** That made
 # MAGIC > `information_schema.table_privileges` a complete and truthful answer, and the audit

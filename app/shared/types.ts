@@ -92,6 +92,20 @@ export interface SectionNotebooks {
     notebook: string | null;
     grade_job: string | null;
   };
+  /** The bundle job that generates the section's teach and assess data. */
+  datasets: { job: string | null };
+}
+
+export type DatasetStatus = 'ready' | 'preparing' | 'missing' | 'failed' | 'unconfigured';
+
+export interface DatasetState {
+  sectionId: string;
+  status: DatasetStatus;
+  /** The run in flight (preparing) or the run the status was read from. */
+  runId: number | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  error: string | null;
 }
 
 export interface ContentMeta {

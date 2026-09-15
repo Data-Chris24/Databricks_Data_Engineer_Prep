@@ -29,6 +29,8 @@ export function jobEnvName(jobName: string): string | null {
   const rest = jobName.slice(i + MARKER.length).trim();
   const grade = /^Grade ((?:ASSOC|PRO)-S\d+)$/i.exec(rest);
   if (grade) return `DATABRICKS_JOB_GRADE_${grade[1].toUpperCase().replace('-', '_')}`;
+  const generate = /^Generate ((?:ASSOC|PRO)-S\d+) /i.exec(rest);
+  if (generate) return `DATABRICKS_JOB_GENERATE_DATASETS_${generate[1].toUpperCase().replace('-', '_')}`;
   if (/^Reset an assignment/i.test(rest)) return 'DATABRICKS_JOB_RESET_ASSIGNMENT';
   return null;
 }
