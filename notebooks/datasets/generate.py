@@ -39,7 +39,9 @@ result = dbutils.notebook.run(f"generate_{section}", timeout_seconds=1800)
 
 # COMMAND ----------
 
-catalog = spark.conf.get("de_prep.catalog", "workspace")
+# Hard-coded like every generator: Free Edition has one catalog. (spark.conf.get
+# with a default still raises CONFIG_NOT_AVAILABLE on serverless for unset keys.)
+catalog = "workspace"
 grants = "USE SCHEMA, SELECT, MODIFY, CREATE TABLE, READ VOLUME, WRITE VOLUME"
 granted = []
 for schema in ("de_prep", "de_prep_staging"):
