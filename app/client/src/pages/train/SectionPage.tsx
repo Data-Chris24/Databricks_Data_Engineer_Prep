@@ -181,7 +181,6 @@ export function SectionPage() {
   // A pass reported by the grading panel completes the section; re-read the
   // server's view rather than guessing. Declared before the early return
   // below because hooks must run in the same order on every render.
-  const sectionId = section?.id;
   const onGraded = useCallback(
     (run: GradingRun) => {
       if (run.status !== 'passed' || !sectionId) return;
