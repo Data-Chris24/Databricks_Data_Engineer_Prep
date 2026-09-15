@@ -255,10 +255,14 @@ What replaced it, and why each choice:
   server resolves job ids and the files root at startup by listing the jobs it
   can see: the graders have stable names and their notebook paths sit under
   `<files root>/grading/`. Bundle-provided values still take precedence.
-- **Section completion = reaching the end of the page** (a sentinel in view for a
-  second), with a manual toggle either way. Clicking the notebook link was
-  rejected as the signal because people who read first and lab later would never
-  complete anything.
+- **Section completion = a passing grade on the assignment.** The first cut
+  completed a section when the notes had been read to the end (a sentinel in
+  view for a second), with a manual toggle; in use that showed "Complete" on a
+  section whose assignment had only been opened (2026-09-15). Reading to the end
+  is still recorded (`read`) for the resume point and the "in progress" state,
+  but `completed` is derived from the grading runs on every read
+  (`app/shared/completion.ts`), so a reset that deletes the runs also removes
+  the completion and no flag has to be kept in step.
 - **Test mode draws one question per *family*** (a question plus its concise
   `variant_of` rewrites), apportioned across sections by exam weighting, and
   refuses to start until the bank has at least `scored_items` families for the
