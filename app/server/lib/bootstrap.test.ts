@@ -20,6 +20,8 @@ describe('jobEnvName', () => {
     expect(jobEnvName('[DE prep] Grade ASSOC-S3')).toBe('DATABRICKS_JOB_GRADE_ASSOC_S3');
     expect(jobEnvName('[dev someone] [DE prep] Grade PRO-S10')).toBe('DATABRICKS_JOB_GRADE_PRO_S10');
     expect(jobEnvName("[DE prep] Reset an assignment's outputs")).toBe('DATABRICKS_JOB_RESET_ASSIGNMENT');
+    expect(jobEnvName('[dev x] [DE prep] Generate ASSOC-S1 datasets')).toBe('DATABRICKS_JOB_GENERATE_DATASETS_ASSOC_S1');
+    expect(jobEnvName('[DE prep] Generate PRO-S8 governance structures')).toBe('DATABRICKS_JOB_GENERATE_DATASETS_PRO_S8');
   });
   it('ignores lesson runners and unrelated jobs', () => {
     expect(jobEnvName('[DE prep] Run ASSOC-S1 lessons')).toBeNull();

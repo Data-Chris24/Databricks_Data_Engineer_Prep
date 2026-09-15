@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { notebooks, notes, questionsFor, sectionById } from '../../../../shared/content';
 import type { AppConfig, GradingRun, ProgressRow } from '../../../../shared/types';
 import { AssignmentBand } from '../../components/AssignmentBand';
+import { DatasetBand } from '../../components/DatasetBand';
 import { GradingPanel } from '../../components/GradingPanel';
 import { Icon } from '../../components/Icon';
 import { useExam } from '../../lib/exam';
@@ -274,6 +275,7 @@ export function SectionPage() {
 
           <div className="end-block" id="hands-on">
             <div className="rail-title">Hands-on · in your workspace</div>
+            {nbs?.datasets.job ? <DatasetBand sectionId={section.id} /> : null}
             {config && !workspaceUrl(config, 'x') ? (
               <div className="notice">
                 Notebook links open once the app is deployed with the bundle. Locally, open the paths below in your workspace.

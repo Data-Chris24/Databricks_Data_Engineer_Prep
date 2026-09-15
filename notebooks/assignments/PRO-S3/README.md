@@ -5,7 +5,7 @@
 ## Before you start
 
 Work the lesson in `notebooks/lessons/professional/S3/`, and generate the data
-(`databricks bundle run generate_datasets_pro_s3 -t free`).
+(the study app runs the `generate_datasets_pro_s3` job the first time you open this section; `databricks bundle run generate_datasets_pro_s3 -t free` does the same from a terminal).
 
 > **Every row in this table is individually valid.** Every value casts, no nulls, no
 > negatives, no impossible magnitudes. The lesson's row-level rules find **nothing**,

@@ -18,7 +18,7 @@
 # MAGIC ### Before you start
 # MAGIC
 # MAGIC Work through the three lessons in `notebooks/lessons/associate/S3/`, and make sure
-# MAGIC the tables exist (`databricks bundle run generate_datasets_assoc_s3 -t free`).
+# MAGIC the tables exist (the study app runs the `generate_datasets_assoc_s3` job the first time you open this section; `databricks bundle run generate_datasets_assoc_s3 -t free` does the same from a terminal).
 # MAGIC
 # MAGIC > **The lesson's joins will not survive this data.** The lessons used clean
 # MAGIC > dimensions — one row per key, every foreign key resolving. This source has neither.

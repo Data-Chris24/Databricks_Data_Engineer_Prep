@@ -27,6 +27,7 @@ import type {
   ProgressPatch,
   ProgressRow,
   Quality,
+  DatasetState,
   ResetAllResult,
   ReviewRow,
   ScoreResult,
@@ -104,6 +105,10 @@ export interface StudyStore {
   grade(sectionId: string): Promise<GradingRun>;
   /** Record that a lesson notebook was opened from the app. */
   visitNotebook(path: string): Promise<void>;
+  /** Whether the section's teach/assess data exists in this workspace. */
+  datasets(sectionId: string): Promise<DatasetState>;
+  /** Run the section's generate job unless the data is ready or being made; force regenerates. */
+  prepareDatasets(sectionId: string, force?: boolean): Promise<DatasetState>;
   assignment(sectionId: string): Promise<AssignmentState>;
   /** Create the learner's own copy of the starter notebooks (idempotent). */
   provisionAssignment(sectionId: string): Promise<AssignmentState>;
@@ -185,6 +190,12 @@ export class ApiStore implements StudyStore {
   }
   visitNotebook(path: string) {
     return request<void>('PUT', '/api/training/visits', { path });
+  }
+  datasets(sectionId: string) {
+    return request<DatasetState>('GET', `/api/datasets/${sectionId}`);
+  }
+  prepareDatasets(sectionId: string, force = false) {
+    return request<DatasetState>('POST', `/api/datasets/${sectionId}/prepare`, { force });
   }
   assignment(sectionId: string) {
     return request<AssignmentState>('GET', `/api/assignment/${sectionId}`);
@@ -295,6 +306,18 @@ export class MemoryStore implements StudyStore {
   }
   async visitNotebook(path: string) {
     this.visits.add(path);
+  }
+  private datasetStates = new Map<string, DatasetState>();
+  async datasets(sectionId: string): Promise<DatasetState> {
+    return this.datasetStates.get(sectionId) ?? { sectionId, status: 'missing', runId: null, startedAt: null, finishedAt: null, error: null };
+  }
+  async prepareDatasets(sectionId: string, force = false): Promise<DatasetState> {
+    const current = await this.datasets(sectionId);
+    if (current.status === 'ready' && !force) return current;
+    const at = new Date(this.now()).toISOString();
+    const next: DatasetState = { sectionId, status: 'ready', runId: 1, startedAt: at, finishedAt: at, error: null };
+    this.datasetStates.set(sectionId, next);
+    return next;
   }
   async assignment(sectionId: string): Promise<AssignmentState> {
     const copy = this.copies.get(sectionId);

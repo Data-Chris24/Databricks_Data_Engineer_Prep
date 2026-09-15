@@ -290,8 +290,23 @@ def grade_jobs() -> dict[str, str]:
     return jobs
 
 
+def generate_jobs() -> dict[str, str]:
+    """Section id -> bundle job key that generates its teach/assess datasets."""
+    jobs: dict[str, str] = {}
+    for path in sorted(BUNDLE_RESOURCES.glob("*.yml")):
+        doc = yaml.safe_load(path.read_text()) or {}
+        for key, job in (doc.get("resources", {}).get("jobs", {}) or {}).items():
+            for task in job.get("tasks", []) or []:
+                nb = (task.get("notebook_task") or {}).get("notebook_path", "")
+                m = re.search(r"datasets/generate_((?:ASSOC|PRO)-S\d+)\.py$", nb)
+                if m and key.startswith("generate"):
+                    jobs[m.group(1)] = key
+    return jobs
+
+
 def collect_notebooks(exams: list[dict]) -> dict[str, dict]:
     grade = grade_jobs()
+    generate = generate_jobs()
     out: dict[str, dict] = {}
     for exam in exams:
         for s in exam["sections"]:
@@ -315,6 +330,9 @@ def collect_notebooks(exams: list[dict]) -> dict[str, dict]:
                     "notebook": str(starter.relative_to(REPO_ROOT).with_suffix("")) if starter.exists() else None,
                     "grade_job": grade.get(sid),
                 },
+                # The app runs this job when a learner opens a section whose data
+                # has never been generated in the workspace.
+                "datasets": {"job": generate.get(sid)},
             }
     return out
 

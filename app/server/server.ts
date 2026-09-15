@@ -7,6 +7,7 @@ import { userMiddleware } from './lib/http';
 import { createLearnerWorkspace } from './lib/workspace';
 import { registerAssignmentRoutes } from './routes/assignment';
 import { registerConfigRoutes } from './routes/config';
+import { registerDatasetRoutes } from './routes/datasets';
 import { registerGradingRoutes } from './routes/grading';
 import { registerPracticeRoutes } from './routes/practice';
 import { registerTestRoutes } from './routes/tests';
@@ -35,6 +36,7 @@ createApp({
     appkit.server.extend((app) => {
       app.use('/api', userMiddleware(appkit.lakebase));
       registerConfigRoutes(app, appkit.lakebase);
+      registerDatasetRoutes(app, appkit);
       registerTrainingRoutes(app, appkit.lakebase);
       registerPracticeRoutes(app, appkit.lakebase);
       registerTestRoutes(app, appkit.lakebase);

@@ -5,7 +5,7 @@
 ## Before you start
 
 Work the two lessons in `notebooks/lessons/associate/S1/`, and generate the data
-(`databricks bundle run generate_datasets_assoc_s1 -t free`).
+(the study app runs the `generate_datasets_assoc_s1` job the first time you open this section; `databricks bundle run generate_datasets_assoc_s1 -t free` does the same from a terminal).
 
 > **A query against the current table cannot produce the right answer.** The data you
 > need is not there any more. It is still recoverable.

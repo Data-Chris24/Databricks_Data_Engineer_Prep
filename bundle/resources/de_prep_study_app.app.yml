@@ -74,6 +74,43 @@ targets:
                 value: ${resources.jobs.grade_pro_s8.id}
               - name: DATABRICKS_JOB_GRADE_PRO_S9
                 value: ${resources.jobs.grade_pro_s9.id}
+              # One dataset-generation job per section. The app runs it when a learner
+              # opens a section whose data has never been generated (see
+              # server/routes/datasets.ts), so nobody needs a terminal.
+              - name: DATABRICKS_JOB_GENERATE_DATASETS_ASSOC_S1
+                value: ${resources.jobs.generate_datasets_assoc_s1.id}
+              - name: DATABRICKS_JOB_GENERATE_DATASETS_ASSOC_S2
+                value: ${resources.jobs.generate_datasets_assoc_s2.id}
+              - name: DATABRICKS_JOB_GENERATE_DATASETS_ASSOC_S3
+                value: ${resources.jobs.generate_datasets_assoc_s3.id}
+              - name: DATABRICKS_JOB_GENERATE_DATASETS_ASSOC_S4
+                value: ${resources.jobs.generate_datasets_assoc_s4.id}
+              - name: DATABRICKS_JOB_GENERATE_DATASETS_ASSOC_S5
+                value: ${resources.jobs.generate_datasets_assoc_s5.id}
+              - name: DATABRICKS_JOB_GENERATE_DATASETS_ASSOC_S6
+                value: ${resources.jobs.generate_datasets_assoc_s6.id}
+              - name: DATABRICKS_JOB_GENERATE_DATASETS_ASSOC_S7
+                value: ${resources.jobs.generate_datasets_assoc_s7.id}
+              - name: DATABRICKS_JOB_GENERATE_DATASETS_PRO_S1
+                value: ${resources.jobs.generate_datasets_pro_s1.id}
+              - name: DATABRICKS_JOB_GENERATE_DATASETS_PRO_S10
+                value: ${resources.jobs.generate_datasets_pro_s10.id}
+              - name: DATABRICKS_JOB_GENERATE_DATASETS_PRO_S2
+                value: ${resources.jobs.generate_datasets_pro_s2.id}
+              - name: DATABRICKS_JOB_GENERATE_DATASETS_PRO_S3
+                value: ${resources.jobs.generate_datasets_pro_s3.id}
+              - name: DATABRICKS_JOB_GENERATE_DATASETS_PRO_S4
+                value: ${resources.jobs.generate_datasets_pro_s4.id}
+              - name: DATABRICKS_JOB_GENERATE_DATASETS_PRO_S5
+                value: ${resources.jobs.generate_datasets_pro_s5.id}
+              - name: DATABRICKS_JOB_GENERATE_DATASETS_PRO_S6
+                value: ${resources.jobs.generate_datasets_pro_s6.id}
+              - name: DATABRICKS_JOB_GENERATE_DATASETS_PRO_S7
+                value: ${resources.jobs.generate_datasets_pro_s7.id}
+              - name: DATABRICKS_JOB_GENERATE_DATASETS_PRO_S8
+                value: ${resources.jobs.generate_datasets_pro_s8.id}
+              - name: DATABRICKS_JOB_GENERATE_DATASETS_PRO_S9
+                value: ${resources.jobs.generate_datasets_pro_s9.id}
           resources:
             - name: postgres
               postgres:
@@ -152,4 +189,72 @@ targets:
             - name: job_grade_pro_s9
               job:
                 id: ${resources.jobs.grade_pro_s9.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_generate_datasets_assoc_s1
+              job:
+                id: ${resources.jobs.generate_datasets_assoc_s1.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_generate_datasets_assoc_s2
+              job:
+                id: ${resources.jobs.generate_datasets_assoc_s2.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_generate_datasets_assoc_s3
+              job:
+                id: ${resources.jobs.generate_datasets_assoc_s3.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_generate_datasets_assoc_s4
+              job:
+                id: ${resources.jobs.generate_datasets_assoc_s4.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_generate_datasets_assoc_s5
+              job:
+                id: ${resources.jobs.generate_datasets_assoc_s5.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_generate_datasets_assoc_s6
+              job:
+                id: ${resources.jobs.generate_datasets_assoc_s6.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_generate_datasets_assoc_s7
+              job:
+                id: ${resources.jobs.generate_datasets_assoc_s7.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_generate_datasets_pro_s1
+              job:
+                id: ${resources.jobs.generate_datasets_pro_s1.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_generate_datasets_pro_s10
+              job:
+                id: ${resources.jobs.generate_datasets_pro_s10.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_generate_datasets_pro_s2
+              job:
+                id: ${resources.jobs.generate_datasets_pro_s2.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_generate_datasets_pro_s3
+              job:
+                id: ${resources.jobs.generate_datasets_pro_s3.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_generate_datasets_pro_s4
+              job:
+                id: ${resources.jobs.generate_datasets_pro_s4.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_generate_datasets_pro_s5
+              job:
+                id: ${resources.jobs.generate_datasets_pro_s5.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_generate_datasets_pro_s6
+              job:
+                id: ${resources.jobs.generate_datasets_pro_s6.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_generate_datasets_pro_s7
+              job:
+                id: ${resources.jobs.generate_datasets_pro_s7.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_generate_datasets_pro_s8
+              job:
+                id: ${resources.jobs.generate_datasets_pro_s8.id}
+                permission: CAN_MANAGE_RUN
+            - name: job_generate_datasets_pro_s9
+              job:
+                id: ${resources.jobs.generate_datasets_pro_s9.id}
                 permission: CAN_MANAGE_RUN

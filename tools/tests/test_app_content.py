@@ -243,3 +243,12 @@ def test_every_objective_has_a_question(bundle):
     covered = {o for q in bundle["questions.json"] for o in q["objectives"]}
     missing = [o.id for o in objective_index().values() if o.id not in covered]
     assert not missing, f"objectives without a question: {missing}"
+
+
+def test_every_section_names_its_dataset_job(bundle):
+    """The app prepares a section's data by running its generate job; a section
+    without one would send the learner back to a terminal."""
+    nb = bundle["notebooks.json"]
+    missing = [sid for sid, s in nb.items() if not s.get("datasets", {}).get("job")]
+    assert not missing, f"sections without a datasets job: {missing}"
+    assert len(nb) == 17
