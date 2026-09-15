@@ -122,9 +122,6 @@ employees = spark.table(SOURCE)
 
 # COMMAND ----------
 
-# governed = employees.withColumn("national_id_hash", F.sha2(F.col("national_id"), 256)).select(
-#     "employee_id", "full_name", "national_id_hash", "region", "department", "salary", "case_note", "hired_on")
-# governed.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(TARGET)
 
 # COMMAND ----------
 
@@ -135,10 +132,7 @@ employees = spark.table(SOURCE)
 
 # COMMAND ----------
 
-# spark.sql("""CREATE OR REPLACE FUNCTION s7_mask_salary(v DOUBLE) RETURN
-#   CASE WHEN is_account_group_member('...') THEN v ELSE NULL END""")
-# spark.sql(f"ALTER TABLE {TARGET} ALTER COLUMN salary SET MASK s7_mask_salary")
-# ... and the same idea for case_note
+# The same idea protects case_note.
 
 # COMMAND ----------
 
@@ -149,9 +143,6 @@ employees = spark.table(SOURCE)
 
 # COMMAND ----------
 
-# spark.sql("""CREATE OR REPLACE FUNCTION s7_region_filter(region STRING) RETURN ...""")
-# spark.sql(f"ALTER TABLE {TARGET} SET ROW FILTER s7_region_filter ON (region)")
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -159,5 +150,4 @@ employees = spark.table(SOURCE)
 
 # COMMAND ----------
 
-# display(spark.sql(f"DESCRIBE TABLE EXTENDED {TARGET}"))
 # display(spark.table(TARGET).limit(5))   # as you: what do you see, and should you?

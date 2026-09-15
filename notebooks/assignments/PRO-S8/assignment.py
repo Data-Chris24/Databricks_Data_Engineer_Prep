@@ -132,7 +132,6 @@ display(spark.sql(f"""
 
 # TODO: your investigation
 
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -141,8 +140,6 @@ display(spark.sql(f"""
 # COMMAND ----------
 
 # TODO
-# report.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("pro_s8_access_report")
-
 
 # COMMAND ----------
 
@@ -154,8 +151,6 @@ display(spark.sql(f"""
 # COMMAND ----------
 
 # TODO
-# docs.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("pro_s8_documentation")
-
 
 # COMMAND ----------
 

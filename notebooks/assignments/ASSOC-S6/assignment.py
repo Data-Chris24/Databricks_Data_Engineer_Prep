@@ -104,7 +104,6 @@ orders = spark.table(SOURCE)
 
 # COMMAND ----------
 
-# print(orders.count(), orders.select("order_id").distinct().count())
 # display(orders.describe())
 
 # COMMAND ----------
@@ -116,8 +115,6 @@ orders = spark.table(SOURCE)
 
 # COMMAND ----------
 
-# dup_rows = orders.count() - orders.select(<key>).distinct().count()
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -127,8 +124,6 @@ orders = spark.table(SOURCE)
 
 # COMMAND ----------
 
-# by_day = orders.groupBy(<date col>).agg(F.sum(F.col(<col>).isNull().cast("int")).alias("nulls")).orderBy(<date col>)
-# display(by_day)
 
 # COMMAND ----------
 
@@ -139,8 +134,6 @@ orders = spark.table(SOURCE)
 
 # COMMAND ----------
 
-# shares = orders.groupBy(<col>).count().withColumn("pct", F.col("count") * 100.0 / orders.count()).orderBy(F.desc("pct"))
-# display(shares)
 
 # COMMAND ----------
 
@@ -154,8 +147,6 @@ orders = spark.table(SOURCE)
 # rows = [("duplicate_keys", <column>, float(<metric>), "..."),
 #         ("null_regression", <column>, float(<metric>), "..."),
 #         ("skew", <column>, float(<metric>), "...")]
-# spark.createDataFrame(rows, "finding STRING, column_name STRING, metric DOUBLE, detail STRING") \
-#     .write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(REPORT)
 
 # COMMAND ----------
 

@@ -145,8 +145,6 @@ for f in dbutils.fs.ls(RAW):
 # COMMAND ----------
 
 # Print the schema of a single file, then of all of them. Are they the same?
-# spark.read.json(f"{RAW}/events_2026-03-01.json").printSchema()
-
 
 # COMMAND ----------
 
@@ -159,16 +157,12 @@ for f in dbutils.fs.ls(RAW):
 
 # raw = ...
 
-
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## Step 2 — reshape to one row per reading
 
 # COMMAND ----------
-
-
-
 
 # COMMAND ----------
 
@@ -180,18 +174,12 @@ for f in dbutils.fs.ls(RAW):
 
 # COMMAND ----------
 
-
-
-
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## Step 4 — deduplicate on the business key
 
 # COMMAND ----------
-
-
-
 
 # COMMAND ----------
 
@@ -202,9 +190,6 @@ for f in dbutils.fs.ls(RAW):
 
 # COMMAND ----------
 
-# final.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(TARGET)
-
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -213,6 +198,5 @@ for f in dbutils.fs.ls(RAW):
 # COMMAND ----------
 
 # t = spark.table(TARGET)
-# print("rows:", t.count(), "| distinct event_id:", t.select("event_id").distinct().count())
 # t.printSchema()
 # display(t.orderBy("event_id").limit(5))

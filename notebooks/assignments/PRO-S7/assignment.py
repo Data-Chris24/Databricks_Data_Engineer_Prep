@@ -111,8 +111,6 @@ erasures = spark.table(ERASURES)
 
 # COMMAND ----------
 
-# display(records.limit(10)); display(records.groupBy("record_type").count())
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -121,8 +119,6 @@ erasures = spark.table(ERASURES)
 # MAGIC Requirement 1: gone, not masked. An anti join, not a filter on a flag.
 
 # COMMAND ----------
-
-# kept = records.join(erasures, "subject_id", "left_anti")
 
 # COMMAND ----------
 
@@ -134,7 +130,6 @@ erasures = spark.table(ERASURES)
 # COMMAND ----------
 
 # limits = {"support_ticket": 365, "marketing_event": 90, "transaction_log": 2555}
-# retained = kept.filter(...)
 
 # COMMAND ----------
 
@@ -145,8 +140,6 @@ erasures = spark.table(ERASURES)
 
 # COMMAND ----------
 
-# scrubbed = retained.withColumn("case_note", F.regexp_replace("case_note", r"...", "[redacted]"))
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -156,10 +149,6 @@ erasures = spark.table(ERASURES)
 
 # COMMAND ----------
 
-# final = scrubbed.withColumn("subject_hash", F.sha2(F.concat(F.lit(SALT), F.col("subject_id")), 256)) \
-#     .select("record_id", "subject_hash", "record_type", "case_note", "created_on")
-# final.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(TARGET)
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -167,4 +156,3 @@ erasures = spark.table(ERASURES)
 
 # COMMAND ----------
 
-# t = spark.table(TARGET); print(t.count()); display(t.filter(F.col("case_note").rlike("@")))   # should be empty

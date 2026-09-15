@@ -116,7 +116,6 @@ orders = spark.table("pro_s10_assess_orders")
 
 # TODO: your investigation
 
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -127,8 +126,6 @@ orders = spark.table("pro_s10_assess_orders")
 # COMMAND ----------
 
 # TODO
-# dim.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("pro_s10_dim_customer")
-
 
 # COMMAND ----------
 
@@ -141,8 +138,6 @@ orders = spark.table("pro_s10_assess_orders")
 # COMMAND ----------
 
 # TODO
-# fact.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("pro_s10_fact_orders")
-
 
 # COMMAND ----------
 

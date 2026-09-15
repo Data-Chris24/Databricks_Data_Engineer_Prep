@@ -118,9 +118,6 @@ w = Window.partitionBy("device_id").orderBy("reading_ts")
 
 # COMMAND ----------
 
-# with_prev = readings.withColumn("prev", F.lag("reading").over(w))
-# backwards = with_prev.filter("reading < prev")
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -129,9 +126,6 @@ w = Window.partitionBy("device_id").orderBy("reading_ts")
 # MAGIC Readings arrive every 15 minutes. An interval longer than that means readings are missing.
 
 # COMMAND ----------
-
-# with_gap = readings.withColumn("prev_ts", F.lag("reading_ts").over(w))
-# gaps = with_gap.filter(F.col("reading_ts").cast("long") - F.col("prev_ts").cast("long") > 15 * 60)
 
 # COMMAND ----------
 
@@ -142,8 +136,6 @@ w = Window.partitionBy("device_id").orderBy("reading_ts")
 
 # COMMAND ----------
 
-# dups = readings.groupBy("device_id", "reading_ts").count().filter("count > 1")
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -153,10 +145,7 @@ w = Window.partitionBy("device_id").orderBy("reading_ts")
 
 # COMMAND ----------
 
-# def devices(df): return ",".join(sorted(r[0] for r in df.select("device_id").distinct().collect()))
 # rows = [("meter_backwards", float(...), devices(backwards), "..."), ...]
-# spark.createDataFrame(rows, "finding STRING, affected_rows DOUBLE, affected_devices STRING, detail STRING") \
-#     .write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(TARGET)
 
 # COMMAND ----------
 

@@ -198,6 +198,17 @@ A learner who wants to peek can still open `grading/<SECTION>/tests/` in their
 workspace and read what is checked and the expected numbers. That is friction,
 not secrecy, and it is the honest limit of a public repo.
 
+### A starter is a blank, not a redacted answer
+
+A starter holds constants, the task text, one empty code cell per requirement
+and a self-check that reads the output tables back. It never holds the
+solution, and "commented out with one blank to fill" is the solution: on
+2026-09-15 eleven starters were found carrying their `.write...saveAsTable`,
+window, join and filter lines as comments. What a comment may say: a question or
+hint in words, a placeholder such as `# good_version = ...` naming the value the
+contract wants, or a self-check like `# display(spark.table(TARGET))`.
+`tools/starter_rules.py` encodes this and the layout test fails on a breach.
+
 ### The README travels inside the starter
 
 A learner's copy of `assignment.py` is provisioned alone into their workspace

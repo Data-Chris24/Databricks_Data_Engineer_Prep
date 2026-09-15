@@ -107,7 +107,6 @@ orders = spark.table(SOURCE)
 
 # COMMAND ----------
 
-# display(spark.sql(f"DESCRIBE DETAIL {SOURCE}"))
 # print(len(orders.columns), "columns")
 
 # COMMAND ----------
@@ -130,7 +129,7 @@ orders = spark.table(SOURCE)
 
 # COMMAND ----------
 
-# num_columns = len(orders.columns)
+# num_columns = ...
 
 # COMMAND ----------
 
@@ -141,9 +140,6 @@ orders = spark.table(SOURCE)
 
 # COMMAND ----------
 
-# n = orders.count()
-# for c in orders.columns:
-#     print(c, orders.select(c).distinct().count() * 100.0 / n)
 
 # COMMAND ----------
 
@@ -155,8 +151,6 @@ orders = spark.table(SOURCE)
 # COMMAND ----------
 
 # rows = [("small_files", "...", float(num_files), "..."), ("wide_projection", "...", float(num_columns), "..."), ("bad_cluster_key", "...", float(...), "...")]
-# spark.createDataFrame(rows, "finding STRING, recommendation STRING, metric DOUBLE, detail STRING") \
-#     .write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(TARGET)
 
 # COMMAND ----------
 

@@ -114,7 +114,6 @@ display(dbutils.fs.ls(ROOT))
 
 # TODO: one reader per format
 
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -123,8 +122,6 @@ display(dbutils.fs.ls(ROOT))
 # COMMAND ----------
 
 # TODO
-# bronze.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("pro_s2_scans_bronze")
-
 
 # COMMAND ----------
 
@@ -136,8 +133,6 @@ display(dbutils.fs.ls(ROOT))
 # COMMAND ----------
 
 # TODO
-# silver.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("pro_s2_scans")
-
 
 # COMMAND ----------
 
