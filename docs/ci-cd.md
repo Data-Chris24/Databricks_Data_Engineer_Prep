@@ -239,6 +239,15 @@ done
 databricks grants get schema workspace.de_prep --profile FREE      # confirm all five
 ```
 
+Learners need the same on the *data*: the tables are owned by whoever generated
+them, and once the study app regenerates a section (it runs `generate_datasets`
+as the deploying principal) a learner who is not that principal loses `SELECT`
+on the rebuilt tables (seen 2026-09-15). The dispatcher therefore ends every run
+with `GRANT USE SCHEMA, SELECT, MODIFY, CREATE TABLE, READ VOLUME, WRITE VOLUME
+ON SCHEMA workspace.de_prep TO \`account users\`` (and on `de_prep_staging`),
+which needs the principal's `MANAGE`. The same grant was applied by hand once on
+2026-09-15; a fork whose deployer is the learner needs nothing.
+
 `SELECT` is for grading; `MANAGE` is for *Reset*, which runs the
 `reset_assignment` job to drop the tables the section's `grading/<SECTION>/outputs.json`
 names (MANAGE on the schema inherits to every table in it). `MODIFY` and
