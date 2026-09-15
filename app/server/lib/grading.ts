@@ -32,7 +32,12 @@ export function parseGradeOutput(output: JobRunOutput): GradeResult | null {
     section: String(r.section ?? ''),
     passed: r.passed,
     total: r.total,
-    failed: r.failed.map((f) => ({ test: String(f.test), outcome: String(f.outcome), message: f.message ? String(f.message) : undefined })),
+    failed: r.failed.map((f) => ({
+      test: String(f.test),
+      outcome: String(f.outcome),
+      message: f.message ? String(f.message) : undefined,
+      expects: f.expects ? String(f.expects) : undefined,
+    })),
     tests: Array.isArray(r.tests) ? r.tests.map((t) => ({ test: String(t.test), outcome: String(t.outcome) })) : [],
     report_tail: String(r.report_tail ?? ''),
   };

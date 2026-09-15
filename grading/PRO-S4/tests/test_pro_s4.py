@@ -75,10 +75,12 @@ def _rows(objects):
 # ------------------------------------------------------------- the share exists
 
 def test_the_share_exists(shares):
+    """A share with the contracted name exists."""
     assert SHARE in shares
 
 
 def test_the_share_holds_four_objects(objects, expected):
+    """The share holds exactly four objects: three tables and one volume."""
     assert len(objects) == expected["object_count"], (
         f"{len(objects)} objects in the share, expected {expected['object_count']}: "
         "three tables and a volume."
@@ -86,6 +88,7 @@ def test_the_share_holds_four_objects(objects, expected):
 
 
 def test_objects_are_aliased_for_the_recipient(objects):
+    """Every shared object is aliased under partner. (AS partner.<name> when it is added); the recipient must not see your own schema name."""
     unaliased = [r["name"] for r in objects if not r["name"].startswith("partner.")]
     assert not unaliased, (
         f"{unaliased} are shared under your own schema name. The recipient should see "
@@ -98,6 +101,7 @@ def test_objects_are_aliased_for_the_recipient(objects):
 # ------------------------------------------------------ each object's own terms
 
 def test_orders_is_shared_without_history(objects):
+    """partner.orders is shared WITHOUT HISTORY. A plain ADD TABLE shares history by default; on this table the clause is refused until deletion vectors are turned off and purged."""
     row = next((r for r in objects if r["name"] == "partner.orders"), None)
     assert row is not None, "partner.orders is missing from the share"
     assert row["history_sharing"] == "DISABLED", (
@@ -110,6 +114,7 @@ def test_orders_is_shared_without_history(objects):
 
 
 def test_customers_is_shared_with_history(objects):
+    """partner.customers keeps its history (history sharing ENABLED)."""
     row = next((r for r in objects if r["name"] == "partner.customers"), None)
     assert row is not None, "partner.customers is missing from the share"
     assert row["history_sharing"] == "ENABLED", (
@@ -119,6 +124,7 @@ def test_customers_is_shared_with_history(objects):
 
 
 def test_events_shares_the_change_feed(objects):
+    """partner.events shares its change feed, which follows the table's own delta.enableChangeDataFeed property."""
     row = next((r for r in objects if r["name"] == "partner.events"), None)
     assert row is not None, "partner.events is missing from the share"
     assert bool(row["cdf_shared"]), (
@@ -129,12 +135,14 @@ def test_events_shares_the_change_feed(objects):
 
 
 def test_the_volume_is_shared(objects):
+    """Exactly one volume is shared, as partner.files."""
     vols = [r for r in objects if r["type"] == "VOLUME"]
     assert len(vols) == 1, f"expected one shared volume, found {len(vols)}"
     assert vols[0]["name"] == "partner.files"
 
 
 def test_share_contents_match_the_reference(objects, expected):
+    """The share's objects, aliases and history settings match the reference exactly."""
     got, exp = _rows(objects), sorted(expected["objects"])
     assert got == exp, (
         "The share differs from the reference.\n"
@@ -146,6 +154,7 @@ def test_share_contents_match_the_reference(objects, expected):
 # ------------------------------------------------------- and what is NOT shared
 
 def test_salaries_is_not_shared_in_this_share(objects):
+    """The salaries table is not in the share; nothing errors when you over-share, which is why this is easy to miss."""
     leaked = [r["name"] for r in objects if r["shared_object"] == MUST_NOT_SHARE]
     assert not leaked, (
         f"{MUST_NOT_SHARE} is in the share as {leaked}. Nothing errors when you "
@@ -154,6 +163,7 @@ def test_salaries_is_not_shared_in_this_share(objects):
 
 
 def test_salaries_is_not_shared_anywhere(spark, shares):
+    """The salaries table is not reachable through any share in the workspace."""
     leaked = []
     for s in shares:
         for r in spark.sql(f"SHOW ALL IN SHARE {s}").collect():
@@ -165,6 +175,7 @@ def test_salaries_is_not_shared_anywhere(spark, shares):
 # ------------------------------------------------------------------- the recipient
 
 def test_the_recipient_exists_and_is_databricks_to_databricks(w, expected):
+    """A recipient with the contracted name exists and is Databricks-to-Databricks; open-protocol (TOKEN) recipients are disabled on this metastore."""
     rec = next((r for r in w.recipients.list() if r.name == RECIPIENT), None)
     assert rec is not None, (
         f"recipient {RECIPIENT!r} does not exist. "
@@ -178,7 +189,7 @@ def test_the_recipient_exists_and_is_databricks_to_databricks(w, expected):
 
 
 def test_the_recipient_targets_this_metastore(w, expected):
-    """The sharing identifier is workspace-specific, so it is resolved live."""
+    """The recipient's sharing identifier is this workspace's own (read from the metastore summary), since there is no second metastore to share to here."""
     rec = next((r for r in w.recipients.list() if r.name == RECIPIENT), None)
     if rec is None:
         pytest.fail(f"recipient {RECIPIENT!r} does not exist")
@@ -192,6 +203,7 @@ def test_the_recipient_targets_this_metastore(w, expected):
 
 
 def test_the_share_is_granted_to_exactly_that_recipient(grants, expected):
+    """The share is granted SELECT to exactly that recipient: no grant means it reaches nobody, an extra recipient is an over-share."""
     got = sorted([[r["recipient"], r["privilege"]] for r in grants])
     assert got == sorted(expected["grants"]), (
         f"grants are {got}, expected {sorted(expected['grants'])}. Until the GRANT "

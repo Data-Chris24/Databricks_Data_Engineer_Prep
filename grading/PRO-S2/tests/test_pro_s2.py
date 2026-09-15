@@ -85,16 +85,19 @@ def silver(spark):
 # --------------------------------------------------------------------- contract
 
 def test_bronze_schema_matches_the_contract(bronze):
+    """Bronze has exactly the contracted columns, types and order."""
     assertSchemaEqual(bronze.schema, SCHEMA)
 
 
 def test_silver_schema_matches_the_contract(silver):
+    """Silver has exactly the contracted columns, types and order."""
     assertSchemaEqual(silver.schema, SCHEMA)
 
 
 # --------------------------------------------------- every source actually arrived
 
 def test_bronze_holds_every_delivered_record(bronze, expected):
+    """Bronze is append-only: every record from every source, re-deliveries included (660 records across five formats)."""
     assert bronze.count() == expected["bronze_rows"], (
         "Bronze is append-only: every record from every source, re-deliveries "
         "included. Five formats deliver 660 records between them."
@@ -102,6 +105,7 @@ def test_bronze_holds_every_delivered_record(bronze, expected):
 
 
 def test_every_format_is_represented(bronze, expected):
+    """Every source format contributes its records to bronze; a missing format usually means its reader needed an option you did not pass."""
     got = _counts(bronze, "source_format")
     assert got == expected["bronze_by_source"], (
         f"Records per source format do not match.\n  got:      {got}\n"
@@ -113,6 +117,7 @@ def test_every_format_is_represented(bronze, expected):
 # ----------------------------------------- the columns went where they were named
 
 def test_facility_column_contains_facilities(bronze):
+    """Every facility value is a real facility. union lines DataFrames up by position and these sources disagree on column order; unionByName lines them up by name."""
     bad = bronze.filter(~F.col("facility").isin(FACILITIES))
     n = bad.count()
     assert n == 0, (
@@ -125,11 +130,13 @@ def test_facility_column_contains_facilities(bronze):
 
 
 def test_carrier_column_contains_carriers(bronze):
+    """Every carrier value is a real carrier (columns lined up by name, not position)."""
     n = bronze.filter(~F.col("carrier").isin(CARRIERS)).count()
     assert n == 0, f"{n} rows have a value in `carrier` that is not a carrier."
 
 
 def test_status_column_contains_statuses(bronze):
+    """Every status value is a real status (columns lined up by name, not position)."""
     n = bronze.filter(~F.col("status").isin(STATUSES)).count()
     assert n == 0, f"{n} rows have a value in `status` that is not a status."
 
@@ -137,6 +144,7 @@ def test_status_column_contains_statuses(bronze):
 # --------------------------------------------------------- types survived the read
 
 def test_no_timestamp_was_lost_in_parsing(bronze):
+    """No scanned_at is null. One source writes dd/MM/yyyy HH:mm:ss, which needs an explicit pattern; a cast silently turns it into null."""
     n = bronze.filter("scanned_at IS NULL").count()
     assert n == 0, (
         f"{n} rows have a null scanned_at. One source writes dd/MM/yyyy HH:mm:ss, "
@@ -146,6 +154,7 @@ def test_no_timestamp_was_lost_in_parsing(bronze):
 
 
 def test_weights_survived_the_read(bronze, expected):
+    """No weight_kg is null and the bronze weight total matches the reference."""
     n = bronze.filter("weight_kg IS NULL").count()
     assert n == 0, f"{n} rows have a null weight_kg."
     total = round(bronze.agg(F.sum("weight_kg")).collect()[0][0], 2)
@@ -155,6 +164,7 @@ def test_weights_survived_the_read(bronze, expected):
 
 
 def test_route_code_is_present_only_where_it_was_delivered(bronze, expected):
+    """route_code is populated only for the Avro source that delivers it and null elsewhere (unionByName with allowMissingColumns=True)."""
     n = bronze.filter("route_code IS NOT NULL").count()
     assert n == expected["route_code_not_null"], (
         f"{n} rows carry a route_code; expected {expected['route_code_not_null']}. "
@@ -168,6 +178,7 @@ def test_route_code_is_present_only_where_it_was_delivered(bronze, expected):
 # ------------------------------------------------------- the append was idempotent
 
 def test_bronze_kept_the_re_deliveries(spark, bronze):
+    """Bronze keeps both the original and the corrected delivery of the 60 re-delivered scans; deduplicating in bronze loses the history."""
     dupes = bronze.groupBy("scan_id").count().filter("count > 1").count()
     assert dupes == 60, (
         f"{dupes} scan_ids appear more than once in bronze; expected 60. Bronze is "
@@ -177,6 +188,7 @@ def test_bronze_kept_the_re_deliveries(spark, bronze):
 
 
 def test_silver_has_one_row_per_scan(silver, expected):
+    """Silver holds exactly one row per scan_id."""
     assert silver.count() == expected["silver_rows"]
     assert silver.select("scan_id").distinct().count() == expected["silver_rows"], (
         "Silver must hold exactly one row per scan_id."
@@ -184,6 +196,7 @@ def test_silver_has_one_row_per_scan(silver, expected):
 
 
 def test_silver_kept_the_latest_revision(spark, bronze, silver, expected):
+    """Silver keeps the highest revision delivered for each scan: a correction arrived after the original and the later one wins."""
     latest = bronze.groupBy("scan_id").agg(F.max("revision").alias("max_rev"))
     wrong = (silver.join(latest, "scan_id")
              .filter(F.col("revision") != F.col("max_rev")).count())
@@ -195,6 +208,7 @@ def test_silver_kept_the_latest_revision(spark, bronze, silver, expected):
 
 
 def test_silver_source_mix_reflects_which_delivery_won(silver, expected):
+    """The number of silver rows per source format matches the reference; it moves when the wrong copy of a re-delivered scan wins."""
     got = _counts(silver, "source_format")
     assert got == expected["silver_by_source"], (
         f"Source mix in silver does not match.\n  got:      {got}\n"
@@ -207,6 +221,7 @@ def test_silver_source_mix_reflects_which_delivery_won(silver, expected):
 # ------------------------------------------------- known answers (the real check)
 
 def test_status_distribution(silver, expected):
+    """Silver rows per status match the reference; corrections change a scan's status, so this shows a wrong revision choice."""
     got = _counts(silver, "status")
     assert got == expected["silver_by_status"], (
         f"got {got}, expected {expected['silver_by_status']}. The corrections change "
@@ -215,14 +230,17 @@ def test_status_distribution(silver, expected):
 
 
 def test_facility_distribution(silver, expected):
+    """Silver rows per facility match the reference."""
     assert _counts(silver, "facility") == expected["silver_by_facility"]
 
 
 def test_carrier_distribution(silver, expected):
+    """Silver rows per carrier match the reference."""
     assert _counts(silver, "carrier") == expected["silver_by_carrier"]
 
 
 def test_silver_total_weight(silver, expected):
+    """The silver weight total matches the reference."""
     total = round(silver.agg(F.sum("weight_kg")).collect()[0][0], 2)
     assert total == expected["silver_total_weight"], (
         f"{total} vs expected {expected['silver_total_weight']}."
@@ -230,6 +248,7 @@ def test_silver_total_weight(silver, expected):
 
 
 def test_probe_scans_match_field_for_field(silver, expected):
+    """Spot-check of specific scans in silver, field by field, including the parsed timestamp."""
     probes = {p["scan_id"]: p for p in expected["probe_scans"]}
     rows = {r["scan_id"]: r for r in
             silver.filter(F.col("scan_id").isin(list(probes))).collect()}
