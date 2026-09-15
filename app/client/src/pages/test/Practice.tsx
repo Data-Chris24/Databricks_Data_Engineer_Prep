@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router';
 import { useSearchParams } from 'react-router';
 
 import { questionsFor } from '../../../../shared/content';
@@ -7,6 +8,7 @@ import { Explanation, QuestionCard } from '../../components/QuestionCard';
 import { ReadinessRail, type RailSection } from '../../components/ReadinessRail';
 import { useExam } from '../../lib/exam';
 import { useStore } from '../../lib/store';
+import { PRACTICE_BATCH, PracticeBreak } from './PracticeBreak';
 
 function due(row: ReviewRow | undefined, now: number): boolean {
   return !row || !row.dueAt || Date.parse(row.dueAt) <= now;
@@ -34,6 +36,9 @@ export function Practice() {
   const [current, setCurrent] = useState<Question | null>(null);
   const [chosen, setChosen] = useState<OptionKey | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Questions rated since the last break; a break is offered every PRACTICE_BATCH. */
+  const [answered, setAnswered] = useState(0);
+  const [onBreak, setOnBreak] = useState(false);
 
   const pool = useMemo(() => questionsFor(examId, sectionFilter ?? undefined), [examId, sectionFilter]);
 
@@ -78,6 +83,11 @@ export function Practice() {
             next(nextRev);
             return nextRev;
           });
+          setAnswered((n) => {
+            const total = n + 1;
+            if (total % PRACTICE_BATCH === 0) setOnBreak(true);
+            return total;
+          });
         })
         .catch((e: Error) => setError(e.message));
     },
@@ -86,7 +96,7 @@ export function Practice() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || !current) return;
+      if (e.metaKey || e.ctrlKey || e.altKey || !current || onBreak) return;
       const k = e.key.toUpperCase();
       if (chosen === null) {
         if (k in current.options) {
@@ -103,7 +113,7 @@ export function Practice() {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [current, chosen, rate]);
+  }, [current, chosen, rate, onBreak]);
 
   const stats = useMemo(() => {
     const out: Record<string, RailSection> = {};
@@ -136,6 +146,13 @@ export function Practice() {
         onSelect={(id) => setParams(id ? { section: id } : {})}
       />
       {error ? <div className="error-banner" style={{ marginBottom: 14 }}>{error}</div> : null}
+      {onBreak ? <PracticeBreak sectionId={sectionFilter} answered={answered} onContinue={() => setOnBreak(false)} /> : null}
+      {sectionFilter && current ? (
+        <div className="row-between muted" style={{ marginBottom: 12, fontSize: 13.5 }}>
+          <Link to={`/train/${examId}/${sectionFilter}`}>← Back to the lesson</Link>
+          <span>A break is offered every {PRACTICE_BATCH} questions</span>
+        </div>
+      ) : null}
 
       {!current ? (
         <div className="card empty">
