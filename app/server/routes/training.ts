@@ -123,7 +123,16 @@ export function registerTrainingRoutes(app: Application, db: Db) {
           body.read ?? null,
         ],
       );
-      res.json(toProgressRow(rows[0]));
+      // Same derivation as the GET: without it a scroll-position save answered
+      // completed=false and the page flickered between states.
+      const { rows: passes } = await db.query(
+        `SELECT min(finished_at) AS passed_at FROM study.grading_runs
+          WHERE user_id = $1 AND section_id = $2 AND status = 'passed'`,
+        [user.userId, section.id],
+      );
+      const at = iso(passes[0]?.passed_at);
+      const row = toProgressRow(rows[0]);
+      res.json(applyCompletion({ [section.id]: row }, at ? { [section.id]: at } : {}, [section.id]).sections[section.id] ?? row);
     }),
   );
 

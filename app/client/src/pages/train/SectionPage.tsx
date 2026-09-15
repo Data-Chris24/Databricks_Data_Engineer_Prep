@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
 import { notebooks, notes, questionsFor, sectionById } from '../../../../shared/content';
@@ -178,6 +178,25 @@ export function SectionPage() {
     return () => io.disconnect();
   }, [store, examId, section, progress?.read]);
 
+  // A pass reported by the grading panel completes the section; re-read the
+  // server's view rather than guessing. Declared before the early return
+  // below because hooks must run in the same order on every render.
+  const sectionId = section?.id;
+  const onGraded = useCallback(
+    (run: GradingRun) => {
+      if (run.status !== 'passed' || !sectionId) return;
+      setProgress((prev) => {
+        if (prev?.completed) return prev;
+        store
+          .training(examId)
+          .then((t) => setProgress(t.sections[sectionId] ?? null))
+          .catch(() => {});
+        return prev;
+      });
+    },
+    [store, examId, sectionId],
+  );
+
   if (!section || !exam.sections.some((s) => s.id === section.id)) {
     return (
       <div className="page">
@@ -190,16 +209,6 @@ export function SectionPage() {
   }
 
   const questionCount = questionsFor(examId, section.id).length;
-  // A pass reported by the grading panel completes the section; re-read the
-  // server's view rather than guessing.
-  const onGraded = (run: GradingRun) => {
-    if (run.status !== 'passed' || progress?.completed) return;
-    store
-      .training(examId)
-      .then((t) => setProgress(t.sections[section.id] ?? null))
-      .catch(() => {});
-  };
-
   return (
     <div className="page">
       <div className="row-between" style={{ marginBottom: 22 }}>
@@ -328,8 +337,8 @@ export function SectionPage() {
                 Practice this section · {questionCount} question{questionCount === 1 ? '' : 's'}
               </button>
               {progress?.completed ? (
-                <span className="state done">
-                  <Icon name="check" size={14} stroke={2.5} /> Section complete · assignment passed
+                <span className="section-done">
+                  <Icon name="check" size={16} stroke={2.5} /> Section complete · assignment passed
                 </span>
               ) : (
                 <span className="muted">The section is complete once the assignment passes.</span>
