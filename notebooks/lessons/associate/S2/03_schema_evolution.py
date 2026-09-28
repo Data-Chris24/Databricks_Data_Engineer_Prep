@@ -76,6 +76,26 @@ except Exception:
 
 print("rows before:", spark.table("bronze_orders_al").count())
 
+# The stream cell below fails the first time it meets the new `channel` column.
+# That failure is the mechanism, not a defect, and re-running the cell is the
+# retry. Everything after the stream needs that second run to have happened, so
+# it asks rather than showing a half-answer.
+RERUN_THE_STREAM = (
+    "The new column is not in the table yet, so there is nothing to compare.\n"
+    "Run the stream cell above a second time: Auto Loader failed on purpose the\n"
+    "first time it met `channel`, recorded the wider schema, and loads the three\n"
+    "new rows on the next run. Interactively, you are the retry."
+)
+
+
+def channel_loaded() -> bool:
+    """True once the evolved rows are in the table, i.e. the stream ran twice."""
+    if "channel" not in spark.table("bronze_orders_al").columns:
+        return False
+    return spark.sql(
+        "SELECT count(*) AS n FROM bronze_orders_al WHERE channel IS NOT NULL"
+    ).collect()[0]["n"] > 0
+
 # COMMAND ----------
 
 # MAGIC %md
@@ -142,20 +162,26 @@ print("stream completed - the schema had already been recorded")
 
 # COMMAND ----------
 
-display(spark.sql("""
-    SELECT
-        CASE WHEN channel IS NULL THEN 'before evolution' ELSE 'after evolution' END AS era,
-        count(*) AS rows
-    FROM bronze_orders_al
-    GROUP BY 1 ORDER BY 1
-"""))
+if not channel_loaded():
+    print(RERUN_THE_STREAM)
+else:
+    display(spark.sql("""
+        SELECT
+            CASE WHEN channel IS NULL THEN 'before evolution' ELSE 'after evolution' END AS era,
+            count(*) AS rows
+        FROM bronze_orders_al
+        GROUP BY 1 ORDER BY 1
+    """))
 
 # COMMAND ----------
 
-display(spark.sql("""
-    SELECT order_id, store, channel FROM bronze_orders_al
-    WHERE channel IS NOT NULL ORDER BY order_id
-"""))
+if not channel_loaded():
+    print(RERUN_THE_STREAM)
+else:
+    display(spark.sql("""
+        SELECT order_id, store, channel FROM bronze_orders_al
+        WHERE channel IS NOT NULL ORDER BY order_id
+    """))
 
 # COMMAND ----------
 
