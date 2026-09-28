@@ -7,6 +7,14 @@ folder" pointed at nothing. The task and output contract now sit in the
 notebook's second cell, generated from the README between two markers so the
 README stays the single source of truth. Run after editing any assignment
 README; `--check` (used in CI) fails when a starter is stale.
+
+The hints are pulled out of that cell and given one cell each. A README hides
+them behind `<details>`, which GitHub renders as a disclosure triangle and a
+Databricks markdown cell silently strips, so every hint and its answer used to
+arrive as one wall of text with nothing marking which line was the question.
+One cell per hint, its first line naming the problem it answers, lets a learner
+read only the ones they want and collapse the rest (Databricks collapses a cell
+to its first line, and a source-format notebook cannot ship one pre-collapsed).
 """
 from __future__ import annotations
 
@@ -20,6 +28,10 @@ ASSIGNMENTS = ROOT / "notebooks" / "assignments"
 SEP = "# COMMAND ----------\n"
 BEGIN = "# MAGIC <!-- task:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->"
 END = "# MAGIC <!-- task:end -->"
+HINTS_BEGIN = "# MAGIC <!-- hints:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->"
+HINTS_END = "# MAGIC <!-- hints:end -->"
+HINTS_HEADING = re.compile(r"^##+ Hints\b.*$", re.M)
+DETAILS = re.compile(r"<details>\s*<summary>(.*?)</summary>\s*(.*?)\s*</details>", re.S)
 HEADER_LINE = "# MAGIC The task and the output contract are in the next cell (the same text as `README.md` in the repo)."
 OLD_HEADER_LINES = (
     "# MAGIC Read `README.md` in this folder for the task and the output contract.",
@@ -27,6 +39,44 @@ OLD_HEADER_LINES = (
     "# MAGIC Read `README.md` first. The table there is the contract.",
     "# MAGIC See `README.md` for the task and the output contract.",
 )
+
+
+def split_hints(readme: str) -> tuple[str, list[tuple[str, str]]]:
+    """The README without its hints section, and the hints as (problem, answer).
+
+    A hints section that is not made purely of `<details>` blocks is left where
+    it is rather than half-converted.
+    """
+    m = HINTS_HEADING.search(readme)
+    if not m:
+        return readme, []
+    hints = [(s.strip(), b.strip()) for s, b in DETAILS.findall(readme[m.end():])]
+    if not hints or DETAILS.sub("", readme[m.end():]).strip():
+        return readme, []
+    return readme[: m.start()].rstrip("\n") + "\n", hints
+
+
+def hint_cells(hints: list[tuple[str, str]]) -> list[str]:
+    """One markdown cell per hint, each opening with the problem it answers."""
+    if not hints:
+        return []
+    intro = "\n".join([
+        "# MAGIC %md",
+        HINTS_BEGIN,
+        "# MAGIC #### Hints, if you want them",
+        "# MAGIC",
+        "# MAGIC One per cell below, each opening with the problem it answers, so you can"
+        " read only the one you need. To put a hint away again, collapse its cell from the"
+        " cell menu on its right - a collapsed cell shows its first line only.",
+    ]) + "\n"
+    cells = [intro]
+    for i, (problem, answer) in enumerate(hints, 1):
+        lines = ["# MAGIC %md", f"# MAGIC **Hint {i} - {problem}**", "# MAGIC"]
+        lines += [("# MAGIC " + line).rstrip() for line in answer.splitlines()]
+        if i == len(hints):
+            lines.append(HINTS_END)
+        cells.append("\n".join(lines) + "\n")
+    return cells
 
 
 def task_cell(readme: str) -> str:
@@ -44,16 +94,27 @@ def task_cell(readme: str) -> str:
 
 
 def synced(source: str, readme: str) -> str:
-    cell = task_cell(readme)
+    body, hints = split_hints(readme)
+    cell = task_cell(body)
     for old in OLD_HEADER_LINES:
         source = source.replace(old, HEADER_LINE)
     cells = source.split(SEP)
-    for i, c in enumerate(cells):
-        if BEGIN in c:
-            cells[i] = "\n" + cell + "\n"
-            return SEP.join(cells)
-    # No task cell yet: it becomes the second cell, right after the header.
-    cells.insert(1, "\n" + cell + "\n")
+
+    # Drop a previously generated hints block before writing the current one.
+    start = next((i for i, c in enumerate(cells) if HINTS_BEGIN in c), None)
+    if start is not None:
+        end = next((i for i, c in enumerate(cells) if HINTS_END in c), start)
+        del cells[start : end + 1]
+
+    at = next((i for i, c in enumerate(cells) if BEGIN in c), None)
+    if at is None:
+        # No task cell yet: it becomes the second cell, right after the header.
+        at = 1
+        cells.insert(at, "\n" + cell + "\n")
+    else:
+        cells[at] = "\n" + cell + "\n"
+    for offset, hint in enumerate(hint_cells(hints), 1):
+        cells.insert(at + offset, "\n" + hint + "\n")
     return SEP.join(cells)
 
 

@@ -72,10 +72,20 @@
 # MAGIC The suite checks both schemas, that the numbers match, and that each row records the
 # MAGIC environment it landed in — which is only possible if the destination was genuinely
 # MAGIC parameterised.
+# MAGIC <!-- task:end -->
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- hints:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC #### Hints, if you want them
 # MAGIC
-# MAGIC ### Hints
-# MAGIC
-# MAGIC <details><summary>How does a target override a variable?</summary>
+# MAGIC One per cell below, each opening with the problem it answers, so you can read only the one you need. To put a hint away again, collapse its cell from the cell menu on its right - a collapsed cell shows its first line only.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 1 - How does a target override a variable?**
 # MAGIC
 # MAGIC ```yaml
 # MAGIC variables:
@@ -87,18 +97,21 @@
 # MAGIC     variables:
 # MAGIC       schema: de_prep_staging
 # MAGIC ```
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>How does the notebook receive it?</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 2 - How does the notebook receive it?**
 # MAGIC
 # MAGIC `base_parameters` on the task, read with `dbutils.widgets.get()`.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>Both schemas have identical `environment` values</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 3 - Both schemas have identical `environment` values**
 # MAGIC
 # MAGIC The stamp is hardcoded rather than derived from the parameter.
-# MAGIC </details>
-# MAGIC <!-- task:end -->
+# MAGIC <!-- hints:end -->
 
 # COMMAND ----------
 

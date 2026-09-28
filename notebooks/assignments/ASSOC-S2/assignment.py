@@ -85,38 +85,49 @@
 # MAGIC `docs/grading.md`), it also reviews *how* you did it — whether you used the
 # MAGIC technique the objective is about or merely got the numbers right by another route.
 # MAGIC It can never overturn a unit test result.
+# MAGIC <!-- task:end -->
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- hints:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC #### Hints, if you want them
 # MAGIC
-# MAGIC ### Hints, if you want them
-# MAGIC
-# MAGIC <details>
-# MAGIC <summary>I do not know where to start</summary>
+# MAGIC One per cell below, each opening with the problem it answers, so you can read only the one you need. To put a hint away again, collapse its cell from the cell menu on its right - a collapsed cell shows its first line only.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 1 - I do not know where to start**
 # MAGIC
 # MAGIC Read one file first and print the schema:
 # MAGIC `spark.read.json(".../s2_assess/events_2026-03-01.json").printSchema()`
 # MAGIC The shape of the problem should be obvious from that.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details>
-# MAGIC <summary>My row count is too high</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 2 - My row count is too high**
 # MAGIC
 # MAGIC Requirement 2. Find the duplicates before you remove them:
 # MAGIC `GROUP BY event_id HAVING count(*) > 1`.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details>
-# MAGIC <summary>`battery_pct` does not exist in my DataFrame</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 3 - `battery_pct` does not exist in my DataFrame**
 # MAGIC
 # MAGIC Spark infers JSON schemas from a sample of files. The column only appears in one of
 # MAGIC them. Lesson 3 named the option that fixes this — it applies to batch reads too.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details>
-# MAGIC <summary>My timestamps are absurd</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 4 - My timestamps are absurd**
 # MAGIC
 # MAGIC Look at the raw value. What unit is it in, and what unit does `CAST(... AS
 # MAGIC TIMESTAMP)` expect?
-# MAGIC </details>
-# MAGIC <!-- task:end -->
+# MAGIC <!-- hints:end -->
 
 # COMMAND ----------
 

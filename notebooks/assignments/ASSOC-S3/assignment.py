@@ -65,25 +65,38 @@
 # MAGIC ```bash
 # MAGIC databricks bundle run grade_assoc_s3 -t free --profile FREE
 # MAGIC ```
+# MAGIC <!-- task:end -->
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- hints:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC #### Hints, if you want them
 # MAGIC
-# MAGIC ### Hints
-# MAGIC
-# MAGIC <details><summary>My row count is 870, not 600</summary>
+# MAGIC One per cell below, each opening with the problem it answers, so you can read only the one you need. To put a hint away again, collapse its cell from the cell menu on its right - a collapsed cell shows its first line only.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 1 - My row count is 870, not 600**
 # MAGIC
 # MAGIC `plan_id` appears more than once in the dimension — it is slowly-changing. A join
 # MAGIC returns one row per matching *pair*. Put the validity window in the join condition.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>My row count is 580</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 2 - My row count is 580**
 # MAGIC
 # MAGIC An inner join dropped the events whose plan is missing. Requirement 2.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>My totals look enormous</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 3 - My totals look enormous**
 # MAGIC
 # MAGIC Requirement 4. Look at the raw column name.
-# MAGIC </details>
-# MAGIC <!-- task:end -->
+# MAGIC <!-- hints:end -->
 
 # COMMAND ----------
 

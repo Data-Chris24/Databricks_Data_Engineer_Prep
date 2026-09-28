@@ -59,26 +59,39 @@
 # MAGIC ```bash
 # MAGIC databricks bundle run grade_pro_s9 -t free --profile FREE
 # MAGIC ```
+# MAGIC <!-- task:end -->
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- hints:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC #### Hints, if you want them
 # MAGIC
-# MAGIC ### Hints
-# MAGIC
-# MAGIC <details><summary>Where do I even start with no error?</summary>
+# MAGIC One per cell below, each opening with the problem it answers, so you can read only the one you need. To put a hint away again, collapse its cell from the cell menu on its right - a collapsed cell shows its first line only.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 1 - Where do I even start with no error?**
 # MAGIC
 # MAGIC A single day tells you nothing. Group by `run_date` and look at how the numbers move
 # MAGIC between days — the signal is the change, not any one value.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>How do I find which source stopped?</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 2 - How do I find which source stopped?**
 # MAGIC
 # MAGIC Compare the set of `source_system` values before the regression with the set after.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>How do I estimate rows lost?</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 3 - How do I estimate rows lost?**
 # MAGIC
 # MAGIC Average rows per healthy day, minus average per degraded day, times the number of
 # MAGIC degraded days.
-# MAGIC </details>
-# MAGIC <!-- task:end -->
+# MAGIC <!-- hints:end -->
 
 # COMMAND ----------
 

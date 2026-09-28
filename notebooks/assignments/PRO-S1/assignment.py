@@ -65,25 +65,38 @@
 # MAGIC ```bash
 # MAGIC databricks bundle run grade_pro_s1 -t free --profile FREE
 # MAGIC ```
+# MAGIC <!-- task:end -->
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- hints:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC #### Hints, if you want them
 # MAGIC
-# MAGIC ### Hints
-# MAGIC
-# MAGIC <details><summary>I have 300 rows</summary>
+# MAGIC One per cell below, each opening with the problem it answers, so you can read only the one you need. To put a hint away again, collapse its cell from the cell menu on its right - a collapsed cell shows its first line only.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 1 - I have 300 rows**
 # MAGIC
 # MAGIC That is one arbitrary event per key — a plain `dropDuplicates(["customer_id"])`. It
 # MAGIC keeps tombstoned keys and ignores sequencing entirely. Requirements 2 and 3.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>How do I pick the winning event?</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 2 - How do I pick the winning event?**
 # MAGIC
 # MAGIC A window partitioned by the key, ordered by `seq_num` descending, taking row 1.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>Should a deleted-then-updated key survive?</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 3 - Should a deleted-then-updated key survive?**
 # MAGIC
 # MAGIC Requirement 4. Ask which event has the higher `seq_num`.
-# MAGIC </details>
-# MAGIC <!-- task:end -->
+# MAGIC <!-- hints:end -->
 
 # COMMAND ----------
 

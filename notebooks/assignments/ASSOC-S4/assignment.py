@@ -69,27 +69,40 @@
 # MAGIC ```bash
 # MAGIC databricks bundle run grade_assoc_s4 -t free --profile FREE
 # MAGIC ```
+# MAGIC <!-- task:end -->
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- hints:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC #### Hints, if you want them
 # MAGIC
-# MAGIC ### Hints
-# MAGIC
-# MAGIC <details><summary>My job fails reading the files</summary>
+# MAGIC One per cell below, each opening with the problem it answers, so you can read only the one you need. To put a hint away again, collapse its cell from the cell menu on its right - a collapsed cell shows its first line only.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 1 - My job fails reading the files**
 # MAGIC
 # MAGIC Requirement 1. What happens if you read with a declared `INT` schema and one value is
 # MAGIC `"twelve"`? Read as text and separate good from bad yourself — `try_cast` returns null
 # MAGIC where `cast` raises.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>I published 360 rows</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 2 - I published 360 rows**
 # MAGIC
 # MAGIC Two things are missing: the 89 good rows from the region that also has a bad one, and
 # MAGIC the late arrivals.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>The second run doubled my data</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 3 - The second run doubled my data**
 # MAGIC
 # MAGIC Requirement 4. `append` is not idempotent.
-# MAGIC </details>
-# MAGIC <!-- task:end -->
+# MAGIC <!-- hints:end -->
 
 # COMMAND ----------
 
