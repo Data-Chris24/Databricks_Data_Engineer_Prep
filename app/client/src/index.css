@@ -667,8 +667,11 @@ button {
 /* --------------------------------------------------------------- section page */
 .section-grid {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
-  gap: 44px;
+  /* Wide enough for a long heading to take two lines rather than five; the
+     wrapping rule on .toc a is what actually keeps it out of the article,
+     since no fixed width can be safe against arbitrary heading text. */
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 40px;
 }
 @media (max-width: 900px) {
   .section-grid {
@@ -699,6 +702,10 @@ button {
   padding: 6px 12px;
   border-left: 2px solid transparent;
   border-radius: 0 6px 6px 0;
+  /* Headings carry identifiers like UNKNOWN_FIELD_EXCEPTION.NEW_FIELDS_IN_FILE,
+     which have no break opportunity and used to spill over the article. */
+  overflow-wrap: anywhere;
+  line-height: 1.35;
 }
 .toc a.l3 {
   font-size: 13px;
