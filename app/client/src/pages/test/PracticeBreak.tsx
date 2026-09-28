@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import { type FlowSection, type LessonDestination, lessonDestination } from '../../../../shared/lessonFlow';
+import { completedIn, type FlowSection, type LessonDestination, lessonDestination } from '../../../../shared/lessonFlow';
 import { useExam } from '../../lib/exam';
 import { useStore } from '../../lib/store';
 
@@ -26,8 +26,7 @@ export function PracticeBreak({ sectionId, answered, onContinue }: { sectionId: 
       .training(examId)
       .then((t) => {
         if (!alive) return;
-        const completed = new Set(Object.values(t.sections).filter((s) => s.completed).map((s) => s.sectionId));
-        setDest(lessonDestination(sections, sectionId, completed));
+        setDest(lessonDestination(sections, sectionId, completedIn(t)));
       })
       .catch(() => alive && setDest(lessonDestination(sections, sectionId, new Set())));
     return () => {

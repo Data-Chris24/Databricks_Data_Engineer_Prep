@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
 import { notebooks, notes, questionsFor, sectionById } from '../../../../shared/content';
+import { completedIn, lessonDestination } from '../../../../shared/lessonFlow';
 import type { AppConfig, GradingRun, ProgressRow } from '../../../../shared/types';
 import { AssignmentBand } from '../../components/AssignmentBand';
 import { DatasetBand } from '../../components/DatasetBand';
@@ -27,6 +28,8 @@ export function SectionPage() {
   const [visited, setVisited] = useState<Set<string>>(() => new Set());
   const [visitError, setVisitError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressRow | null>(null);
+  /** Completed sections of this exam, for the "what next" step at the end. */
+  const [completedSections, setCompletedSections] = useState<Set<string>>(() => new Set());
   const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
   const [scrollPct, setScrollPct] = useState(0);
   const pending = useRef<{ anchor?: string; scrollPct?: number }>({});
@@ -44,6 +47,16 @@ export function SectionPage() {
     return [...main, ...subs];
   }, [note]);
 
+  const nextStep = useMemo(
+    () =>
+      lessonDestination(
+        exam.sections.map((s) => ({ id: s.id, number: s.number, title: s.title })),
+        sectionId,
+        completedSections,
+      ),
+    [exam, sectionId, completedSections],
+  );
+
   useEffect(() => {
     store.config().then(setConfig).catch(() => {});
   }, [store]);
@@ -52,7 +65,10 @@ export function SectionPage() {
     // Merge, never replace: a click that beat this response must not be undone.
     store
       .training(examId)
-      .then((t) => setVisited((prev) => new Set([...prev, ...t.visited])))
+      .then((t) => {
+        setVisited((prev) => new Set([...prev, ...t.visited]));
+        setCompletedSections(completedIn(t));
+      })
       .catch(() => {});
   }, [store, examId]);
 
@@ -188,7 +204,10 @@ export function SectionPage() {
         if (prev?.completed) return prev;
         store
           .training(examId)
-          .then((t) => setProgress(t.sections[sectionId] ?? null))
+          .then((t) => {
+            setProgress(t.sections[sectionId] ?? null);
+            setCompletedSections(completedIn(t));
+          })
           .catch(() => {});
         return prev;
       });
@@ -327,20 +346,39 @@ export function SectionPage() {
             {nbs?.assignment ? <GradingPanel sectionId={section.id} gradeJob={nbs.assignment.grade_job} onResult={onGraded} /> : null}
 
             <div className="end-actions">
+              {progress?.completed && nextStep.kind === 'section' && nextStep.why === 'next' ? (
+                <Link className="btn primary" to={`/train/${examId}/${nextStep.section.id}`}>
+                  Next · S{nextStep.section.number} {nextStep.section.title}
+                  <Icon name="arrow-right" size={18} stroke={2} />
+                </Link>
+              ) : null}
+              {progress?.completed && nextStep.kind === 'home' ? (
+                <Link className="btn good" to={`/test/${examId}`}>
+                  <Icon name="check" size={16} stroke={2.5} /> Every section complete · go test yourself
+                </Link>
+              ) : null}
               <button
                 type="button"
-                className="btn primary"
+                className={`btn ${progress?.completed ? 'ghost' : 'primary'}`}
                 onClick={() => void navigate(`/test/${examId}/practice?section=${section.id}`)}
                 disabled={questionCount === 0}
               >
                 Practice this section · {questionCount} question{questionCount === 1 ? '' : 's'}
               </button>
+              <Link className="btn ghost" to={`/train/${examId}`}>
+                All sections
+              </Link>
+            </div>
+            <div className="end-next">
               {progress?.completed ? (
                 <span className="section-done">
                   <Icon name="check" size={16} stroke={2.5} /> Section complete · assignment passed
                 </span>
               ) : (
-                <span className="muted">The section is complete once the assignment passes.</span>
+                <span className="muted">
+                  Pass this section&apos;s assignment to complete it. The next section appears here when you do, and
+                  every section is always reachable from <Link to={`/train/${examId}`}>All sections</Link>.
+                </span>
               )}
             </div>
             <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
