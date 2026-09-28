@@ -4,6 +4,17 @@
  * section, on to the next unfinished one in exam order; from an unfinished
  * one, back into it; with nothing left, the Learn home.
  */
+import type { TrainingState } from './types';
+
+/** The sections whose assignment has passed, from a training state. */
+export function completedIn(t: TrainingState): Set<string> {
+  return new Set(
+    Object.values(t.sections)
+      .filter((s) => s.completed)
+      .map((s) => s.sectionId),
+  );
+}
+
 export interface FlowSection {
   id: string;
   number: number;
