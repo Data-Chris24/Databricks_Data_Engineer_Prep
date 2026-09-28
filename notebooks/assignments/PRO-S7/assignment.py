@@ -66,27 +66,40 @@
 # MAGIC ```bash
 # MAGIC databricks bundle run grade_pro_s7 -t free --profile FREE
 # MAGIC ```
+# MAGIC <!-- task:end -->
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- hints:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC #### Hints, if you want them
 # MAGIC
-# MAGIC ### Hints
-# MAGIC
-# MAGIC <details><summary>Does order matter?</summary>
+# MAGIC One per cell below, each opening with the problem it answers, so you can read only the one you need. To put a hint away again, collapse its cell from the cell menu on its right - a collapsed cell shows its first line only.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 1 - Does order matter?**
 # MAGIC
 # MAGIC Yes. Purge erasure subjects first — masking them and then deleting is wasted work,
 # MAGIC and masking them *instead* of deleting is the mistake requirement 1 is testing.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>How do I find PII inside prose?</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 2 - How do I find PII inside prose?**
 # MAGIC
 # MAGIC Pattern matching. `rlike` finds it; `regexp_replace` removes it. Test that none
 # MAGIC survives rather than assuming your pattern caught everything.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>Why hash the subject rather than drop it?</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 3 - Why hash the subject rather than drop it?**
 # MAGIC
 # MAGIC Requirement 4 — records must stay groupable by subject. Suppression would destroy
 # MAGIC that; a deterministic hash preserves it.
-# MAGIC </details>
-# MAGIC <!-- task:end -->
+# MAGIC <!-- hints:end -->
 
 # COMMAND ----------
 

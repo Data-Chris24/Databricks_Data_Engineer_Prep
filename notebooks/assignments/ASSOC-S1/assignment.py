@@ -72,21 +72,32 @@
 # MAGIC ```bash
 # MAGIC databricks bundle run grade_assoc_s1 -t free --profile FREE
 # MAGIC ```
+# MAGIC <!-- task:end -->
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- hints:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC #### Hints, if you want them
 # MAGIC
-# MAGIC ### Hints
-# MAGIC
-# MAGIC <details><summary>How do I see earlier versions?</summary>
+# MAGIC One per cell below, each opening with the problem it answers, so you can read only the one you need. To put a hint away again, collapse its cell from the cell menu on its right - a collapsed cell shows its first line only.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 1 - How do I see earlier versions?**
 # MAGIC
 # MAGIC `DESCRIBE HISTORY <table>` lists them. `SELECT * FROM <table> VERSION AS OF <n>`
 # MAGIC queries one.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>Which version is the good one?</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 2 - Which version is the good one?**
 # MAGIC
 # MAGIC Requirement 1 — profile them. The bad load zeroed every price, so check each version
 # MAGIC for how many rows have `price = 0.0`.
-# MAGIC </details>
-# MAGIC <!-- task:end -->
+# MAGIC <!-- hints:end -->
 
 # COMMAND ----------
 

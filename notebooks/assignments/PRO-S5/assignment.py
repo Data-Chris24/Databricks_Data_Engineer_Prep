@@ -66,31 +66,46 @@
 # MAGIC ```bash
 # MAGIC databricks bundle run grade_pro_s5 -t free --profile FREE
 # MAGIC ```
+# MAGIC <!-- task:end -->
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- hints:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC #### Hints, if you want them
 # MAGIC
-# MAGIC ### Hints
-# MAGIC
-# MAGIC <details><summary>How do I build a seasonal baseline?</summary>
+# MAGIC One per cell below, each opening with the problem it answers, so you can read only the one you need. To put a hint away again, collapse its cell from the cell menu on its right - a collapsed cell shows its first line only.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 1 - How do I build a seasonal baseline?**
 # MAGIC
 # MAGIC Partition by day of week, then average the previous few occurrences of that same
 # MAGIC weekday. Offset the window so today does not contribute to its own baseline.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>My alert fires every weekend</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 2 - My alert fires every weekend**
 # MAGIC
 # MAGIC Requirement 1. The baseline is comparing across day types.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>My alert fires on the campaign day</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 3 - My alert fires on the campaign day**
 # MAGIC
 # MAGIC Requirement 3. That day is *above* baseline. Alert on drops.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>I get scattered single-day alerts</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 4 - I get scattered single-day alerts**
 # MAGIC
 # MAGIC Require persistence — several consecutive low days. You trade a day of detection
 # MAGIC latency for an alert people believe.
-# MAGIC </details>
-# MAGIC <!-- task:end -->
+# MAGIC <!-- hints:end -->
 
 # COMMAND ----------
 

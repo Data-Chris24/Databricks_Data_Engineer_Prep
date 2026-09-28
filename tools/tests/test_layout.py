@@ -163,3 +163,30 @@ def test_every_grader_check_explains_itself():
                 if len(doc) < 40:
                     thin.append(f"{path.parent.parent.name}::{fn.name}")
     assert not thin, f"grader checks without a learner-facing docstring: {thin}"
+
+
+def test_hints_get_one_cell_each():
+    """A Databricks markdown cell strips `<details>`, so a README's hints would
+    arrive as one wall of text with nothing marking which line is the question.
+    Each hint gets its own cell opening with the problem it answers."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from sync_assignment_tasks import ASSIGNMENTS, split_hints
+
+    checked = 0
+    for section in sorted(p for p in ASSIGNMENTS.iterdir() if p.is_dir()):
+        readme, starter = section / "README.md", section / "assignment.py"
+        if not readme.exists() or not starter.exists():
+            continue
+        _, hints = split_hints(readme.read_text())
+        if not hints:
+            continue
+        source = starter.read_text()
+        cells = source.split("# COMMAND ----------\n")
+        hint_cells = [c for c in cells if "# MAGIC **Hint " in c]
+        assert len(hint_cells) == len(hints), f"{section.name}: {len(hint_cells)} hint cells for {len(hints)} hints"
+        for cell, (problem, _) in zip(hint_cells, hints):
+            first = [ln for ln in cell.splitlines() if ln.startswith("# MAGIC **Hint ")][0]
+            assert problem in first, f"{section.name}: hint cell does not open with {problem!r}"
+        assert "<details>" not in source, f"{section.name}: a stripped-out tag survived into the notebook"
+        checked += 1
+    assert checked == 13

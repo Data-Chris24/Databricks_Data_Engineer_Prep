@@ -63,27 +63,40 @@
 # MAGIC ```bash
 # MAGIC databricks bundle run grade_assoc_s6 -t free --profile FREE
 # MAGIC ```
+# MAGIC <!-- task:end -->
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- hints:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC #### Hints, if you want them
 # MAGIC
-# MAGIC ### Hints
-# MAGIC
-# MAGIC <details><summary>I only found the skew</summary>
+# MAGIC One per cell below, each opening with the problem it answers, so you can read only the one you need. To put a hint away again, collapse its cell from the cell menu on its right - a collapsed cell shows its first line only.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 1 - I only found the skew**
 # MAGIC
 # MAGIC That is the one the lesson's query finds. Ask two more questions: does the row count
 # MAGIC equal the distinct key count, and is the null rate the same across the whole date
 # MAGIC range?
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>How do I find a regression date?</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 2 - How do I find a regression date?**
 # MAGIC
 # MAGIC Group by date and compute the null rate per day. The regression is where it jumps.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>Duplicates or a legitimate repeat?</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 3 - Duplicates or a legitimate repeat?**
 # MAGIC
 # MAGIC Compare `count(*)` with `count(distinct order_id)`. If they differ, some order id
 # MAGIC appears more than once.
-# MAGIC </details>
-# MAGIC <!-- task:end -->
+# MAGIC <!-- hints:end -->
 
 # COMMAND ----------
 

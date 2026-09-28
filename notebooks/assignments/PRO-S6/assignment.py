@@ -67,26 +67,39 @@
 # MAGIC ```bash
 # MAGIC databricks bundle run grade_pro_s6 -t free --profile FREE
 # MAGIC ```
+# MAGIC <!-- task:end -->
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- hints:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC #### Hints, if you want them
 # MAGIC
-# MAGIC ### Hints
-# MAGIC
-# MAGIC <details><summary>Where do I start?</summary>
+# MAGIC One per cell below, each opening with the problem it answers, so you can read only the one you need. To put a hint away again, collapse its cell from the cell menu on its right - a collapsed cell shows its first line only.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 1 - Where do I start?**
 # MAGIC
 # MAGIC `DESCRIBE DETAIL` gives file count and total size in one row. Divide.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>What makes a clustering key bad?</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 2 - What makes a clustering key bad?**
 # MAGIC
 # MAGIC Count distinct values against row count. If nearly every row is unique, no file can
 # MAGIC be skipped — clustering costs a rewrite and buys nothing.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>Why is a wide table a problem if I filter well?</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 3 - Why is a wide table a problem if I filter well?**
 # MAGIC
 # MAGIC Filtering chooses rows. Projection chooses columns. `SELECT *` on 25 columns reads
 # MAGIC all 25 regardless of how good your filter is.
-# MAGIC </details>
-# MAGIC <!-- task:end -->
+# MAGIC <!-- hints:end -->
 
 # COMMAND ----------
 

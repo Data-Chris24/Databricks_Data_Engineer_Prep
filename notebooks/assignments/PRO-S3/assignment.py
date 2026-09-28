@@ -64,27 +64,40 @@
 # MAGIC ```bash
 # MAGIC databricks bundle run grade_pro_s3 -t free --profile FREE
 # MAGIC ```
+# MAGIC <!-- task:end -->
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- hints:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC #### Hints, if you want them
 # MAGIC
-# MAGIC ### Hints
-# MAGIC
-# MAGIC <details><summary>My quality checks all pass</summary>
+# MAGIC One per cell below, each opening with the problem it answers, so you can read only the one you need. To put a hint away again, collapse its cell from the cell menu on its right - a collapsed cell shows its first line only.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 1 - My quality checks all pass**
 # MAGIC
 # MAGIC They would. Every row is valid on its own. Ask what the *previous* row was.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>How do I find missing rows?</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 2 - How do I find missing rows?**
 # MAGIC
 # MAGIC You cannot look at a row that is not there. Look at the interval between the rows
 # MAGIC that are — `lag` on the timestamp.
-# MAGIC </details>
-# MAGIC
-# MAGIC <details><summary>My backwards count seems high</summary>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 3 - My backwards count seems high**
 # MAGIC
 # MAGIC Check whether one defect is producing another. A duplicate reading with a higher
 # MAGIC value makes the *next* reading look like a decrease. That interaction is real, and
 # MAGIC worth noticing rather than correcting for.
-# MAGIC </details>
-# MAGIC <!-- task:end -->
+# MAGIC <!-- hints:end -->
 
 # COMMAND ----------
 
