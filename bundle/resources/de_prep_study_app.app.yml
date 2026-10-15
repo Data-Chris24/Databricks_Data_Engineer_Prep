@@ -30,138 +30,17 @@ targets:
               # turns repo-relative notebook paths into deep links with it.
               - name: DE_PREP_FILES_ROOT
                 value: ${workspace.file_path}
-              # The jobs plugin's resource registry insists on its single-job variable
-              # even when every job is named (the app crashed at startup without it:
-              # "Missing required resources: job:Job [jobs] (set DATABRICKS_JOB_ID)").
-              # Point it at one of the bound jobs; the named ones below add the rest.
-              - name: DATABRICKS_JOB_RESET_ASSIGNMENT
-                value: ${resources.jobs.reset_assignment.id}
-              - name: DATABRICKS_JOB_ID
-                value: ${resources.jobs.grade_assoc_s1.id}
-              # One grading job per section. The app's jobs plugin discovers these
-              # by name (DATABRICKS_JOB_<KEY>) and runs them on the learner's behalf.
-              - name: DATABRICKS_JOB_GRADE_ASSOC_S1
-                value: ${resources.jobs.grade_assoc_s1.id}
-              - name: DATABRICKS_JOB_GRADE_ASSOC_S2
-                value: ${resources.jobs.grade_assoc_s2.id}
-              - name: DATABRICKS_JOB_GRADE_ASSOC_S3
-                value: ${resources.jobs.grade_assoc_s3.id}
-              - name: DATABRICKS_JOB_GRADE_ASSOC_S4
-                value: ${resources.jobs.grade_assoc_s4.id}
-              - name: DATABRICKS_JOB_GRADE_ASSOC_S5
-                value: ${resources.jobs.grade_assoc_s5.id}
-              - name: DATABRICKS_JOB_GRADE_ASSOC_S6
-                value: ${resources.jobs.grade_assoc_s6.id}
-              - name: DATABRICKS_JOB_GRADE_ASSOC_S7
-                value: ${resources.jobs.grade_assoc_s7.id}
-              - name: DATABRICKS_JOB_GRADE_PRO_S1
-                value: ${resources.jobs.grade_pro_s1.id}
-              - name: DATABRICKS_JOB_GRADE_PRO_S10
-                value: ${resources.jobs.grade_pro_s10.id}
-              - name: DATABRICKS_JOB_GRADE_PRO_S2
-                value: ${resources.jobs.grade_pro_s2.id}
-              - name: DATABRICKS_JOB_GRADE_PRO_S3
-                value: ${resources.jobs.grade_pro_s3.id}
-              - name: DATABRICKS_JOB_GRADE_PRO_S4
-                value: ${resources.jobs.grade_pro_s4.id}
-              - name: DATABRICKS_JOB_GRADE_PRO_S5
-                value: ${resources.jobs.grade_pro_s5.id}
-              - name: DATABRICKS_JOB_GRADE_PRO_S6
-                value: ${resources.jobs.grade_pro_s6.id}
-              - name: DATABRICKS_JOB_GRADE_PRO_S7
-                value: ${resources.jobs.grade_pro_s7.id}
-              - name: DATABRICKS_JOB_GRADE_PRO_S8
-                value: ${resources.jobs.grade_pro_s8.id}
-              - name: DATABRICKS_JOB_GRADE_PRO_S9
-                value: ${resources.jobs.grade_pro_s9.id}
-              # The dataset-generation dispatcher (one job, `section` parameter). The
-              # app runs it the first time a learner opens a section, so nobody needs
-              # a terminal. One job, not seventeen: an app may hold at most 20
-              # resources (measured 2026-09-15: the 17 per-section bindings were
-              # refused with "Number of app resources must be less than or equal
-              # to 20").
-              - name: DATABRICKS_JOB_GENERATE_DATASETS
-                value: ${resources.jobs.generate_datasets.id}
+              # No job ids here. The app lists the jobs it may run (granted below)
+              # at startup and finds each by name - server/lib/bootstrap.ts - the
+              # same way whether the bundle or the Apps UI started it.
+          # The database is the app's only resource. Jobs used to be bound here
+          # too, and an app may hold at most 20 resources (measured 2026-09-15),
+          # which Lakebase + 19 jobs had filled. Granting on the jobs instead
+          # (below) has no such limit.
           resources:
             - name: postgres
               postgres:
                 branch: ${var.lakebase_branch}
                 database: ${var.lakebase_database}
                 permission: CAN_CONNECT_AND_CREATE
-            # CAN_MANAGE_RUN on each grading job, so the app can trigger and read runs.
-            - name: job_reset_assignment
-              job:
-                id: ${resources.jobs.reset_assignment.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_grade_assoc_s1
-              job:
-                id: ${resources.jobs.grade_assoc_s1.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_grade_assoc_s2
-              job:
-                id: ${resources.jobs.grade_assoc_s2.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_grade_assoc_s3
-              job:
-                id: ${resources.jobs.grade_assoc_s3.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_grade_assoc_s4
-              job:
-                id: ${resources.jobs.grade_assoc_s4.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_grade_assoc_s5
-              job:
-                id: ${resources.jobs.grade_assoc_s5.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_grade_assoc_s6
-              job:
-                id: ${resources.jobs.grade_assoc_s6.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_grade_assoc_s7
-              job:
-                id: ${resources.jobs.grade_assoc_s7.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_grade_pro_s1
-              job:
-                id: ${resources.jobs.grade_pro_s1.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_grade_pro_s10
-              job:
-                id: ${resources.jobs.grade_pro_s10.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_grade_pro_s2
-              job:
-                id: ${resources.jobs.grade_pro_s2.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_grade_pro_s3
-              job:
-                id: ${resources.jobs.grade_pro_s3.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_grade_pro_s4
-              job:
-                id: ${resources.jobs.grade_pro_s4.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_grade_pro_s5
-              job:
-                id: ${resources.jobs.grade_pro_s5.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_grade_pro_s6
-              job:
-                id: ${resources.jobs.grade_pro_s6.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_grade_pro_s7
-              job:
-                id: ${resources.jobs.grade_pro_s7.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_grade_pro_s8
-              job:
-                id: ${resources.jobs.grade_pro_s8.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_grade_pro_s9
-              job:
-                id: ${resources.jobs.grade_pro_s9.id}
-                permission: CAN_MANAGE_RUN
-            - name: job_generate_datasets
-              job:
-                id: ${resources.jobs.generate_datasets.id}
-                permission: CAN_MANAGE_RUN
+

@@ -73,6 +73,53 @@ export function parseJson(status: number, text: string): Record<string, unknown>
 
 const RETRY_MS = 2500;
 
+/**
+ * Databricks Free Edition switches the app's database off after a few days
+ * unused. The server notices, starts the job that turns it back on, and answers
+ * 503 `database_waking` (server/lib/wake.ts). Reads wait and retry; the banner
+ * (components/DatabaseWaking.tsx) tells the learner why the page is slow.
+ */
+export class DatabaseWakingError extends ApiError {
+  constructor(status: number, body: Record<string, unknown>) {
+    super(status, body);
+    this.name = 'DatabaseWakingError';
+    this.message =
+      'Your study database is still waking up after being switched off for inactivity. Your progress is safe - reload the page in a minute.';
+  }
+}
+
+/** The database is off and the app found no wake job to run. */
+export class DatabaseDisabledError extends ApiError {
+  constructor(status: number, body: Record<string, unknown>) {
+    super(status, body);
+    this.name = 'DatabaseDisabledError';
+    this.message =
+      'Your study database was switched off for inactivity and the app could not turn it back on. In your Databricks workspace open Jobs & Pipelines, find "[DE prep] Wake the study database", press Run now, then reload this page. Your progress is safe.';
+  }
+}
+
+const WAKE_POLL_MS = 10_000;
+const WAKE_GIVE_UP_MS = 5 * 60_000;
+
+let waking = false;
+const wakingListeners = new Set<() => void>();
+function setWaking(value: boolean) {
+  if (waking === value) return;
+  waking = value;
+  for (const l of wakingListeners) l();
+}
+
+/** Whether a request is waiting for the database to wake, for useSyncExternalStore. */
+export const databaseWaking = {
+  subscribe: (listener: () => void) => {
+    wakingListeners.add(listener);
+    return () => {
+      wakingListeners.delete(listener);
+    };
+  },
+  get: () => waking,
+};
+
 export class BankTooSmallError extends ApiError {
   readonly have: number;
   readonly need: number;
@@ -148,13 +195,22 @@ export interface StudyStore {
 
 // ------------------------------------------------------------------ api
 
-async function request<T>(method: string, path: string, body?: unknown, retried = false): Promise<T> {
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  retried = false,
+  wakeDeadline?: number,
+): Promise<T> {
   const res = await fetch(path, {
     method,
     headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (res.status === 204) return undefined as T;
+  if (res.status === 204) {
+    setWaking(false);
+    return undefined as T;
+  }
   const text = await res.text();
   let data: Record<string, unknown>;
   try {
@@ -168,6 +224,23 @@ async function request<T>(method: string, path: string, body?: unknown, retried 
     }
     throw e;
   }
+  if (data.error === 'database_waking') {
+    // A read is safe to repeat: wait for the wake job. A write failed before
+    // doing anything, but the caller decides whether to send it again.
+    const deadline = wakeDeadline ?? Date.now() + WAKE_GIVE_UP_MS;
+    if (method === 'GET' && Date.now() < deadline) {
+      setWaking(true);
+      await new Promise((r) => setTimeout(r, WAKE_POLL_MS));
+      return request<T>(method, path, body, retried, deadline);
+    }
+    setWaking(false);
+    throw new DatabaseWakingError(res.status, data);
+  }
+  if (data.error === 'database_disabled') {
+    setWaking(false);
+    throw new DatabaseDisabledError(res.status, data);
+  }
+  if (res.ok) setWaking(false);
   if (!res.ok) {
     if (data.error === 'bank_too_small') throw new BankTooSmallError(Number(data.have), Number(data.need));
     if (data.error === 'attempt_active') throw new AttemptActiveError(String(data.attemptId));

@@ -1,23 +1,21 @@
 import { createWorkspaceClient } from '@databricks/appkit';
 
 /**
- * Fill in the environment the bundle would have passed when this deployment
- * did not come from the bundle.
+ * Find the jobs the app may run, by name, and put their ids in the environment.
  *
- * `bundle run study_app` sends the command and ~20 environment variables (the
- * Lakebase endpoint, one job id per grader, the files root) inside the
- * deployment request. Nothing lands in the source folder. So a deployment
- * started any other way - Start or Deploy in the Apps UI after the 24-hour
- * auto-stop, or `databricks apps deploy` - runs with app.yaml alone, which
- * can name the Lakebase resource but cannot know job ids. Without them the
- * jobs plugin refuses to start ("Missing required resources ... set
- * DATABRICKS_JOB_ID"), which is exactly what happened on 2026-09-14.
+ * The bundle grants the app's principal CAN_MANAGE_RUN on each job it runs
+ * (bundle/resources/de_prep_study_app_job_grants.yml) instead of binding them
+ * as app resources, which an app may hold at most 20 of. So no deployment
+ * carries job ids: neither `bundle run study_app` nor Start in the Apps UI.
+ * Every job the principal can see is listed here at startup instead, and the
+ * ones with a recognised name become the `DATABRICKS_JOB_<KEY>` variables the
+ * jobs plugin reads. Without any the plugin refuses to start ("Missing required
+ * resources ... set DATABRICKS_JOB_ID").
  *
  * The jobs carry stable names ("[DE prep] Grade ASSOC-S1", possibly behind a
  * development-mode prefix), and every grader's notebook lives under
- * `<files root>/grading/`, so both the job ids and the files root can be
- * recovered by listing the jobs the app's principal can see. Values already
- * in the environment always win; this only fills gaps.
+ * `<files root>/grading/`, so the files root can be recovered too. Values
+ * already in the environment always win; this only fills gaps.
  */
 
 const MARKER = '[DE prep] ';
@@ -31,6 +29,7 @@ export function jobEnvName(jobName: string): string | null {
   if (grade) return `DATABRICKS_JOB_GRADE_${grade[1].toUpperCase().replace('-', '_')}`;
   if (/^Generate a section's datasets/i.test(rest)) return 'DATABRICKS_JOB_GENERATE_DATASETS';
   if (/^Reset an assignment/i.test(rest)) return 'DATABRICKS_JOB_RESET_ASSIGNMENT';
+  if (/^Wake the study database/i.test(rest)) return 'DATABRICKS_JOB_WAKE_DATABASE';
   return null;
 }
 
@@ -75,7 +74,7 @@ export function resolveEnv(env: Env, jobs: DiscoveredJob[]): Record<string, stri
  * leaves the app to start with whatever it has, and the log says why. */
 export async function bootstrapEnv(env: Env = process.env, list?: () => Promise<DiscoveredJob[]>): Promise<Record<string, string>> {
   if (!needsResolution(env)) return {};
-  console.log('[bootstrap] this deployment carried no bundle environment; resolving jobs by name');
+  console.log('[bootstrap] resolving the jobs this app may run, by name');
   try {
     const jobs = await (list ?? listJobs)();
     const found = resolveEnv(env, jobs);
@@ -83,7 +82,9 @@ export async function bootstrapEnv(env: Env = process.env, list?: () => Promise<
     const keys = Object.keys(found);
     console.log(`[bootstrap] resolved ${keys.length} variable(s): ${keys.join(', ') || 'none'}`);
     if (needsResolution(env)) {
-      console.error(`[bootstrap] still missing ${REQUIRED.filter((k) => !env[k]?.trim()).join(', ')}; is the bundle deployed, and can the app's principal see its jobs?`);
+      console.error(
+        `[bootstrap] still missing ${REQUIRED.filter((k) => !env[k]?.trim()).join(', ')}; is the bundle deployed, and does the app's principal have CAN_MANAGE_RUN on its jobs?`
+      );
     }
     return found;
   } catch (err) {

@@ -3,6 +3,20 @@ import type { ZodType } from 'zod';
 
 import type { Db } from './appkit';
 import { identify, type Identity } from './user';
+import { DatabaseAsleepError } from './wake';
+
+/**
+ * Answer 503 when the database is off (lib/wake.ts), so the client can show
+ * "waking up" and retry instead of a server error. False for any other error.
+ */
+export function sendIfAsleep(res: Response, err: unknown): boolean {
+  if (!(err instanceof DatabaseAsleepError) || res.headersSent) return false;
+  res
+    .status(503)
+    .set('Retry-After', '15')
+    .json({ error: err.waking ? 'database_waking' : 'database_disabled', message: err.message });
+  return true;
+}
 
 /**
  * Per-request identity, with the users row guaranteed to exist. The upsert
@@ -32,7 +46,7 @@ export function userMiddleware(db: Db) {
       res.locals.user = who;
       next();
     } catch (err) {
-      next(err);
+      if (!sendIfAsleep(res, err)) next(err);
     }
   };
 }
@@ -61,6 +75,7 @@ export function wrap(handler: Handler) {
     Promise.resolve()
       .then(() => handler(req, res))
       .catch((err: unknown) => {
+        if (sendIfAsleep(res, err)) return;
         console.error(`[api] ${req.method} ${req.path} failed:`, err);
         if (!res.headersSent) res.status(500).json({ error: 'internal' });
       });

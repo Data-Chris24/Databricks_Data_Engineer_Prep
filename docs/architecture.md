@@ -262,9 +262,11 @@ What replaced it, and why each choice:
   exists, an active
   run shows as "preparing", and a job that has never run is started by the app
   on first open. One dispatcher job (`generate_datasets`, parameter `section`)
-  does the work, because **a Databricks App may hold at most 20 resources**
-  (measured 2026-09-15: binding the 17 per-section generate jobs was refused)
-  and Lakebase, the reset job and 17 graders already take 19. The app records
+  does the work. It was chosen when every job was bound as an app resource and
+  **an app may hold at most 20** (measured 2026-09-15: binding the 17
+  per-section generate jobs was refused); jobs are now granted to the app's
+  principal instead (see *The app runs jobs it is granted, not bound to*
+  below), but one dispatcher is still simpler than seventeen. The app records
   the run it started per section in `study.dataset_runs` and settles it against
   the job; data generated from a terminal before the app existed is not
   visible to it, so such a section is generated once more on first open (the
@@ -312,6 +314,33 @@ What replaced it, and why each choice:
   the objects the section's `outputs.json` names via the `reset_assignment` job
   (never an assess input), and forgets the section's grades, so a fresh attempt
   starts from nothing and cannot pass on old tables.
+
+### The app runs jobs it is granted, not bound to
+
+Until 2026-10-15 every job the app ran was an app resource, and the app held
+exactly 20 of them (Lakebase and 19 jobs), the platform's limit, with Professional
+sections still to come. Now the app's only resource is the database. Each job it
+runs grants the app's principal `CAN_MANAGE_RUN` in its own permissions
+(`bundle/resources/de_prep_study_app_job_grants.yml`), and at startup the app
+lists the jobs it can see and maps their stable names to the
+`DATABRICKS_JOB_<KEY>` variables AppKit's jobs plugin reads
+(`app/server/lib/bootstrap.ts`). Adding a job the app runs is one grant plus a
+name `jobEnvName` recognises; there is no ceiling. The same discovery is what
+lets Start in the Apps UI work, so both ways of starting the app take one path.
+
+### The app wakes its own database
+
+Free Edition disables an idle Lakebase endpoint after a few days
+([free-edition-constraints.md](free-edition-constraints.md#the-lakebase-endpoint-can-be-disabled)),
+and the app's principal can only connect, not re-enable it. So every query goes
+through `wakingDb` (`app/server/lib/wake.ts`): the first "endpoint has been
+disabled" failure starts the `wake_database` job, which runs as the deployer
+(who can manage the project) and re-enables it (`ops/wake_database.py`). The
+request answers 503 `database_waking`; the client keeps retrying reads for up to
+five minutes behind a "waking your study database" banner, and pages load on
+their own once it is back. A migration that failed at startup for the same
+reason is retried on a later request. Nothing here needs CI, a terminal, or a
+schedule, so a learner on a fork who comes back after weeks only waits.
 
 Verified against the live workspace before merge: `${workspace.file_path}` does
 interpolate into the app resource's `config.env` (so notebook links get their

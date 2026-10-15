@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { createBrowserRouter, Link, NavLink, Outlet, RouterProvider, useLocation, useParams } from 'react-router';
 
 import { isExamId } from '../../shared/content';
+import { DatabaseWaking } from './components/DatabaseWaking';
 import { ExamSwitch } from './components/ExamSwitch';
 import { Icon } from './components/Icon';
 import { useExam } from './lib/exam';
@@ -76,5 +77,10 @@ const router = createBrowserRouter([
 ]);
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <>
+      <RouterProvider router={router} />
+      <DatabaseWaking />
+    </>
+  );
 }

@@ -5,8 +5,7 @@
 # MAGIC The study app runs this job with a `section` parameter the first time a learner
 # MAGIC opens a section, so nobody needs a terminal. It runs the section's own generator
 # MAGIC (`generate_<SECTION>.py`, next to this notebook) as a child notebook run. One job
-# MAGIC for all sections because a Databricks App may hold at most 20 resources, and the
-# MAGIC seventeen graders plus the reset job and Lakebase already take nineteen.
+# MAGIC for all sections, so a new section needs a generator here and no new job.
 
 # COMMAND ----------
 
