@@ -1694,3 +1694,42 @@ button {
   z-index: 50;
   box-shadow: 0 8px 30px rgb(0 0 0 / 0.35);
 }
+
+/* Score page: what to review next (pages/test/Score.tsx). */
+.review-next {
+  margin: 0 0 22px;
+}
+.review-next h2 {
+  margin: 0 0 4px;
+}
+.review-next-item {
+  border-top: 1px solid var(--line);
+  padding: 14px 0 4px;
+  margin-top: 14px;
+}
+.review-next-item ul {
+  margin: 10px 0 12px;
+  padding-left: 18px;
+}
+.review-next-item li {
+  margin: 6px 0;
+  line-height: 1.45;
+}
+.review-next-item .small {
+  font-size: 13px;
+  margin-top: 4px;
+}
+.review-next-item .row-between {
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.review-next-item li a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+}
+.review-next-item li a:hover {
+  color: var(--accent);
+  text-decoration-color: currentColor;
+}

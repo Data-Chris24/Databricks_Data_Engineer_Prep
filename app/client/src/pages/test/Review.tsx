@@ -1,7 +1,9 @@
 import { Link, useParams, useSearchParams } from 'react-router';
 
-import { questionById } from '../../../../shared/content';
+import { notes, questionById } from '../../../../shared/content';
+import { objectiveAnchor } from '../../../../shared/reviewSuggestions';
 import { Explanation, QuestionCard } from '../../components/QuestionCard';
+import { ordersForAttempt } from '../../lib/options';
 import { useScored } from './Score';
 
 type Filter = 'all' | 'correct' | 'wrong';
@@ -15,6 +17,13 @@ export function Review() {
   if (error) return <div className="page page-narrow"><div className="error-banner">{error}</div></div>;
   if (!attempt || !score) return <div className="page page-narrow"><div className="card empty">Loading…</div></div>;
 
+  const orders = ordersForAttempt(attempt);
+  // An objective id names its section (ASSOC-S2-O3 -> ASSOC-S2), which may not be the question's.
+  const noteLink = (objectiveId: string) => {
+    const sectionId = objectiveId.replace(/-O\d+$/, '');
+    const anchor = objectiveAnchor(notes[sectionId], objectiveId);
+    return anchor ? `/train/${attempt.exam}/${sectionId}#${anchor}` : null;
+  };
   const rows = score.perQuestion.map((p, i) => ({ ...p, n: i + 1 }));
   const shown = rows.filter((r) => (filter === 'all' ? true : filter === 'correct' ? r.isCorrect : !r.isCorrect));
   const wrong = rows.filter((r) => !r.isCorrect).length;
@@ -62,6 +71,8 @@ export function Review() {
                 key={r.id}
                 question={q}
                 mode="review"
+                order={orders[q.id]}
+                objectiveHref={noteLink}
                 chosen={r.given}
                 revealed
                 header={
@@ -70,7 +81,7 @@ export function Review() {
                   </span>
                 }
               >
-                <Explanation question={q} chosen={r.given} />
+                <Explanation question={q} chosen={r.given} order={orders[q.id]} />
               </QuestionCard>
             );
           })}

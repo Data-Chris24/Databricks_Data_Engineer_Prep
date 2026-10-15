@@ -5339,7 +5339,7 @@
    "D": "The trigger interval cannot be modified without modifying the checkpoint directory; to maintain the current stream state, increase the number of shuffle partitions to maximize parallelism."
   },
   "correct": "B",
-  "explanation": "Smaller, more frequent batches keep each microbatch's working set small enough to avoid spilling to disk, which is what makes peak-hour runtimes blow out to 30 seconds. Note that B and C recommend the same action - the exam is testing the *reasoning*, not the change. Read the justification, not just the verb.",
+  "explanation": "Smaller, more frequent batches keep each microbatch's working set small enough to avoid spilling to disk, which is what makes peak-hour runtimes blow out to 30 seconds. Note that two options recommend the same 5-second interval - the exam is testing the *reasoning*, not the change. Read the justification, not just the verb.",
   "why": {
    "A": "Trigger-once processes all available data in one batch, which makes the batch larger, not smaller - the opposite of what is needed.",
    "C": "Right action, wrong mechanism. Structured Streaming microbatches run sequentially; the next batch does not start while the previous one is still finishing, so there are no idle executors overlapping work.",
@@ -5539,7 +5539,7 @@
    "D": "Add a parallel table write to the current production pipeline, updating a new sales table that varies as required from the marketing table."
   },
   "correct": "A",
-  "explanation": "A view solves both halves of the problem at once - column selection handles the unapproved fields, aliasing handles the naming mismatch - and it stays current automatically because it is computed at query time. Options B, C and D all create a second physical copy that must be kept in sync. When a question emphasizes \"simplicity\", prefer the solution that stores no duplicate data.",
+  "explanation": "A view solves both halves of the problem at once - column selection handles the unapproved fields, aliasing handles the naming mismatch - and it stays current automatically because it is computed at query time. The other three options all create a second physical copy that must be kept in sync. When a question emphasizes \"simplicity\", prefer the solution that stores no duplicate data.",
   "why": {
    "B": "DEEP CLONE copies data and does not continuously sync; it also cannot rename or drop columns.",
    "C": "CTAS plus a propagation job is real duplication plus real operational burden, for something a view does for free.",

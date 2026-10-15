@@ -123,6 +123,9 @@ def check_objectives() -> None:
         )
 
 
+OPTION_BY_LETTER = re.compile(r"\b(?:options?|answers?|choices?)\s+\(?[A-F]\b(?:\)?(?:,\s*[A-F])*(?:\s+(?:and|or)\s+[A-F]\b)?)?", re.IGNORECASE)
+
+
 def check_questions() -> dict[str, int]:
     schema = json.loads(SCHEMA_PATH.read_text())
     validator = jsonschema.Draft202012Validator(schema)
@@ -175,6 +178,17 @@ def check_questions() -> dict[str, int]:
                     error(
                         f"{src}: {qid} lists the correct answer {key!r} under "
                         f"distractor_rationale"
+                    )
+
+            # The app shows options in a shuffled order (app/shared/optionOrder.ts),
+            # so the letter an explanation names is not the letter on screen.
+            texts = [q.get("explanation", ""), *q.get("distractor_rationale", {}).values()]
+            for text in texts:
+                m = OPTION_BY_LETTER.search(text or "")
+                if m:
+                    error(
+                        f"{src}: {qid} refers to an option by letter ({m.group(0)!r}); "
+                        f"options are shuffled on screen, so describe it instead"
                     )
 
             unknown = [o for o in q["objective_ids"] if o not in objectives]

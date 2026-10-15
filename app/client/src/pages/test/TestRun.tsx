@@ -5,7 +5,9 @@ import { questionById } from '../../../../shared/content';
 import type { Attempt, OptionKey } from '../../../../shared/types';
 import { Countdown } from '../../components/Countdown';
 import { Icon } from '../../components/Icon';
+import { keyForLabel } from '../../../../shared/optionOrder';
 import { QuestionCard } from '../../components/QuestionCard';
+import { ordersForAttempt } from '../../lib/options';
 import { ApiError, useStore } from '../../lib/store';
 import { createClock, type Clock } from '../../lib/timer';
 
@@ -70,23 +72,26 @@ export function TestRun() {
 
   const questionId = attempt?.questionIds[index];
   const question = questionId ? questionById(questionId) : undefined;
+  const orders = useMemo(() => (attempt ? ordersForAttempt(attempt) : {}), [attempt]);
+  const order = question ? orders[question.id] : undefined;
   const answered = useMemo(() => (attempt ? attempt.questionIds.filter((q) => answers[q]).length : 0), [attempt, answers]);
 
   useEffect(() => {
     if (!attempt) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const k = e.key.toUpperCase();
-      if (question && k in question.options) {
+      // The letter pressed is the one on screen; map it back to the stored key.
+      const k = question && order ? keyForLabel(order, e.key.toUpperCase()) : null;
+      if (question && k) {
         e.preventDefault();
-        choose(question.id, k as OptionKey);
+        choose(question.id, k);
       } else if (e.key === 'ArrowRight' || e.key === 'n') setIndex((i) => Math.min(attempt.questionIds.length - 1, i + 1));
       else if (e.key === 'ArrowLeft' || e.key === 'p') setIndex((i) => Math.max(0, i - 1));
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attempt, question]);
+  }, [attempt, question, order]);
 
   if (error) {
     return (
@@ -118,7 +123,7 @@ export function TestRun() {
         <Countdown deadlineAt={attempt.deadlineAt} clock={clock} onExpire={onExpire} />
       </div>
 
-      <QuestionCard question={question} mode="test" chosen={answers[question.id] ?? null} onChoose={(k) => choose(question.id, k)} />
+      <QuestionCard question={question} mode="test" order={order} chosen={answers[question.id] ?? null} onChoose={(k) => choose(question.id, k)} />
 
       <div className="nav-row">
         <button type="button" className="btn ghost" disabled={index === 0} onClick={() => setIndex(index - 1)}>

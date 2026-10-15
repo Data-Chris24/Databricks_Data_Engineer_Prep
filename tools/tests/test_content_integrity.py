@@ -362,3 +362,15 @@ def test_every_note_ends_with_verified_further_reading(note):
     assert videos, f"{note.name}: no video link"
     assert not other, f"{note.name}: unexpected link hosts {other}"
     assert len(links) == len(set(links)), f"{note.name}: duplicate links in the footer"
+
+
+def test_option_letter_rule_spares_task_names():
+    """Options are shuffled in the app, so explanations may not name one by letter;
+    lettered *tasks* in a job (\"tasks A and B\") are fine."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from validate_content import OPTION_BY_LETTER
+
+    for text in ["Option B is wrong", "Options B, C and D all copy", "the answer (C)"]:
+        assert OPTION_BY_LETTER.search(text), text
+    for text in ["Tasks A and B committed", "B and C both depend on A", "a Delta table"]:
+        assert not OPTION_BY_LETTER.search(text), text

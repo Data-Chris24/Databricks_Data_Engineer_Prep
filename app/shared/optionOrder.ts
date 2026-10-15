@@ -1,0 +1,86 @@
+import type { OptionKey, Question } from './types';
+
+/**
+ * The order a question's options are shown in, as the stored keys in display
+ * order. The bank is authored with the right answer almost always under A
+ * (182 of 192 questions on 2026-10-15), so showing options as stored would
+ * teach "pick A". Answers are still recorded and scored by stored key; only the
+ * letters on screen change.
+ */
+export type OptionOrder = OptionKey[];
+
+export const LABELS: OptionKey[] = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+/** FNV-1a: a stable 32-bit hash of a string. */
+function hash(s: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+/** mulberry32: a small seeded generator, so the same seed always gives the same order. */
+function rng(seed: number): () => number {
+  let a = seed;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffle<T>(items: T[], random: () => number): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+function keys(q: Question): OptionKey[] {
+  return Object.keys(q.options) as OptionKey[];
+}
+
+/** One question, shuffled; the same seed and question always give the same order. */
+export function shuffledOrder(q: Question, seed: string): OptionOrder {
+  return shuffle(keys(q), rng(hash(`${seed}:${q.id}`)));
+}
+
+/**
+ * Orders for a whole timed test. The right answer's position is dealt from an
+ * even mix of A, B, C, D across the test, so no letter dominates; the wrong
+ * options fill the other places at random. Seeded by the attempt id, so the
+ * review shows exactly what the test showed.
+ */
+export function attemptOrders(questions: Question[], seed: string): Record<string, OptionOrder> {
+  const random = rng(hash(seed));
+  const slots = shuffle(
+    questions.map((_, i) => i % 4),
+    random,
+  );
+  const out: Record<string, OptionOrder> = {};
+  questions.forEach((q, i) => {
+    const others = shuffle(
+      keys(q).filter((k) => k !== q.correct),
+      random,
+    );
+    const at = Math.min(slots[i], others.length);
+    out[q.id] = [...others.slice(0, at), q.correct, ...others.slice(at)];
+  });
+  return out;
+}
+
+/** The letter shown for a stored key. */
+export function labelFor(order: OptionOrder, key: OptionKey): OptionKey {
+  return LABELS[order.indexOf(key)] ?? key;
+}
+
+/** The stored key behind a letter the learner pressed, or null. */
+export function keyForLabel(order: OptionOrder, label: string): OptionKey | null {
+  const i = LABELS.indexOf(label as OptionKey);
+  return i >= 0 && i < order.length ? order[i] : null;
+}

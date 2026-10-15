@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { useSearchParams } from 'react-router';
 
 import { questionsFor } from '../../../../shared/content';
+import { keyForLabel, shuffledOrder, type OptionOrder } from '../../../../shared/optionOrder';
 import type { OptionKey, Quality, Question, ReviewRow } from '../../../../shared/types';
 import { Explanation, QuestionCard } from '../../components/QuestionCard';
 import { ReadinessRail, type RailSection } from '../../components/ReadinessRail';
@@ -34,6 +35,8 @@ export function Practice() {
   const [reviews, setReviews] = useState<Record<string, ReviewRow>>({});
   const [loaded, setLoaded] = useState(false);
   const [current, setCurrent] = useState<Question | null>(null);
+  /** A fresh option order every time a question is shown, so a position cannot be memorised. */
+  const [order, setOrder] = useState<OptionOrder | undefined>(undefined);
   const [chosen, setChosen] = useState<OptionKey | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** Questions rated since the last break; a break is offered every PRACTICE_BATCH. */
@@ -61,7 +64,9 @@ export function Practice() {
   const next = useCallback(
     (rev: Record<string, ReviewRow>) => {
       setChosen(null);
-      setCurrent(pick(pool, rev));
+      const q = pick(pool, rev);
+      setCurrent(q);
+      setOrder(q ? shuffledOrder(q, String(Math.random())) : undefined);
     },
     [pool],
   );
@@ -99,9 +104,10 @@ export function Practice() {
       if (e.metaKey || e.ctrlKey || e.altKey || !current || onBreak) return;
       const k = e.key.toUpperCase();
       if (chosen === null) {
-        if (k in current.options) {
+        const key = order ? keyForLabel(order, k) : null;
+        if (key) {
           e.preventDefault();
-          setChosen(k as OptionKey);
+          setChosen(key);
         }
         return;
       }
@@ -113,7 +119,7 @@ export function Practice() {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [current, chosen, rate, onBreak]);
+  }, [current, chosen, rate, onBreak, order]);
 
   const stats = useMemo(() => {
     const out: Record<string, RailSection> = {};
@@ -160,10 +166,10 @@ export function Practice() {
           The bank is still being written{sectionFilter ? ` for ${sectionFilter}` : ''}. Pick another section, or switch exam.
         </div>
       ) : (
-        <QuestionCard question={current} mode="practice" chosen={chosen} revealed={chosen !== null} onChoose={(k) => chosen === null && setChosen(k)}>
+        <QuestionCard question={current} mode="practice" order={order} chosen={chosen} revealed={chosen !== null} onChoose={(k) => chosen === null && setChosen(k)}>
           {chosen !== null ? (
             <>
-              <Explanation question={current} chosen={chosen} />
+              <Explanation question={current} chosen={chosen} order={order} />
               <div className="advance">
                 <div className="advance-label">
                   Rate your recall to see the next question <span className="kbd">keys 1–4</span>
