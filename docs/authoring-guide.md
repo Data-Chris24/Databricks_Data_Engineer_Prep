@@ -77,6 +77,12 @@ IDs are never reused, even after a question is deleted.
   principle so it transfers to the next question.
 - **Fill in `distractor_rationale`.** Understanding why an attractive wrong answer
   is wrong is usually worth more than the correct one.
+- **Never name an option by its letter** in an explanation or a distractor
+  rationale ("Option B…", "B and C both…"). The app shuffles the options, and
+  spreads the right answer over A–D, so the letter on screen is not the letter
+  in the YAML; describe the option instead ("the other three options…").
+  `validate_content.py` rejects the "Option B" form. Author the right answer
+  under any letter you like.
 - **One correct answer.** Neither exam uses multi-select, and the schema doesn't
   model it.
 

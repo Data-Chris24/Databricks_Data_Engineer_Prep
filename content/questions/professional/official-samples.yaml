@@ -93,8 +93,8 @@ questions:
     explanation: >-
       Smaller, more frequent batches keep each microbatch's working set small enough
       to avoid spilling to disk, which is what makes peak-hour runtimes blow out to
-      30 seconds. Note that B and C recommend the same action - the exam is testing
-      the *reasoning*, not the change. Read the justification, not just the verb.
+      30 seconds. Note that two options recommend the same 5-second interval - the exam
+      is testing the *reasoning*, not the change. Read the justification, not just the verb.
     distractor_rationale:
       A: >-
         Trigger-once processes all available data in one batch, which makes the batch
@@ -362,8 +362,8 @@ questions:
     explanation: >-
       A view solves both halves of the problem at once - column selection handles the
       unapproved fields, aliasing handles the naming mismatch - and it stays current
-      automatically because it is computed at query time. Options B, C and D all create a
-      second physical copy that must be kept in sync. When a question emphasizes
+      automatically because it is computed at query time. The other three options all
+      create a second physical copy that must be kept in sync. When a question emphasizes
       "simplicity", prefer the solution that stores no duplicate data.
     distractor_rationale:
       B: >-

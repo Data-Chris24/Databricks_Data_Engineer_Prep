@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 
-import { examById, questionById } from '../../../../shared/content';
-import type { Attempt, ScoreResult } from '../../../../shared/types';
+import { examById, notes, questionById } from '../../../../shared/content';
+import { suggestReview, type ReviewSuggestion } from '../../../../shared/reviewSuggestions';
+import type { Attempt, ExamId, ScoreResult } from '../../../../shared/types';
 import { Icon } from '../../components/Icon';
 import { useStore } from '../../lib/store';
 import { formatDuration } from '../../lib/timer';
@@ -52,6 +53,7 @@ export function Score() {
   const used = Math.round((Date.parse(score.submittedAt) - Date.parse(attempt.startedAt)) / 1000);
   const unanswered = score.perQuestion.filter((p) => p.given === null).length;
   const exam = examById(attempt.exam);
+  const suggestions = exam ? suggestReview(exam, score.perQuestion, questionById, notes) : [];
 
   return (
     <div className="page page-narrow">
@@ -85,6 +87,8 @@ export function Score() {
         ))}
       </div>
 
+      {suggestions.length ? <WhatToReview exam={attempt.exam} suggestions={suggestions} /> : null}
+
       <div className="end-actions" style={{ justifyContent: 'center' }}>
         <Link to={`/test/attempt/${id}/review?filter=wrong`} className="btn primary">
           Review what you missed <Icon name="arrow-right" size={16} stroke={2} />
@@ -97,5 +101,63 @@ export function Score() {
         </Link>
       </div>
     </div>
+  );
+}
+
+/** Most-missed first; the rest are one click away in the section itself. */
+const OBJECTIVES_SHOWN = 3;
+
+/** Where the misses cost the most on the real exam, with a way into each (shared/reviewSuggestions.ts). */
+function WhatToReview({ exam, suggestions }: { exam: ExamId; suggestions: ReviewSuggestion[] }) {
+  return (
+    <section className="card review-next">
+      <h2>What to review next</h2>
+      <p className="muted">
+        Ranked by how much of the real exam each section&rsquo;s misses stand for. One test gives a section only a few
+        questions, so read a single miss as a hint, not a verdict.
+      </p>
+      {suggestions.map((s) => (
+        <div key={s.sectionId} className="review-next-item">
+          <div className="row-between">
+            <strong>
+              S{s.number} · {s.title}
+            </strong>
+            <span className="muted">
+              {s.correct}/{s.total} right · {s.weight}% of the exam · costs about {s.pointsLost.toFixed(1)}%
+            </span>
+          </div>
+          {s.total <= 3 ? (
+            <div className="muted small">
+              Only {s.total} question{s.total === 1 ? '' : 's'} from this section in the test.
+            </div>
+          ) : null}
+          {s.objectives.length ? (
+            <ul>
+              {s.objectives.slice(0, OBJECTIVES_SHOWN).map((o) => (
+                <li key={o.id}>
+                  {o.anchor ? <Link to={`/train/${exam}/${s.sectionId}#${o.anchor}`}>{o.text}</Link> : o.text}{' '}
+                  <span className="chip obj">{o.id}</span>
+                  {o.missed > 1 ? <span className="muted"> · missed {o.missed}</span> : null}
+                </li>
+              ))}
+              {s.objectives.length > OBJECTIVES_SHOWN ? (
+                <li className="muted">
+                  and {s.objectives.length - OBJECTIVES_SHOWN} more objective
+                  {s.objectives.length - OBJECTIVES_SHOWN === 1 ? '' : 's'} in this section
+                </li>
+              ) : null}
+            </ul>
+          ) : null}
+          <div className="end-actions">
+            <Link to={`/train/${exam}/${s.sectionId}`} className="btn ghost sm">
+              Open the section
+            </Link>
+            <Link to={`/test/${exam}/practice?section=${s.sectionId}`} className="btn ghost sm">
+              Practice this section <Icon name="arrow-right" size={14} stroke={2} />
+            </Link>
+          </div>
+        </div>
+      ))}
+    </section>
   );
 }
