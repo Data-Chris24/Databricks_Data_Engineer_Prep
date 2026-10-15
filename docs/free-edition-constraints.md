@@ -12,7 +12,7 @@ Verified 2026-09-09 against an AWS-backed Free Edition workspace.
 
 | Capability | Limit | Verified? |
 | --- | --- | --- |
-| Databricks Apps | **3 per account.** Each **auto-stops 24 hours** after being started, updated or redeployed. **At most 20 resources per app** (jobs, Lakebase, …) | Measured — deployed and ran one; the 20-resource cap refused an 18-job binding on 2026-09-15 |
+| Databricks Apps | **3 per account.** Each **auto-stops 24 hours** after being started, updated or redeployed. **At most 20 resources per app** (jobs, Lakebase, …) | Measured — deployed and ran one; the 20-resource cap refused an 18-job binding on 2026-09-15. The app now binds only Lakebase and is granted its jobs instead (architecture.md) |
 | App builds | Remote `npm install` and remote build **work** — npm/PyPI are reachable | **Measured** (see below) |
 | Compute | **Serverless only.** No custom compute configuration | Documented |
 | SQL warehouse | **One**, fixed at **2X-Small** | Measured — `Serverless Starter Warehouse`, 2X-Small |
@@ -69,7 +69,7 @@ Or press **Start** on the app's page in the workspace, or merge anything to
 Lakebase, so a stopped app loses nothing.
 
 **Why Start from the UI used to fail (fixed 2026-09-14).** `bundle run study_app`
-sends the command and every environment variable (the Lakebase endpoint, the job
+sent the command and every environment variable (the Lakebase endpoint, the job
 ids, the files root) *inside the deployment request*; nothing is written next to
 the source. A Start or Deploy from the UI creates a fresh deployment from the same
 source folder, and that deployment sees only `app/app.yaml`, which knew nothing.
@@ -77,7 +77,7 @@ The app exited with `Missing required resources ... set DATABRICKS_JOB_ID`. Now
 `app.yaml` names the Lakebase resource, and the server fills the rest in at
 startup by listing the jobs it can see (`server/lib/bootstrap.ts`): the grader
 and reset jobs have stable names, and their notebook paths reveal the files root.
-Values passed by the bundle still win when present.
+Since 2026-10-15 the bundle passes no job ids at all, so every start takes this path.
 
 ### The Lakebase endpoint can be disabled
 
@@ -98,11 +98,23 @@ databricks postgres update-endpoint projects/de-prep/branches/production/endpoin
   --json '{"spec":{"disabled":false}}' --profile FREE
 ```
 
-Then restart the app (Start in the UI or `databricks apps start`) so the
-migration step runs against a live endpoint. The deploy workflow does both on
-its own: its "Wake the Lakebase endpoint" step re-enables a disabled endpoint
-before the bundle deploys (the CI principal's CAN_MANAGE on the project covers
-it), so `gh workflow run deploy.yml --ref main` is a one-command restore.
+**The app now does this itself (2026-10-15).** It recurred after 17 idle days:
+the learner saw "Progress could not be loaded: Server error". The first query
+that fails with "endpoint has been disabled" makes the app run the
+`[DE prep] Wake the study database` job (`ops/wake_database.py`), which runs as
+the deployer and re-enables the endpoint; meanwhile pages show "Waking your
+study database…" and load by themselves when it is back, and a startup migration
+that failed is retried. No restart, CLI or CI is needed. If no wake job is
+deployed, the page says to run that job by hand (Jobs & Pipelines, **Run now**).
+
+A **deploy** still fails against a disabled endpoint, before the app is running
+to wake anything: run the wake job first (`databricks bundle run wake_database -t
+free --profile FREE`, or **Run now** in the UI), then deploy. The deploy workflow
+does this on its own: its "Wake the Lakebase endpoint" step re-enables a disabled
+endpoint before the bundle deploys (the CI principal's CAN_MANAGE on the project
+covers it). Right after waking, the deploy's grant step can still time out
+(`Failed to grant permissions ... deadline exceeded`, seen 2026-10-15) while the
+compute starts; running the deploy again succeeds.
 
 ### The study app
 

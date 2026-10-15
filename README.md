@@ -40,6 +40,7 @@ guides; content is being built section by section.
 | `notebooks/optional-classic/` | [Optional labs](docs/optional-classic-track.md) needing a paid/trial workspace |
 | `grading/` | Per-section graders, tests and fixtures the app runs, plus the optional [AI reviewer](docs/grading.md) |
 | `solutions/` | Reference solutions and anti-transplant proofs. **Never deployed to a learner's workspace** (maintainer `verify` target only) |
+| `ops/` | Housekeeping jobs the app runs for you, such as waking its database |
 | [`tools/`](tools/) | Content validators + tests — CI runs these |
 | [`app/`](app/) | The study app (AppKit + Lakebase): Learn, Practice, timed Test |
 | [`bundle/`](bundle/) | Declarative Automation Bundle; deploys the labs and the app |
@@ -107,6 +108,17 @@ principal if you want the same.
 
 Never edit the deployed notebooks under `.bundle/`: the app gives you your own
 copy of each assignment, and a reset puts the repo's clean version back.
+
+**Coming back after a break.** Free Edition switches the app's database off
+after a few days unused. Just open the app: it turns the database back on by
+itself, shows *Waking your study database…* for a minute or two, and your
+progress is all there. Two things it cannot do for you:
+
+- **Start itself.** Apps stop 24 hours after they start; press **Start** on the
+  app's page in your workspace (Compute → Apps → `de-prep-study`).
+- **Redeploy over a sleeping database.** If `bundle deploy` fails with an error
+  about the endpoint being disabled or granting permissions, wake it first and
+  deploy again: `databricks bundle run wake_database -t free --profile FREE`.
 
 ---
 

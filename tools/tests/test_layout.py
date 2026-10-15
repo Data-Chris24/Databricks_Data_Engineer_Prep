@@ -95,17 +95,36 @@ def test_graders_return_a_structured_result_to_the_app():
         assert "/Volumes/" not in text, f"{grade}: still writes to a volume"
 
 
-def test_app_binds_every_grading_job():
+def app_grants():
+    """Job key -> permissions granted in the free target (de_prep_study_app_job_grants.yml)."""
+    doc = yaml.safe_load((RESOURCES / "de_prep_study_app_job_grants.yml").read_text())
+    return {k: v["permissions"] for k, v in doc["targets"]["free"]["resources"]["jobs"].items()}
+
+
+def test_app_may_run_every_job_it_uses():
+    """The app's principal gets CAN_MANAGE_RUN on each job instead of binding it
+    as an app resource: an app holds at most 20 resources, which Lakebase and 19
+    jobs had filled. The app finds the jobs by name at startup (bootstrap.ts)."""
+    grants = app_grants()
+    needed = [f"grade_{sid.lower().replace('-', '_')}" for sid in SECTIONS]
+    needed += ["reset_assignment", "generate_datasets", "wake_database"]
+    defined = "\n".join(p.read_text() for p in RESOURCES.glob("*.job.yml"))
+    for key in needed:
+        assert f"\n    {key}:" in defined, f"{key}: granted but no such job"
+        assert grants.get(key) == [
+            {
+                "level": "CAN_MANAGE_RUN",
+                "service_principal_name": "${resources.apps.study_app.service_principal_client_id}",
+            }
+        ], key
+
+
+def test_app_binds_only_its_database():
     doc = yaml.safe_load((RESOURCES / "de_prep_study_app.app.yml").read_text())
     app = doc["targets"]["free"]["resources"]["apps"]["study_app"]
-    env = {e["name"]: e.get("value") for e in app["config"]["env"]}
-    jobs = {r["name"]: r["job"] for r in app["resources"] if "job" in r}
-    # The plugin's registry requires the single-job variable even in multi-job mode.
-    assert env.get("DATABRICKS_JOB_ID", "").startswith("${resources.jobs.grade_")
-    for sid in SECTIONS:
-        key = f"grade_{sid.lower().replace('-', '_')}"
-        assert env.get(f"DATABRICKS_JOB_{key.upper()}") == f"${{resources.jobs.{key}.id}}", sid
-        assert jobs.get(f"job_{key}", {}).get("permission") == "CAN_MANAGE_RUN", sid
+    assert [r["name"] for r in app["resources"]] == ["postgres"]
+    env = {e["name"] for e in app["config"]["env"]}
+    assert not any(n.startswith("DATABRICKS_JOB_") for n in env), "job ids come from bootstrap.ts, not the bundle"
 
 
 def test_graders_report_short_uncoloured_failures():

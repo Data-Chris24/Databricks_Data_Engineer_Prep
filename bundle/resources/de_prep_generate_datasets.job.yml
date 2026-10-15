@@ -1,7 +1,6 @@
 # One dataset-generation job for every section, parameterised by `section`.
-# The study app binds this single job (a Databricks App may hold at most 20
-# resources, and Lakebase + the reset job + 17 graders already take 19) and
-# runs it the first time a learner opens a section. The per-section
+# The study app runs this single job (granted in de_prep_study_app_job_grants.yml)
+# the first time a learner opens a section. The per-section
 # `generate_datasets_<section>` jobs stay for the terminal and CI.
 #
 # No compute block on purpose: serverless is the only compute Free Edition

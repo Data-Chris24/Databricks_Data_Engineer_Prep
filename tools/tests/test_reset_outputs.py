@@ -39,15 +39,14 @@ def test_outputs_manifest_matches_what_the_tests_grade(sid):
         assert t.split(".")[-1] in tests, f"{sid}: {t} is not referenced by the graded tests"
 
 
-def test_reset_job_exists_and_is_bound_to_the_app():
+def test_reset_job_exists_and_the_app_may_run_it():
     job = yaml.safe_load((REPO_ROOT / "bundle" / "resources" / "de_prep_reset_assignment.job.yml").read_text())
     r = job["resources"]["jobs"]["reset_assignment"]
     assert r["parameters"][0]["name"] == "section"
     assert r["tasks"][0]["notebook_task"]["notebook_path"].endswith("grading/reset_assignment.py")
-    app = yaml.safe_load((REPO_ROOT / "bundle" / "resources" / "de_prep_study_app.app.yml").read_text())["targets"]["free"]["resources"]["apps"]["study_app"]
-    env = {e["name"]: e.get("value") for e in app["config"]["env"]}
-    assert env["DATABRICKS_JOB_RESET_ASSIGNMENT"] == "${resources.jobs.reset_assignment.id}"
-    assert any(x.get("name") == "job_reset_assignment" and x["job"]["permission"] == "CAN_MANAGE_RUN" for x in app["resources"])
+    grants = yaml.safe_load((REPO_ROOT / "bundle" / "resources" / "de_prep_study_app_job_grants.yml").read_text())
+    perms = grants["targets"]["free"]["resources"]["jobs"]["reset_assignment"]["permissions"]
+    assert [p["level"] for p in perms] == ["CAN_MANAGE_RUN"]
 
 
 def test_reset_notebook_refuses_assess_inputs():

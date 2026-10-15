@@ -16,11 +16,12 @@ const deployed = [
 ];
 
 describe('jobEnvName', () => {
-  it('maps graders and the reset job, through a development-mode prefix', () => {
+  it('maps graders, the reset and wake jobs, through a development-mode prefix', () => {
     expect(jobEnvName('[DE prep] Grade ASSOC-S3')).toBe('DATABRICKS_JOB_GRADE_ASSOC_S3');
     expect(jobEnvName('[dev someone] [DE prep] Grade PRO-S10')).toBe('DATABRICKS_JOB_GRADE_PRO_S10');
     expect(jobEnvName("[DE prep] Reset an assignment's outputs")).toBe('DATABRICKS_JOB_RESET_ASSIGNMENT');
     expect(jobEnvName("[dev x] [DE prep] Generate a section's datasets")).toBe('DATABRICKS_JOB_GENERATE_DATASETS');
+    expect(jobEnvName('[dev x] [DE prep] Wake the study database')).toBe('DATABRICKS_JOB_WAKE_DATABASE');
     // The per-section generate jobs exist for the terminal; the app binds only the dispatcher.
     expect(jobEnvName('[dev x] [DE prep] Generate ASSOC-S1 datasets')).toBeNull();
   });

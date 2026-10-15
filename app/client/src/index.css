@@ -1683,3 +1683,14 @@ button {
   font-size: 13.5px;
   line-height: 1.5;
 }
+
+/* Fixed so it shows on every page, the home page included. */
+.database-waking {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  width: min(560px, calc(100vw - 32px));
+  z-index: 50;
+  box-shadow: 0 8px 30px rgb(0 0 0 / 0.35);
+}
