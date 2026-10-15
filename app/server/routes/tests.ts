@@ -53,6 +53,17 @@ function toAttempt(r: Record<string, unknown>, now: Date): Attempt {
   };
 }
 
+/**
+ * $3 (the time limit) fills an integer column and is also make_interval's
+ * double-precision `secs`. Postgres gives a parameter one type, so without the
+ * same cast on both uses it refuses the statement ("inconsistent types deduced
+ * for parameter $3") and no timed test could start (seen live 2026-10-15).
+ */
+export const INSERT_ATTEMPT = `INSERT INTO study.test_attempts
+           (user_id, exam, time_limit_seconds, deadline_at, question_ids, score_total, content_version)
+         VALUES ($1, $2, $3::int, now() + make_interval(secs => $3::int), $4::jsonb, $5, $6)
+         RETURNING attempt_id, started_at, deadline_at`;
+
 export function registerTestRoutes(app: Application, db: Db) {
   async function loadOwned(attemptId: string, userId: string) {
     const { rows } = await db.query(
@@ -154,13 +165,14 @@ export function registerTestRoutes(app: Application, db: Db) {
       }
 
       const limit = Math.min(body.timeLimitSecondsOverride ?? exam.minutes * 60, exam.minutes * 60);
-      const { rows } = await db.query(
-        `INSERT INTO study.test_attempts
-           (user_id, exam, time_limit_seconds, deadline_at, question_ids, score_total, content_version)
-         VALUES ($1, $2, $3, now() + make_interval(secs => $3), $4::jsonb, $5, $6)
-         RETURNING attempt_id, started_at, deadline_at`,
-        [user.userId, exam.id, limit, JSON.stringify(questionIds), questionIds.length, meta.content_version],
-      );
+      const { rows } = await db.query(INSERT_ATTEMPT, [
+        user.userId,
+        exam.id,
+        limit,
+        JSON.stringify(questionIds),
+        questionIds.length,
+        meta.content_version,
+      ]);
       const row = rows[0];
       const body2: AttemptStart = {
         attemptId: String(row.attempt_id),
