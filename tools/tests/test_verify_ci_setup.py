@@ -293,3 +293,13 @@ def test_no_environment_reviewers_passes(monkeypatch):
             "branch_policies": [{"name": "main", "type": "branch"}]}})
     v.check_environment(SLUG)
     assert v.WARN not in statuses() and v.FAIL not in statuses()
+
+
+def test_complete_ruleset_names_every_required_check(monkeypatch):
+    """The pass message counts and lists the checks, so it cannot go stale when one is added."""
+    rs = _ruleset()
+    stub(monkeypatch, {f"repos/{SLUG}/rulesets": [rs], f"repos/{SLUG}/rulesets/1": rs})
+    v.check_ruleset(SLUG)
+    msg = next(f for s, f in verdicts() if s == v.OK and "PR checks are required" in f)
+    assert msg.startswith(f"all {len(v.REQUIRED_CHECKS)} PR checks")
+    assert all(c in msg for c in v.REQUIRED_CHECKS)
