@@ -1,6 +1,6 @@
 # PRO-S1 — Developing Code for Data Processing (22%, the heaviest Professional section)
 # Original questions written for this repository. Scenario-shaped: "what happens
-# when", "which choice and why". Two per objective; Q001-Q003 (official samples)
+# when", "which choice and why". At least three per objective; Q001-Q003 (official samples)
 # live in official-samples.yaml.
 meta:
   source: Original, written for this repository.
@@ -98,6 +98,61 @@ questions:
           Each deployer gets its own "[dev <short_name>]" copy, and development mode pauses
           every schedule.
 
+  - id: PRO-S1-Q025
+    objective_ids: [PRO-S1-O1]
+    difficulty: application
+    provenance: original
+    tags: [dabs, project-structure, include, relative-paths]
+    stem: >-
+      A bundle keeps its notebook at src/etl.py and its job in resources/etl.job.yml,
+      which databricks.yml pulls in with include: resources/*.yml. The task says
+      notebook_path: ./src/etl.py, and bundle validate fails with "notebook
+      resources/src/etl.py not found". What is the cause and the fix?
+    options:
+      A: A relative path resolves from the folder of the file that contains it, so write ../src/etl.py.
+      B: The notebook is not part of the bundle until it is included; add src/*.py to the include list.
+      C: Bundles cannot reference notebooks by relative path; write the notebook's full /Workspace/Users/... path.
+      D: Notebook paths must leave out the file extension; write ./src/etl.
+    correct: A
+    explanation: >-
+      Every relative path in a bundle is resolved against the directory of the YAML file
+      it is written in, not the bundle root. A job defined in resources/ therefore reaches
+      the notebook with ../src/etl.py, which bundle validate resolves to the synced copy
+      under the bundle's files folder. Keeping one resource per file under resources/ is
+      still the right layout; it just means paths are written from there.
+    distractor_rationale:
+      B: >-
+        include takes configuration files only. Adding src/*.py fails validate with "Files in
+        the 'include' configuration section must be YAML or JSON files"; the notebook is
+        already synced because it sits inside the bundle folder.
+      C: >-
+        A hard-coded workspace path ties the bundle to one user and one deployment location,
+        which is what bundles exist to avoid; the relative path is supported, written from
+        the right folder.
+      D: >-
+        The extension is not the problem. ./src/etl still failed: notebook
+        "resources/src/etl" not found.
+    near_misses:
+      - text: >-
+          A relative path resolves from the folder bundle validate is run in, so write
+          ../src/etl.py.
+        why: >-
+          The working directory plays no part: run from inside resources/, ./src/etl.py failed
+          with the same "resources/src/etl.py not found", and ../src/etl.py validated from
+          either folder. It is the YAML file's folder that counts.
+      - text: >-
+          A relative path resolves from the folder of the file that contains it, so write
+          src/etl.py without the leading ./.
+        why: >-
+          Without ./ the path is still relative to resources/: validate failed with "notebook
+          resources/src/etl.py not found". The path has to step up with ../.
+      - text: >-
+          A relative path resolves from the folder bundle validate is run in, so write
+          src/etl.py without the leading ./.
+        why: >-
+          Neither the working directory nor the ./ matters. src/etl.py failed as
+          resources/src/etl.py, because paths resolve from the YAML file's folder.
+
   # ---------------------------------------------------------------- O2 dependencies
   - id: PRO-S1-Q006
     objective_ids: [PRO-S1-O2]
@@ -189,6 +244,61 @@ questions:
           DBFS-root storage for libraries is deprecated, and a %pip cell keeps the install out
           of the job definition. Use a volume path declared as a task dependency.
 
+  - id: PRO-S1-Q026
+    objective_ids: [PRO-S1-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [pip, dependency-conflict, wheels, troubleshooting]
+    stem: >-
+      A notebook's first cell is %pip install of two internal wheels from a volume,
+      ingest_lib and report_lib, on one line. ingest_lib requires six>=1.16 and
+      report_lib requires six<1.16. What happens, and what is the right fix?
+    options:
+      A: pip refuses with ResolutionImpossible and installs neither; make the pins agree, for example a report_lib release that accepts six 1.16.
+      B: Both install, each with its own copy of six, because notebook-scoped libraries are isolated per package.
+      C: The wheel listed last wins; six is downgraded and ingest_lib keeps working with a warning.
+      D: pip installs ingest_lib and silently skips report_lib; reorder the line to choose which one is kept.
+    correct: A
+    explanation: >-
+      pip resolves the whole request before installing anything. Two requirements that no
+      single version of six can satisfy are a conflict, so it stops with
+      ResolutionImpossible ("The conflict is caused by: ingest-lib 1.0 depends on
+      six>=1.16, report-lib 1.0 depends on six<1.16") and the environment is left
+      unchanged; on serverless the %pip cell fails with PipError. One Python environment holds one version of each package; the fix is to
+      make the requirements compatible, not to find an install order that hides the
+      clash.
+    distractor_rationale:
+      B: >-
+        A Python environment has one six. Notebook scoping separates notebooks from each
+        other, not packages within one notebook.
+      C: >-
+        On one line nothing is installed at all; order only matters when the wheels are
+        installed in separate commands, and then the earlier library is left broken.
+      D: >-
+        Nothing is skipped silently: the command fails, reports both requirements, and
+        installs neither wheel.
+    near_misses:
+      - text: >-
+          pip refuses with ResolutionImpossible and installs neither; install the two wheels
+          in separate %pip cells so each one resolves on its own.
+        why: >-
+          The second install succeeds and downgrades six: on serverless the notebook then had
+          six 1.15.0 under ingest_lib 1.0, and pip (run locally) printed only "ingest-lib
+          1.0 requires six>=1.16, but you have six 1.15.0 which is incompatible". The clash
+          is hidden, not fixed.
+      - text: >-
+          pip installs ingest_lib, then stops at report_lib with ResolutionImpossible; make
+          the pins agree, for example a report_lib release that accepts six 1.16.
+        why: >-
+          Resolution happens before any install. After the failed command neither wheel, nor
+          six, was installed.
+      - text: >-
+          pip installs ingest_lib, then stops at report_lib with ResolutionImpossible;
+          install report_lib in a separate %pip cell so it resolves on its own.
+        why: >-
+          Nothing is installed by the failing command, and installing report_lib on its own
+          downgrades six under ingest_lib with only a warning.
+
   # ---------------------------------------------------------------- O3 UDFs
   - id: PRO-S1-Q008
     objective_ids: [PRO-S1-O3]
@@ -275,6 +385,72 @@ questions:
         why: >-
           Calls are per Arrow batch (a 25,000-row partition arrived as eight batches), and a
           shorter result fails the query rather than being padded.
+
+  - id: PRO-S1-Q027
+    objective_ids: [PRO-S1-O3]
+    difficulty: application
+    provenance: original
+    tags: [pandas-udf, iterator, type-hints, code]
+    stem: >-
+      Loading the scoring model takes several seconds, so it must happen once per
+      partition rather than once per Arrow batch. Which parameter completes the pandas
+      UDF?
+    code_language: python
+    option_style: code
+    code: |-
+      from typing import Iterator, Iterable
+      import pandas as pd
+      from pyspark.sql.functions import pandas_udf
+
+      @pandas_udf("double")
+      def score(________) -> Iterator[pd.Series]:
+          model = load_model()              # expensive set-up
+          for s in batches:
+              yield pd.Series(model.predict(s))
+    options:
+      A: |-
+        batches: Iterator[pd.Series]
+      B: |-
+        batches: pd.Series
+      C: |-
+        batches
+      D: |-
+        *batches: pd.Series
+    correct: A
+    explanation: >-
+      The type hints choose the kind of pandas UDF. Iterator[pd.Series] in and out makes it
+      an iterator UDF: Spark calls the function once per partition and feeds it that
+      partition's batches, so code before the loop runs once. In a run over two
+      partitions, set-up in this form ran twice; the same set-up in a Series-to-Series UDF
+      ran 26 times, once per batch. Use the iterator form whenever there is expensive state
+      to build before the data arrives.
+    distractor_rationale:
+      B: >-
+        A Series in with an Iterator out is not a valid combination: UNSUPPORTED_SIGNATURE,
+        "Unsupported signature: (batches: pandas.core.series.Series) ->
+        Iterator[pandas.core.series.Series]".
+      C: >-
+        Every parameter needs a type hint for Spark to infer the UDF type:
+        TYPE_HINT_SHOULD_BE_SPECIFIED.
+      D: >-
+        Variable arguments do not form an iterator: UNSUPPORTED_SIGNATURE when the UDF is
+        defined.
+    near_misses:
+      - text: |-
+          batches: Iterable[pd.Series]
+        why: >-
+          Spark recognises Iterator, not Iterable: UNSUPPORTED_SIGNATURE, "(batches:
+          Iterable[pandas.core.series.Series]) -> Iterator[pandas.core.series.Series]".
+      - text: |-
+          batch: Iterator[pd.Series]
+        why: >-
+          The UDF is accepted, but the body loops over batches, which no longer exists: the
+          query failed in the Python worker with NameError: name 'batches' is not defined.
+      - text: |-
+          batch: Iterable[pd.Series]
+        why: >-
+          Iterable is not a supported hint, so the UDF is rejected at definition with
+          UNSUPPORTED_SIGNATURE before the misnamed parameter even matters.
 
   # ---------------------------------------------------------------- O4 pipelines + Auto Loader
   - id: PRO-S1-Q010
@@ -363,6 +539,126 @@ questions:
         why: >-
           There is no such argument and layers mean nothing to the pipeline; it reads the
           dependency graph from each query's references.
+
+  - id: PRO-S1-Q028
+    objective_ids: [PRO-S1-O4]
+    difficulty: application
+    provenance: original
+    tags: [auto-loader, schema-evolution, rescued-data, code]
+    stem: >-
+      Upstream teams add JSON fields without warning. The bronze stream must keep
+      running when a new field appears, must not change the table's schema, and must
+      keep the new field's values so they can be inspected later. Which line completes
+      the reader?
+    code_language: python
+    option_style: code
+    code: |-
+      (spark.readStream
+          .format("cloudFiles")
+          .option("cloudFiles.format", "json")
+          .option("cloudFiles.schemaLocation", "/Volumes/main/raw/_schemas/events")
+          ________
+          .load("/Volumes/main/raw/events")
+        .writeStream
+          .option("checkpointLocation", "/Volumes/main/raw/_checkpoints/events")
+          .trigger(availableNow=True)
+          .toTable("main.bronze.events"))
+    options:
+      A: |-
+        .option("cloudFiles.schemaEvolutionMode", "rescue")
+      B: |-
+        .option("cloudFiles.schemaEvolutionMode", "none")
+      C: |-
+        .option("cloudFiles.schemaEvolutionMode", "addNewColumns")
+      D: |-
+        .option("cloudFiles.schemaEvolutionMode", "failOnNewColumns")
+    correct: A
+    explanation: >-
+      rescue never evolves the schema: a field Auto Loader does not know goes into the
+      _rescued_data column, as JSON together with the source file's path, and the stream
+      carries on. In a run, a file adding "coupon" loaded with _rescued_data
+      {"coupon":"X","_file_path":...} and the table kept its columns. The modes differ
+      exactly on the three requirements: whether the stream stops, whether the schema
+      grows, and whether the new values are kept.
+    distractor_rationale:
+      B: >-
+        none keeps the stream running and the schema unchanged, but the new field is simply
+        dropped: the table had only id and amt, with no _rescued_data column to inspect.
+      C: >-
+        addNewColumns stops the stream with UNKNOWN_FIELD_EXCEPTION.NEW_FIELDS_IN_RECORD_WITH_FILE_PATH
+        so the restart can widen the schema, and the restart then failed at the Delta sink
+        with DELTA_METADATA_MISMATCH. It changes the schema, which the stem forbids.
+      D: >-
+        failOnNewColumns stops the stream and keeps failing ("can be fixed by an automatic
+        retry: false") until someone changes the schema.
+    near_misses:
+      - text: |-
+          .option("schemaEvolutionMode", "rescue")
+        why: >-
+          Without the cloudFiles. prefix the key is not Auto Loader's and is ignored, so the
+          default addNewColumns applies: the stream stopped with
+          UNKNOWN_FIELD_EXCEPTION.NEW_FIELDS_IN_RECORD_WITH_FILE_PATH.
+      - text: |-
+          .option("cloudFiles.schemaEvolutionMode", "rescued")
+        why: >-
+          The mode is rescue; the stream would not start: CF_INVALID_SCHEMA_EVOLUTION_MODE,
+          "cloudFiles.schemaEvolutionMode must be one of" addNewColumnsWithTypeWidening,
+          addNewColumns, failOnNewColumns, rescue, none.
+      - text: |-
+          .option("schemaEvolutionMode", "rescued")
+        why: >-
+          The unprefixed key is ignored, so the invalid value is never checked; the default
+          addNewColumns applied and the stream stopped on the new field.
+
+  # ---------------------------------------------------------------- O5 jobs via UI/API/CLI
+  - id: PRO-S1-Q029
+    objective_ids: [PRO-S1-O5]
+    difficulty: application
+    provenance: original
+    tags: [jobs-api, cli, reset, update]
+    stem: >-
+      A script moves a job's nightly schedule from 02:00 to 03:00 with databricks jobs
+      reset, sending the job_id and a new_settings object that contains only the new
+      schedule. The next morning the job is called "Untitled" and has no tasks. What
+      happened, and what should the script have done?
+    options:
+      A: reset replaces the job's entire settings with new_settings; jobs update with the same new_settings changes only the schedule.
+      B: The schedule change takes effect only after the job is reset to its last saved version, which had no tasks; deploy the job again.
+      C: The CLI ignores job_id inside the JSON body and created a new job; pass the job ID as a positional argument.
+      D: reset is correct but must be followed by jobs run-now, which restores the tasks from the last run.
+    correct: A
+    explanation: >-
+      The Jobs API has two ways to change a job. reset overwrites every setting with
+      new_settings, so anything not in it, such as name, tasks, environments and tags,
+      reverts to empty or default. update merges: the top-level fields in new_settings
+      replace or extend the existing ones, the rest are untouched, and fields_to_remove
+      deletes fields explicitly. For a one-field change, update is the call; reset is for
+      replacing a definition wholesale, which is what a bundle deploy does for you.
+    distractor_rationale:
+      B: Nothing is restored from a saved version; the job keeps its ID and gets exactly the settings that were sent.
+      C: >-
+        With --json the CLI expects job_id in the body (a positional ID alongside --json is
+        refused), and the same job ID came back with the new, near-empty settings.
+      D: A run executes the current settings; it does not bring back tasks that the reset removed.
+    near_misses:
+      - text: >-
+          reset deletes the job and re-creates it under a new job ID from new_settings; jobs
+          update with the same new_settings changes only the schedule.
+        why: >-
+          The job ID did not change: getting the same ID after the reset returned name
+          "Untitled", no tasks, no tags and the new schedule.
+      - text: >-
+          reset replaces the job's entire settings with new_settings; jobs update is right for
+          the schedule, but tasks or tags sent to update replace the existing list or map.
+        why: >-
+          update merges these too: sending one new task kept the existing task beside it, and
+          sending tags {owner} kept the existing team tag.
+      - text: >-
+          reset deletes the job and re-creates it under a new job ID; jobs update is right for
+          the schedule, but tasks or tags sent to update replace the existing list or map.
+        why: >-
+          The job ID survives a reset, and update merged both a new task and a new tag into
+          what was already there.
 
   # ---------------------------------------------------------------- O6 streaming tables vs MVs
   - id: PRO-S1-Q012
@@ -595,6 +891,79 @@ questions:
           Pipelines can join two streams when both sides have a watermark; the join is not the
           reason to choose either tool. Control over triggers is.
 
+  - id: PRO-S1-Q030
+    objective_ids: [PRO-S1-O8]
+    difficulty: analysis
+    provenance: original
+    tags: [structured-streaming, declarative-pipelines, state, full-refresh]
+    stem: >-
+      A running total of sales by region must now be grouped by store. Team one runs it
+      as a Structured Streaming job writing in complete mode to a Delta table; team two
+      runs it as a streaming table in a declarative pipeline. Each team changes only the
+      GROUP BY and runs again as usual, with the same checkpoint and a normal update.
+      What happens?
+    options:
+      A: >-
+        The Structured Streaming run fails, because its checkpoint and target are shaped by
+        region; the pipeline update succeeds but reuses the old state, so region totals sit
+        in the store column until a full refresh.
+      B: >-
+        Both recompute the totals by store, because each reprocesses its source whenever the
+        query's text changes.
+      C: >-
+        Both fail, and each needs its checkpoint deleted by hand before the new grouping can
+        run.
+      D: >-
+        The Structured Streaming run starts again from the beginning of the source, because a
+        changed query invalidates the checkpoint; the pipeline refuses to update a streaming
+        table whose query changed.
+    correct: A
+    explanation: >-
+      Both tools keep aggregation state in a checkpoint; the difference is who owns it. In
+      Structured Streaming you do: the restarted query was refused, with
+      STATE_STORE_KEY_SCHEMA_NOT_COMPATIBLE from the region-keyed state or
+      DELTA_METADATA_MISMATCH from the region-shaped table, and the fix is yours to make: a
+      new checkpoint location and a replaced target. In a pipeline the platform owns the
+      checkpoint, and an incompatible change is not always caught: a normal update
+      completed and produced store rows "eu" and "us" carried over from the old state. A
+      full refresh, which clears the table's data, checkpoints and state and reprocesses
+      the source, gave the correct s1 to s4 totals. Changing a stateful query means
+      resetting state in either tool; only the mechanism differs.
+    distractor_rationale:
+      B: >-
+        Neither reprocesses on its own. A checkpoint records how far the source was read, and
+        both runs carried on from it.
+      C: >-
+        Only the Structured Streaming run failed. The pipeline update completed, with wrong
+        rows, and a pipeline's checkpoint is reset by a full refresh, not by hand.
+      D: >-
+        A changed query does not rewind a checkpoint: the Structured Streaming run failed
+        instead. The pipeline accepted the changed query and ran a normal update.
+    near_misses:
+      - text: >-
+          The Structured Streaming run fails, because its checkpoint and target are shaped by
+          region; the pipeline update fails too, asking for a full refresh before the new
+          grouping can run.
+        why: >-
+          The pipeline update completed without an error, and the table held store values "eu"
+          and "us" with the old region totals. Nothing prompts the full refresh; you have to
+          know to run it.
+      - text: >-
+          The Structured Streaming run recomputes by store, because complete mode rewrites the
+          whole table; the pipeline update succeeds but reuses the old state, so region totals
+          sit in the store column until a full refresh.
+        why: >-
+          Complete mode rewrites the output from the state, not from the source. The restarted
+          query failed against the region-keyed state (STATE_STORE_KEY_SCHEMA_NOT_COMPATIBLE)
+          or the region-shaped table (DELTA_METADATA_MISMATCH).
+      - text: >-
+          The Structured Streaming run recomputes by store, because complete mode rewrites the
+          whole table; the pipeline update fails, asking for a full refresh before the new
+          grouping can run.
+        why: >-
+          It is the other way round: the Structured Streaming run failed loudly, and the
+          pipeline update completed silently with the old region totals under store.
+
   # ---------------------------------------------------------------- O9 control flow
   - id: PRO-S1-Q017
     objective_ids: [PRO-S1-O9]
@@ -683,6 +1052,60 @@ questions:
         why: >-
           Cleanup would run before load ever writes a file, and NONE_FAILED would not help
           anyway: it skips a dependant whenever an upstream task fails.
+
+  - id: PRO-S1-Q031
+    objective_ids: [PRO-S1-O9]
+    difficulty: analysis
+    provenance: original
+    tags: [jobs, if-else, condition-task, task-values]
+    stem: >-
+      A check task runs dbutils.jobs.taskValues.set(key="has_new_files", value=True).
+      The next task is an If/else condition with left
+      {{tasks.check.values.has_new_files}}, operator EQUAL_TO and right True. The false
+      branch runs every time, even on days with new files. Why, and what is the fix?
+    options:
+      A: Task values are stored as JSON, so the reference resolves to true in lower case, and EQUAL_TO compares strings exactly; set right to true.
+      B: An If/else task cannot read task values, so left is always empty; pass the flag as a job parameter instead.
+      C: Booleans cannot be stored as task values, so the set call stores nothing; store the string "yes" and compare with that.
+      D: References resolve when the job starts, before the check task has run; make the If/else depend on the check task.
+    correct: A
+    explanation: >-
+      A task value is serialised as JSON, so Python True travels as true, and the
+      reference resolves to that text. EQUAL_TO and NOT_EQUAL compare strings, exactly
+      and case-sensitively; only GREATER_THAN, LESS_THAN and their _OR_EQUAL forms compare
+      numbers. In a run with this setup the condition against "True" came out false and the
+      same condition against "true" came out true. Compare against the value's JSON text,
+      or set a value whose text you control.
+    distractor_rationale:
+      B: >-
+        If/else reads task values through the same {{tasks.<key>.values.<name>}} reference
+        as any task; the problem is what the reference resolves to.
+      C: >-
+        The boolean is stored: a downstream notebook parameter set from the same reference
+        received 'true'.
+      D: >-
+        A reference is resolved when the task that uses it runs, and an If/else that reads a
+        task value already depends on that task; the reference resolved to true.
+    near_misses:
+      - text: >-
+          Task values are stored as JSON, so the reference resolves to true in lower case, and
+          EQUAL_TO compares numbers only; use GREATER_THAN with right 0.
+        why: >-
+          EQUAL_TO compares strings: against "true" the same condition came out true. And the
+          ordering operators need numbers: GREATER_THAN failed with 'Numeric operand "left"
+          is not a valid number. Actual value: true'.
+      - text: >-
+          Task values are stored as integers, so the reference resolves to 1, and EQUAL_TO
+          compares strings exactly; set right to 1.
+        why: >-
+          The reference resolves to true, not 1: the same condition with right 1 came out
+          false.
+      - text: >-
+          Task values are stored as integers, so the reference resolves to 1, and EQUAL_TO
+          compares numbers only; use GREATER_THAN with right 0.
+        why: >-
+          The value is the JSON text true, which GREATER_THAN rejects: 'Numeric operand
+          "left" is not a valid number. Actual value: true'.
 
   # ---------------------------------------------------------------- O10 task configuration
   - id: PRO-S1-Q019
@@ -871,3 +1294,62 @@ questions:
         why: >-
           The tests pass every day, and a golden file taken from the pipeline still encodes
           its bugs. Only independently derived expectations test correctness.
+
+  - id: PRO-S1-Q032
+    objective_ids: [PRO-S1-O11]
+    difficulty: application
+    provenance: original
+    tags: [assertDataFrameEqual, tolerance, floats, code]
+    stem: >-
+      A test compares an aggregate whose expected total is 10.0. Floating-point summation
+      makes the actual value 10.0004, and the test fails. The test must pass for that
+      value but still fail if the total is 10.05. Which arguments complete the call?
+    code_language: python
+    option_style: code
+    code: |-
+      from pyspark.testing import assertDataFrameEqual
+
+      expected = spark.createDataFrame([("a", 10.0)], "k string, total double")
+      assertDataFrameEqual(actual, expected, ________)
+    options:
+      A: |-
+        rtol=1e-4
+      B: |-
+        rtol=0.1
+      C: |-
+        tolerance=1e-4
+      D: |-
+        checkRowOrder=True
+    correct: A
+    explanation: >-
+      For float columns assertDataFrameEqual accepts |actual - expected| <= atol + rtol *
+      |expected|, with defaults rtol=1e-05 and atol=1e-08. Against 10.0 the default allows
+      about 0.0001, so 10.0004 fails. rtol=1e-4 widens that to about 0.001: 10.0004 passed
+      and 10.05 still failed. Size a tolerance from the formula and the magnitude of the
+      values, and keep it as tight as the arithmetic allows.
+    distractor_rationale:
+      B: >-
+        rtol=0.1 allows a difference of about 1.0 at this magnitude, so 10.05 passed as
+        well; the test no longer catches a real error.
+      C: >-
+        There is no tolerance argument: TypeError, "assertDataFrameEqual() got an unexpected
+        keyword argument 'tolerance'".
+      D: >-
+        checkRowOrder concerns row order, not values; 10.0004 still failed with
+        DIFFERENT_ROWS.
+    near_misses:
+      - text: |-
+          atol=1e-4
+        why: >-
+          atol is added to rtol * |expected|, which stays at the default 1e-05 * 10. The
+          allowance is about 0.0002, so 10.0004 still failed with DIFFERENT_ROWS.
+      - text: |-
+          rtol=1e-6
+        why: >-
+          This tightens the default rather than loosening it: the allowance drops to about
+          0.00001 and 10.0004 failed.
+      - text: |-
+          atol=1e-6
+        why: >-
+          An absolute allowance of 0.000001 plus the default relative part is about 0.0001;
+          10.0004 still failed.
