@@ -451,3 +451,173 @@ questions:
           DATABRICKS_HOST was set in the shell, so the CLI tried the client credentials first, failed, and fell back to the engineer's profile, deploying as the engineer.
         why: >-
           With host and client credentials, the CLI did use them; when the secret was bad it stopped with 'cannot configure default credentials' instead of deploying as anyone.
+
+  - id: PRO-S9-Q013
+    objective_ids: [PRO-S9-O1]
+    difficulty: application
+    provenance: original
+    tags: [system-tables, termination-code, diagnostics]
+    stem: >-
+      A platform team wants a weekly report of task failures across every job in
+      the workspace, split into failures caused by the code and failures caused by
+      the platform, such as the workspace's cap on concurrent tasks. Which query
+      gives that split?
+    options:
+      A: >-
+        Query system.lakeflow.job_task_run_timeline for rows where result_state <> 'SUCCEEDED' and group them by termination_code: RUN_EXECUTION_ERROR is the code, codes such as WORKSPACE_RUN_LIMIT_EXCEEDED are the platform.
+      B: >-
+        Read the delivered cluster logs of every run and count the stack traces by exception type.
+      C: >-
+        Query system.billing.usage grouped by job, and treat the jobs whose cost rose as the failing ones.
+      D: >-
+        Run DESCRIBE HISTORY on each job's target table and count the versions with an error.
+    correct: A
+    explanation: >-
+      The task run timeline is the workspace-wide, queryable run history, and
+      termination_code is the column that says why a task ended. result_state only
+      says that it ended badly. Two traps: the system tables spell success
+      SUCCEEDED where the Jobs API says SUCCESS, and the tables arrive with a delay,
+      so they suit a weekly trend, not the run that failed a minute ago.
+    distractor_rationale:
+      B: >-
+        Logs are per cluster, exist only on classic compute that delivers them, and
+        have no column that separates a code failure from a platform one.
+      C: >-
+        Cost says how much a job used, not whether or why its tasks failed.
+      D: >-
+        Table history records successful writes; a failed task usually leaves no
+        version behind, and a task that hit the run limit never wrote at all.
+    near_misses:
+      - text: >-
+          Query system.lakeflow.job_task_run_timeline for rows where result_state <> 'SUCCESS' and group them by termination_code: RUN_EXECUTION_ERROR is the code, codes such as WORKSPACE_RUN_LIMIT_EXCEEDED are the platform.
+        why: >-
+          The system tables say SUCCEEDED, so the filter removes nothing and raises no
+          error: over 30 days it kept 260 of 263 task rows, the 118 successes included,
+          which then appear in the report under termination code SUCCESS.
+      - text: >-
+          Query system.lakeflow.job_task_run_timeline for rows where result_state <> 'SUCCEEDED' and group them by result_state: FAILED is the code, ERROR is the platform.
+        why: >-
+          result_state FAILED held both RUN_EXECUTION_ERROR (74 tasks) and
+          WORKSPACE_RUN_LIMIT_EXCEEDED (4), and the one ERROR was
+          INVALID_RUN_CONFIGURATION, a configuration mistake. Only termination_code
+          separates the causes.
+      - text: >-
+          Query system.lakeflow.job_task_run_timeline for rows where result_state <> 'SUCCESS' and group them by result_state: FAILED is the code, ERROR is the platform.
+        why: >-
+          'SUCCESS' is the Jobs API spelling, so every success stays in, and
+          result_state FAILED mixes code failures with tasks stopped by the run limit;
+          filter on 'SUCCEEDED' and group by termination_code.
+
+  - id: PRO-S9-Q014
+    objective_ids: [PRO-S9-O3]
+    difficulty: analysis
+    provenance: original
+    tags: [spark-ui, skew, salting, shuffle-partitions]
+    stem: >-
+      On classic compute, the slowest stage of a Spark job is a sort-merge join on
+      customer_id. The stage page's Summary Metrics show a median task duration of
+      20 seconds, a 75th percentile of 25 seconds and a maximum of 9 minutes, and
+      the stage details show no spill. What is the diagnosis, and a fix?
+    options:
+      A: >-
+        Skew: one partition holds far more rows than the rest. Salt the join key, or check that adaptive query execution's skew-join handling is on and its thresholds are met.
+      B: >-
+        The driver is the bottleneck: plain Python is running between Spark jobs. Move that work into Spark.
+      C: >-
+        The cluster has too few executors. Enable autoscaling so more tasks run at once.
+      D: >-
+        The stage is I/O bound because it reads too much. Check file pruning in the query profile.
+    correct: A
+    explanation: >-
+      A maximum task time far above the 75th percentile (1.5 times or more) is the
+      skew fingerprint: most tasks finish together and one partition, holding a hot
+      key, runs on alone. Hash partitioning sends every row of a key to the same
+      partition, so the fix has to split the key itself: a salt column, or AQE's
+      skew join, which covers sort-merge and shuffle-hash joins but not broadcast.
+      Serverless compute has no Spark UI; there the query profile is the equivalent
+      view.
+    distractor_rationale:
+      B: >-
+        Driver-side work shows as gaps between jobs on the jobs timeline, not as one
+        long task inside a stage.
+      C: >-
+        More executors run the short tasks sooner; the single 9-minute task still runs
+        on one core.
+      D: >-
+        An I/O-bound stage is long with evenly sized tasks; here the tasks are wildly
+        uneven, which is skew.
+    near_misses:
+      - text: >-
+          Spill: the stage ran out of execution memory and wrote to disk. Salt the join key, or check that adaptive query execution's skew-join handling is on and its thresholds are met.
+        why: >-
+          Spill appears as spill figures at the top of the stage details, and the stem
+          says there are none. Uneven task times with no spill are the skew signature.
+      - text: >-
+          Skew: one partition holds far more rows than the rest. Raise spark.sql.shuffle.partitions so the large partition is split across more tasks.
+        why: >-
+          Every row of a key hashes to the same partition, whatever the count. With
+          900,000 of a million rows on one key, the biggest partition held over 900,000
+          rows at both 200 and 2,000 partitions; a 16-way salt cut it to about 113,000.
+      - text: >-
+          Spill: the stage ran out of execution memory and wrote to disk. Raise spark.sql.shuffle.partitions so each partition fits in memory.
+        why: >-
+          There is no spill to fix, and more partitions cannot split a hot key: one key
+          stayed in a single partition at 200 and at 2,000. Uneven task times mean skew.
+
+  - id: PRO-S9-Q015
+    objective_ids: [PRO-S9-O5]
+    difficulty: application
+    provenance: original
+    tags: [git-folders, production-folder, cd, service-principal]
+    stem: >-
+      A team deploys notebooks without bundles: the production jobs run notebooks
+      from a Databricks Git folder checked out to main. After a pull request merges
+      to main, what should put the merged code where the jobs run?
+    options:
+      A: >-
+        A CD step, authenticated as a service principal, runs databricks repos update --branch main; the jobs use one production Git folder outside user folders, which others can only run.
+      B: >-
+        A CD step deletes the production Git folder and creates it again with databricks repos create on every merge.
+      C: >-
+        Whoever merged opens the production Git folder in the workspace and pulls from the Git dialog.
+      D: >-
+        Nothing extra: bundle validate in the pull request's CI updates the Git folder once the checks pass.
+    correct: A
+    explanation: >-
+      A Git folder is a checkout that moves only when told to. The production
+      pattern is one folder outside user folders, updated only by automation after a
+      merge (repos update --branch to the tip, or --tag to pin a release), with people
+      limited to running it. Pick its parent with care: a Git folder created under
+      /Workspace/Shared inherited CAN MANAGE for all users, which no grant on the
+      folder can lower. Databricks recommends bundles over this, because a Git
+      folder moves code but not the jobs and permissions around it.
+    distractor_rationale:
+      B: >-
+        Re-creating gives a new folder object with a new ID, so grants made on the old
+        folder do not carry over, and the jobs' notebooks are missing between the
+        delete and the create; repos update moves the existing folder in place.
+      C: >-
+        A person pulling by hand needs edit rights on production and can forget or
+        pull the wrong branch; the step belongs to automation.
+      D: >-
+        validate checks configuration and deploys nothing; it does not touch any Git
+        folder.
+    near_misses:
+      - text: >-
+          A CD step is not needed, because a Git folder pulls new commits on its branch by itself; the jobs use one production Git folder outside user folders, which others can only run.
+        why: >-
+          A Git folder does not follow its branch. After a commit was pushed to the
+          branch a folder was checked out to, its head_commit_id stayed on the old
+          commit until repos update --branch moved it to the tip.
+      - text: >-
+          A CD step, authenticated as a service principal, runs databricks repos update --branch main; the jobs use the merging engineer's own Git folder, which they keep on main.
+        why: >-
+          The branch belongs to the folder, so jobs reading a person's folder run
+          whatever that person checks out next. Production code lives in one folder
+          outside user folders that only automation changes.
+      - text: >-
+          A CD step is not needed, because a Git folder pulls new commits on its branch by itself; the jobs use the merging engineer's own Git folder, which they keep on main.
+        why: >-
+          The folder stays on its old commit until repos update moves it, and a
+          personal folder changes with its owner's branch switches; use one production
+          folder updated by CD.
