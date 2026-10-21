@@ -575,24 +575,27 @@ questions:
       to main, what should put the merged code where the jobs run?
     options:
       A: >-
-        A CD step, authenticated as a service principal, runs databricks repos update --branch main on the shared production folder the jobs use, outside user folders, where everyone else has at most CAN RUN.
+        A CD step, authenticated as a service principal, runs databricks repos update --branch main; the jobs use one production Git folder outside user folders, which others can only run.
       B: >-
-        A CD step deletes the production folder and creates it again with databricks repos create on every merge.
+        A CD step deletes the production Git folder and creates it again with databricks repos create on every merge.
       C: >-
-        Whoever merged opens the production folder in the workspace and pulls from the Git dialog.
+        Whoever merged opens the production Git folder in the workspace and pulls from the Git dialog.
       D: >-
-        Nothing extra: bundle validate in the pull request's CI updates the folder once the checks pass.
+        Nothing extra: bundle validate in the pull request's CI updates the Git folder once the checks pass.
     correct: A
     explanation: >-
       A Git folder is a checkout that moves only when told to. The production
       pattern is one folder outside user folders, updated only by automation after a
       merge (repos update --branch to the tip, or --tag to pin a release), with people
-      limited to running it. Databricks recommends bundles over this, because a Git
+      limited to running it. Pick its parent with care: a Git folder created under
+      /Workspace/Shared inherited CAN MANAGE for all users, which no grant on the
+      folder can lower. Databricks recommends bundles over this, because a Git
       folder moves code but not the jobs and permissions around it.
     distractor_rationale:
       B: >-
-        Re-creating gives a new folder object, so its permission grants are lost on
-        every merge; repos update moves the existing folder in place.
+        Re-creating gives a new folder object with a new ID, so grants made on the old
+        folder do not carry over, and the jobs' notebooks are missing between the
+        delete and the create; repos update moves the existing folder in place.
       C: >-
         A person pulling by hand needs edit rights on production and can forget or
         pull the wrong branch; the step belongs to automation.
@@ -601,19 +604,19 @@ questions:
         folder.
     near_misses:
       - text: >-
-          Nothing in CD: the shared production folder the jobs use, outside user folders, pulls the merged commit by itself, and everyone else has at most CAN RUN.
+          A CD step is not needed, because a Git folder pulls new commits on its branch by itself; the jobs use one production Git folder outside user folders, which others can only run.
         why: >-
           A Git folder does not follow its branch. After a commit was pushed to the
           branch a folder was checked out to, its head_commit_id stayed on the old
           commit until repos update --branch moved it to the tip.
       - text: >-
-          A CD step, authenticated as a service principal, runs databricks repos update --branch main on the merging engineer's own Git folder, which the jobs then use.
+          A CD step, authenticated as a service principal, runs databricks repos update --branch main; the jobs use the merging engineer's own Git folder, which they keep on main.
         why: >-
           The branch belongs to the folder, so jobs reading a person's folder run
           whatever that person checks out next. Production code lives in one folder
           outside user folders that only automation changes.
       - text: >-
-          Nothing in CD: the merging engineer's own Git folder pulls the merged commit by itself, and the jobs then use it.
+          A CD step is not needed, because a Git folder pulls new commits on its branch by itself; the jobs use the merging engineer's own Git folder, which they keep on main.
         why: >-
           The folder stays on its old commit until repos update moves it, and a
           personal folder changes with its owner's branch switches; use one production
