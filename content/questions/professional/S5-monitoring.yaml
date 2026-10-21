@@ -585,3 +585,230 @@ questions:
         why: >-
           Jobs reject a raw URL ("Webhook IDs must be valid UUIDs"), and destinations are
           created by a workspace admin, not per job by its owner.
+
+  - id: PRO-S5-Q015
+    objective_ids: [PRO-S5-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [query-profile, warehouse-queue, concurrency, scaling]
+    stem: >-
+      Every weekday at 9:00 about 30 dashboard queries hit a pro SQL warehouse whose
+      minimum and maximum clusters are both 1. One slow tile's query profile, and
+      its row in system.query.history, show about 80 seconds waiting at capacity, no
+      time waiting for compute, 3 seconds executing and nothing spilled. What is
+      happening, and what is the fix?
+    options:
+      A: >-
+        The queries waited at capacity behind other queries; raise the maximum number of clusters on the warehouse.
+      B: >-
+        The tables are badly laid out; run OPTIMIZE on the tables the dashboard reads.
+      C: >-
+        The result cache is serving stale results; turn the cache off for the dashboard.
+      D: >-
+        The queries return too many rows; add a LIMIT to each tile query.
+    correct: A
+    explanation: >-
+      Read the time breakdown before tuning anything. Three seconds of execution is
+      not the problem; eighty seconds in the queue is. A pro or classic warehouse
+      runs about ten concurrent queries per cluster, so thirty queries on one cluster
+      wait their turn. More clusters (scaling out) add concurrency; a larger size
+      (scaling up) is the answer to spill and slow execution, which the profile does
+      not show.
+    distractor_rationale:
+      B: >-
+        Layout changes how long execution takes, and execution is 3 seconds. The time
+        is spent before the query starts.
+      C: >-
+        Nothing in the profile points at the cache, and turning it off only adds work
+        to a warehouse that is already full.
+      D: >-
+        Row limits shorten execution and result fetch, not the time spent queued
+        behind other queries.
+    near_misses:
+      - text: >-
+          The queries waited at capacity behind other queries; raise the cluster size of the warehouse.
+        why: >-
+          On pro and classic warehouses concurrency is fixed at about ten queries per
+          cluster whatever the size, so a larger size speeds up a 3-second execution and
+          leaves the queue. The docs reserve size increases for spill; concurrency comes
+          from the maximum number of clusters.
+      - text: >-
+          The queries waited for the warehouse to start; raise the maximum number of clusters on the warehouse.
+        why: >-
+          Start-up time is waiting_for_compute_duration_ms (waiting for compute in the
+          profile), which is zero here. The 80 seconds is waiting_at_capacity_duration_ms:
+          the warehouse was running and full.
+      - text: >-
+          The queries waited for the warehouse to start; raise the cluster size of the warehouse.
+        why: >-
+          Nothing waited for compute, so this is not a cold start, and a larger size
+          does not add query slots on a pro warehouse. The queue at capacity needs more
+          clusters.
+
+  - id: PRO-S5-Q016
+    objective_ids: [PRO-S5-O3]
+    difficulty: application
+    provenance: original
+    tags: [jobs-api, runs-list, filters, silent-failure]
+    stem: >-
+      A script runs every morning and must report every job run in the workspace
+      that started in the last 24 hours and ended FAILED, using GET
+      /api/2.2/jobs/runs/list (paging through next_page_token). How should it call
+      the endpoint?
+    options:
+      A: >-
+        Omit job_id, set start_time_from to 24 hours ago in epoch milliseconds, and keep the runs whose state.result_state is FAILED in the script.
+      B: >-
+        Set active_only=true, so only runs that need attention are returned.
+      C: >-
+        List the jobs, then call jobs/get on each one to read the result of its last run.
+      D: >-
+        Call runs/get-output on every job id, which returns the result of the latest run.
+    correct: A
+    explanation: >-
+      runs/list without a job_id covers every job, start_time_from and
+      start_time_to bound the start time in epoch milliseconds, and the result is
+      filtered on the client because the endpoint has no result-state parameter.
+      The general lesson for monitoring scripts: check a filter by what comes back.
+      A wrong unit or an unknown parameter does not raise an error; it quietly
+      returns more than you asked for.
+    distractor_rationale:
+      B: >-
+        active_only returns runs that are pending or running, so a run that already
+        failed is exactly what it leaves out.
+      C: >-
+        jobs/get returns the job settings, creator and creation time; it has no runs or
+        results.
+      D: >-
+        get-output takes a run id, not a job id, and on a job run it fails ("Retrieving
+        the output of runs with multiple tasks is not supported"); it reads one task
+        output, not a result list.
+    near_misses:
+      - text: >-
+          Omit job_id, set start_time_from to 24 hours ago in epoch seconds, and keep the runs whose state.result_state is FAILED in the script.
+        why: >-
+          The value is read as milliseconds, so a seconds timestamp means a moment in
+          January 1970 and every run passes. Run on Free Edition, a 3-hour cutoff in
+          milliseconds returned 3 runs; the same cutoff in seconds returned a full page.
+      - text: >-
+          Omit job_id, set start_time_from to 24 hours ago in epoch milliseconds, and pass result_state=FAILED so the endpoint returns only failures.
+        why: >-
+          runs/list has no result_state parameter and does not reject unknown ones. With
+          result_state=FAILED the response still held SUCCESS and CANCELED runs; the
+          filter has to be applied in the script.
+      - text: >-
+          Omit job_id, set start_time_from to 24 hours ago in epoch seconds, and pass result_state=FAILED so the endpoint returns only failures.
+        why: >-
+          Both parts fail silently: the seconds cutoff is read as milliseconds and
+          admits every run, and the unknown result_state parameter is ignored. The script
+          reports every run in the workspace as a failure unless it checks the state.
+
+  - id: PRO-S5-Q017
+    objective_ids: [PRO-S5-O4]
+    difficulty: application
+    provenance: original
+    tags: [pipeline-event-log, user-action, run-as, audit]
+    stem: >-
+      On Saturday someone started an unplanned full refresh of a production
+      pipeline that runs as a service principal. The team wants to know which
+      person started it, from the pipeline's own event log. What do they query?
+    options:
+      A: >-
+        Events with event_type = 'user_action' for that update, reading details:user_action:user_name.
+      B: >-
+        system.lakeflow.pipeline_update_timeline for that update, reading run_as_user_name.
+      C: >-
+        Events with event_type = 'flow_progress', which record the user who started each flow.
+      D: >-
+        Nothing; only the pipeline owner can start an update, so it was the owner.
+    correct: A
+    explanation: >-
+      A pipeline update has two identities: the person who asked for it and the
+      principal it runs as. The event log keeps them apart. user_action events carry
+      the action (START, CREATE) and the user_name and user_id of whoever triggered
+      it; create_update events carry run_as, the identity whose permissions the
+      update uses. When a pipeline runs as a service principal, only the first names
+      a person.
+    distractor_rationale:
+      B: >-
+        run_as_user_name is the identity whose permissions the update uses: the
+        service principal here, the same for every update whoever started it.
+      C: >-
+        flow_progress tracks each flow through its states with row and data-quality
+        metrics; it has no user.
+      D: >-
+        Users with CAN RUN or CAN MANAGE on a pipeline can start updates; the owner is
+        not the only one.
+    near_misses:
+      - text: >-
+          Events with event_type = 'create_update' for that update, reading details:create_update:run_as.
+        why: >-
+          run_as is the user the update runs on behalf of, which is the service principal
+          for every update. The docs note that the user who triggered it is not always
+          the run_as user.
+      - text: >-
+          Events with event_type = 'user_action' for that update, reading details:user_action:run_as.
+        why: >-
+          user_action details have action, user_name and user_id, not run_as. A JSON path
+          to a missing key does not fail: it returns NULL, so the query runs and names
+          nobody.
+      - text: >-
+          Events with event_type = 'create_update' for that update, reading details:create_update:user_name.
+        why: >-
+          create_update holds the configuration of the update, its run_as identity and
+          its cause (USER_ACTION says a person started it, not who). With no user_name key
+          the path returns NULL.
+
+  - id: PRO-S5-Q018
+    objective_ids: [PRO-S5-O6]
+    difficulty: application
+    provenance: original
+    tags: [job-notifications, retries, alert-on-last-attempt]
+    stem: >-
+      A job's notebook task has max_retries set to 3 and a failure email on the
+      task. When the source system is down, the team receives four failure emails
+      for one run, one per attempt. They want a single email, sent only when the
+      last retry fails. What do they change?
+    options:
+      A: >-
+        Set alert_on_last_attempt to true in the notification_settings of the task.
+      B: >-
+        Set max_retries to 0, so a failure is final and emails once.
+      C: >-
+        Catch the exception in the notebook and send the email from the last attempt.
+      D: >-
+        Set a timeout on the task, so failed attempts end sooner.
+    correct: A
+    explanation: >-
+      Retries and notifications are configured together on the task.
+      alert_on_last_attempt holds back on_failure notifications until the last
+      retry, and on_start notifications for the retried attempts, so a transient
+      failure that a retry fixes sends nothing and a real outage sends one email.
+      Read the setting back after saving: in the Jobs API it belongs to the task, and
+      the job-level object drops it.
+    distractor_rationale:
+      B: >-
+        That fixes the email by removing the retries that ride out a source blip.
+      C: >-
+        The notebook does not know which attempt is the last, and an email from inside
+        the task fails when the task fails early.
+      D: >-
+        A timeout makes attempts fail faster; there are still four failures and four
+        emails.
+    near_misses:
+      - text: >-
+          Set alert_on_last_attempt to true in the notification_settings of the job.
+        why: >-
+          Sent to jobs/create on Free Edition, the job was created without an error, but
+          its notification_settings read back empty: the field was dropped (the CLI warns
+          "unknown field: alert_on_last_attempt"). It works on the task.
+      - text: >-
+          Set no_alert_for_skipped_runs to true in the notification_settings of the task.
+        why: >-
+          A skipped run is one that never started. A retried attempt started and failed,
+          so it is not skipped and every attempt still emails.
+      - text: >-
+          Set no_alert_for_skipped_runs to true in the notification_settings of the job.
+        why: >-
+          Retried attempts are failures, not skipped runs, and a job-level setting does
+          not suppress the email list on the task. Four emails still arrive.
