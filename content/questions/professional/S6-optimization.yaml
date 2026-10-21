@@ -548,3 +548,220 @@ questions:
         why: >-
           Skew join handling splits the partition rather than moving it, and as the
           no-code remedy it comes before salting, not after.
+
+  - id: PRO-S6-Q014
+    objective_ids: [PRO-S6-O1]
+    difficulty: application
+    provenance: original
+    tags: [managed-tables, automatic-liquid-clustering, predictive-optimization, maintenance]
+    stem: >-
+      A team owns 300 Unity Catalog managed tables. Each has a nightly job running
+      OPTIMIZE ... ZORDER BY on columns picked two years ago, and the queries have
+      since moved to other filters. They want choosing the layout columns, and
+      running the maintenance, to stop being their job. What do managed tables let
+      them do?
+    options:
+      A: >-
+        ALTER TABLE ... CLUSTER BY AUTO: Databricks picks clustering keys from the
+        table's query history and changes them as the workload shifts, and predictive
+        optimization runs the clustering, so the nightly jobs can be retired.
+      B: >-
+        Set delta.autoOptimize.optimizeWrite = true, which picks the Z-order columns
+        from the query history at write time.
+      C: >-
+        Partition each table by its most-filtered column; predictive optimization then
+        repartitions the table whenever the filters change.
+      D: >-
+        Run ANALYZE TABLE ... COMPUTE STATISTICS FOR ALL COLUMNS nightly, so the
+        optimiser re-picks the Z-order columns from fresh statistics.
+    correct: A
+    explanation: >-
+      Automatic liquid clustering hands both decisions to the platform, and it exists
+      only for Unity Catalog managed tables because it depends on predictive
+      optimization. The platform analyses the table's query workload to choose keys,
+      changes them only when the predicted skipping savings outweigh the cost of
+      reclustering, and runs the clustering itself. Run on a Free Edition table that had
+      been Z-ordered, the ALTER succeeds and DESCRIBE DETAIL shows clusterByAuto true with
+      clusteringColumns still empty: the keys are chosen later, from how the table is
+      queried. The general point: on managed tables, layout is something you can
+      delegate rather than schedule.
+    distractor_rationale:
+      B: >-
+        Optimized writes size the files a write produces; they choose no columns and
+        sort nothing by a filter.
+      C: >-
+        Nothing repartitions a table automatically, and changing a partition column means
+        rewriting the table. Partitions are also the layout liquid clustering replaces.
+      D: >-
+        ANALYZE feeds the cost-based optimiser for planning; it never decides how files
+        are laid out, and Z-order columns are whatever the OPTIMIZE statement names.
+    near_misses:
+      - text: >-
+          ALTER TABLE ... CLUSTER BY AUTO: Databricks picks clustering keys once, from the
+          columns' data distribution when the ALTER runs, and keeps them; predictive
+          optimization runs the clustering, so the nightly jobs can be retired.
+        why: >-
+          Keys come from the table's query history, not from the data at ALTER time: right
+          after the ALTER, clusteringColumns is still empty. They are revisited when query
+          patterns change and new keys would save more than reclustering costs.
+      - text: >-
+          ALTER TABLE ... CLUSTER BY AUTO: Databricks picks clustering keys from the
+          table's query history and changes them as the workload shifts, but the nightly
+          jobs stay, to run the OPTIMIZE that applies them.
+        why: >-
+          Automatic liquid clustering needs predictive optimization precisely because the
+          platform runs the clustering too. Keeping a scheduled OPTIMIZE per table is the
+          work the feature takes away.
+      - text: >-
+          ALTER TABLE ... CLUSTER BY AUTO: Databricks picks clustering keys once, from the
+          columns' data distribution when the ALTER runs, and keeps them; the nightly jobs
+          stay, to run the OPTIMIZE that applies them.
+        why: >-
+          Both halves are wrong. Keys are chosen from the query history and revisited as it
+          changes, and predictive optimization runs the clustering, so no job is needed.
+
+  - id: PRO-S6-Q015
+    objective_ids: [PRO-S6-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [deletion-vectors, delete, write-amplification, describe-history]
+    stem: >-
+      Two copies of a 200,000-row table, each a single data file, differ only in
+      delta.enableDeletionVectors. The same DELETE ... WHERE id = 42 runs on both. On
+      the copy without deletion vectors, DESCRIBE HISTORY shows numRemovedFiles 1,
+      numAddedFiles 1 and numCopiedRows 199999. What does the commit on the copy with
+      deletion vectors show, and what is true of its data file afterwards?
+    options:
+      A: >-
+        numRemovedFiles 0, numCopiedRows 0 and numDeletionVectorsAdded 1; the row is
+        still in the original Parquet file, hidden from reads by the vector, until a
+        rewrite such as REORG TABLE ... APPLY (PURGE).
+      B: >-
+        The same metrics as the other copy; deletion vectors speed up the reads that
+        follow a delete, not the delete itself.
+      C: >-
+        No commit yet; the delete is buffered and applied when OPTIMIZE next runs.
+      D: >-
+        numRemovedFiles 1, numAddedFiles 1 and numCopiedRows 0; the file is rewritten
+        but rows are not copied, because the vector supplies them.
+    correct: A
+    explanation: >-
+      Without deletion vectors, removing one row means copying the other 199,999 into
+      a new file: write amplification proportional to the file, not the change. With
+      them, the DELETE writes only a small vector marking the row, and the data file
+      stays in the table. Run on Free Edition, the commit showed exactly that, and
+      DESCRIBE DETAIL then reported numDeletionVectors 1. VACUUM left the vector in
+      place, a plain OPTIMIZE skipped the single file, and REORG TABLE ... APPLY (PURGE)
+      removed it, rewriting the file. Deletion vectors move the cost of a delete from
+      the write to a later rewrite, which is why they suit frequent small changes.
+    distractor_rationale:
+      B: >-
+        The metrics differ: with vectors the DELETE removes and copies nothing. The
+        saving is on the write; reads pay a little to apply the vector.
+      C: >-
+        The DELETE commits at once and the row disappears from query results
+        immediately; only the physical rewrite is deferred.
+      D: >-
+        A rewritten file has to contain the surviving rows, so a rewrite always copies
+        them. With vectors on, nothing is rewritten at all.
+    near_misses:
+      - text: >-
+          numRemovedFiles 0, numCopiedRows 0 and numDeletionVectorsAdded 1; the row is
+          still in the original Parquet file, hidden from reads by the vector, until the
+          next VACUUM removes it.
+        why: >-
+          VACUUM deletes files the table no longer references, and this file is still
+          referenced. After VACUUM, DESCRIBE DETAIL still shows numDeletionVectors 1; it
+          took REORG TABLE ... APPLY (PURGE) to rewrite the file and drop the row.
+      - text: >-
+          numRemovedFiles 0, numCopiedRows 0 and numAddedChangeFiles 1; the row is still
+          in the original Parquet file, hidden from reads by the change file, until a
+          rewrite such as REORG TABLE ... APPLY (PURGE).
+        why: >-
+          Change files belong to the change data feed, which is off here: the commit shows
+          numAddedChangeFiles 0 and numDeletionVectorsAdded 1. It is the deletion vector
+          that marks the row.
+      - text: >-
+          numRemovedFiles 0, numCopiedRows 0 and numAddedChangeFiles 1; the row is still
+          in the original Parquet file, hidden from reads by the change file, until the
+          next VACUUM removes it.
+        why: >-
+          The marker is a deletion vector, not a change file (numAddedChangeFiles is 0),
+          and VACUUM leaves a referenced file and its vector alone; a rewrite such as
+          REORG ... APPLY (PURGE) removes the row.
+
+  - id: PRO-S6-Q016
+    objective_ids: [PRO-S6-O4]
+    difficulty: analysis
+    provenance: original
+    tags: [change-data-feed, streaming, startingVersion, backfill, latency]
+    stem: >-
+      A silver table has been written for months without change data feed. To replace
+      a nightly full rebuild of gold with a low-latency incremental feed, the team runs
+      ALTER TABLE silver SET TBLPROPERTIES (delta.enableChangeDataFeed = true), then
+      starts a stream on silver with readChangeFeed = true and startingVersion = 0, so
+      gold receives the existing rows as well. What happens, and what gets gold both
+      the existing rows and every change from then on?
+    options:
+      A: >-
+        The stream fails with DELTA_MISSING_CHANGE_DATA, because change data exists only
+        from the version that enabled the feed. Start the change-feed stream with no
+        startingVersion: its first batch is the table's current rows as insert rows, and
+        then it emits each new change.
+      B: >-
+        The stream succeeds and replays every earlier version as change rows,
+        reconstructed from the transaction log.
+      C: >-
+        The ALTER fails, because change data feed can only be set when the table is
+        created; silver has to be recreated with the property.
+      D: >-
+        The stream silently starts at the version that enabled the feed; gold must first
+        be seeded with a one-off INSERT ... SELECT from silver.
+    correct: A
+    explanation: >-
+      The change data feed records row-level changes from the commit that enables it;
+      earlier versions have none, and asking for them is an error, not a skip. On Free
+      Edition, both table_changes from version 0 and the stream from version 0 failed
+      with DELTA_MISSING_CHANGE_DATA, naming version 0 as unrecorded, while reading from
+      the enabling version worked. A change-feed stream given no starting point emits
+      the current snapshot as insert rows (the latest values, not their history) and
+      then the changes after it: a later DELETE arrived as a delete row. That gives gold
+      a backfill and an incremental feed from one stream, which is how the feed removes
+      the full rebuild.
+    distractor_rationale:
+      B: >-
+        The log records which files changed, not row-level changes, for versions written
+        before the feed; those cannot be reconstructed, and the read fails.
+      C: >-
+        The property can be set on an existing table with ALTER TABLE; changes are
+        recorded from that commit on.
+      D: >-
+        Nothing is skipped silently: a start before the feed was enabled is rejected with
+        DELTA_MISSING_CHANGE_DATA. Seeding by hand is also unnecessary.
+    near_misses:
+      - text: >-
+          The stream fails with DELTA_MISSING_CHANGE_DATA, because change data exists only
+          from the version that enabled the feed. Start the change-feed stream with no
+          startingVersion: it emits only changes committed after it starts, so seed gold
+          first with a one-off INSERT ... SELECT from silver.
+        why: >-
+          A change-feed stream with no startingVersion begins with the table's current
+          rows, all with _change_type insert, and then the new changes. Seeding by hand
+          as well would load every row twice.
+      - text: >-
+          The stream silently starts at the version that enabled the feed, skipping the
+          versions before it. Start the change-feed stream with no startingVersion: its
+          first batch is the table's current rows as insert rows, and then it emits each
+          new change.
+        why: >-
+          Nothing is skipped silently. A start before the feed was enabled fails with
+          DELTA_MISSING_CHANGE_DATA, naming the first version with no change data.
+      - text: >-
+          The stream silently starts at the version that enabled the feed, skipping the
+          versions before it. Start the change-feed stream with no startingVersion: it
+          emits only changes committed after it starts, so seed gold first with a one-off
+          INSERT ... SELECT from silver.
+        why: >-
+          Both parts are wrong. Starting at version 0 fails with DELTA_MISSING_CHANGE_DATA,
+          and a stream with no startingVersion already delivers the current rows as inserts
+          before the changes, so no separate seed is needed.
