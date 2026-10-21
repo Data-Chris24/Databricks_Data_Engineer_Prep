@@ -413,3 +413,51 @@ questions:
         why: >-
           With queueing on the run is queued, not skipped. With it off, a skipped run is
           final: it ends as skipped with MAX_CONCURRENT_RUNS_EXCEEDED and nothing retries it.
+
+  - id: ASSOC-S4-Q012
+    objective_ids: [ASSOC-S4-O4]
+    difficulty: analysis
+    provenance: original
+    tags: [table-update-trigger, dependencies, data-driven]
+    stem: >-
+      A job builds gold.daily_sales by joining silver.orders and silver.customers. Two
+      other teams refresh those tables once a day each, at times that vary. The job must
+      run once per day, only after both silver tables have been refreshed, and never on
+      one table's new data alone. Which trigger meets this?
+    options:
+      A: A table update trigger on silver.orders and silver.customers with the condition ALL_UPDATED.
+      B: A file arrival trigger on the storage locations of silver.orders and silver.customers.
+      C: A scheduled run at 23:00, after both refreshes have usually finished.
+      D: Two jobs, each with a table update trigger on one silver table, that both run the same notebook.
+    correct: A
+    explanation: >-
+      The requirement is a dependency on two pieces of data, not on a clock, so it calls
+      for a data-driven trigger. A table update trigger watches up to ten tables, and its
+      condition decides when the set counts as updated: ALL_UPDATED starts a run only once
+      every watched table has changed since the last run, ANY_UPDATED as soon as one has.
+      Waiting for all of them is what keeps the join from reading today's orders against
+      yesterday's customers, and it needs no knowledge of when either team runs.
+    distractor_rationale:
+      B: >-
+        A file arrival trigger watches one volume or external location path and has no
+        "both" condition, so a new file in either location starts a run. It also cannot
+        watch a managed table's storage, and Delta maintenance writes files too.
+      C: >-
+        A fixed time guesses at the upstream schedules. On a day either refresh runs late,
+        the job reads stale data, and on most days it waits longer than it needs to.
+      D: >-
+        Each job fires on its own table alone, which is exactly what the requirement
+        forbids, and the notebook runs twice a day.
+    near_misses:
+      - text: A table update trigger on silver.orders, silver.customers and gold.daily_sales with the condition ALL_UPDATED.
+        why: >-
+          gold.daily_sales changes only when this job writes it, so the condition "all
+          three updated" is never met and the job never starts.
+      - text: A table update trigger on silver.orders, silver.customers and gold.daily_sales with the condition ANY_UPDATED.
+        why: >-
+          The gold table is this job's own output. Each run's write counts as an update,
+          so after every silver refresh the job runs again on its own write.
+      - text: A table update trigger on silver.orders and silver.customers with the condition ANY_UPDATED.
+        why: >-
+          ANY_UPDATED starts a run as soon as either table changes, so the job runs twice a
+          day and the first run joins one fresh table with one stale one.
