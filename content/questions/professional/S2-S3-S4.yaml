@@ -749,3 +749,70 @@ questions:
         why: >-
           Table grants never show recipients (SHOW GRANTS ON TABLE was empty), and the drop was
           blocked for a table shared without history too: membership in the share blocks it.
+
+  - id: PRO-S4-Q009
+    objective_ids: [PRO-S4-O3]
+    difficulty: application
+    provenance: original
+    tags: [delta-sharing, open-sharing, token-rotation, credential-file]
+    stem: >-
+      A partner reads a shared table with the open-source pandas client on their own
+      servers, using the credential file they downloaded from the provider's activation
+      link months ago. That file has just turned up in a public code repository. The
+      partner must keep reading the live table, and the leaked copy must stop working.
+      What should the provider do?
+    options:
+      A: >-
+        Rotate the recipient's token with the existing token set to expire immediately, and
+        send the partner the new activation link it produces over a secure channel.
+      B: >-
+        Revoke SELECT on the share from the recipient and grant it again, which issues a new
+        credential file.
+      C: >-
+        Ask the partner to download a fresh credential file from the activation link they
+        used originally.
+      D: >-
+        Create a personal access token in the provider workspace for the partner and have
+        them use it in place of the credential file.
+    correct: A
+    explanation: >-
+      An open-protocol (TOKEN) recipient is identified by nothing but the bearer token in
+      its credential file, so anyone holding the file is that recipient. Rotating the
+      token is the fix: it sets the existing token to expire (0 seconds means now, the
+      advice when a token is compromised) and issues a new token behind a new activation
+      link. The share, its grants and the data are untouched, so the partner swaps the
+      new credential file into their client and goes on reading the live table. Rotation
+      runs in Catalog Explorer or with databricks recipients rotate-token; there is no SQL
+      form. A recipient holds at most two tokens, so a second rotation is refused until
+      the rotated one has expired.
+    distractor_rationale:
+      B: >-
+        The grant decides what the recipient may read, not how it authenticates. Re-granting
+        restores access for the same token, leaked copy included.
+      C: >-
+        A credential file can be downloaded only once; after that the activation link is not
+        even shown. A new link comes only from rotating the token.
+      D: >-
+        Open recipients never get an identity in the provider's workspace, and the pandas
+        client authenticates with a credential file, not a workspace token.
+    near_misses:
+      - text: >-
+          Rotate the recipient's token with the existing token left valid for another week,
+          and send the partner the new activation link it produces over a secure channel.
+        why: >-
+          For the week both tokens work, the leaked one included. A grace period suits a
+          planned rotation; a compromised token should be set to expire at 0 seconds.
+      - text: >-
+          Rotate the recipient's token with the existing token set to expire immediately, and
+          ask the partner to download the new credential file from the activation link they
+          used originally.
+        why: >-
+          Rotation replaces the activation link; the old one was single-use and is not
+          reissued. The partner needs the new link, or they are cut off along with the leak.
+      - text: >-
+          Rotate the recipient's token with the existing token left valid for another week,
+          and ask the partner to download the new credential file from the activation link
+          they used originally.
+        why: >-
+          The leaked token keeps working for a week, and the old activation link was
+          single-use; the new credential file sits behind the new link rotation produced.
