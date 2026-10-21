@@ -487,3 +487,183 @@ questions:
         why: >-
           Replacing a whole partition drops its files without deletion vectors, and
           partitioning pays only when each partition holds at least a gigabyte.
+
+  # Run on Free Edition (SQL warehouse) on 2026-10-20 with scratch tables; the
+  # rationales quote what happened.
+  - id: PRO-S10-Q011
+    objective_ids: [PRO-S10-O2]
+    difficulty: application
+    provenance: original
+    tags: [liquid-clustering, partitioning, migration, replace-partitioned-by]
+    stem: >-
+      A multi-terabyte table is PARTITIONED BY event_date, and most queries now filter on
+      customer_id as well. The team wants liquid clustering on (event_date, customer_id)
+      without taking the table out of service for a rewrite. Which approach does that?
+    options:
+      A: >-
+        ALTER TABLE ... REPLACE PARTITIONED BY WITH CLUSTER BY (event_date, customer_id): the ALTER commits in metadata with no files rewritten, and a later OPTIMIZE FULL clusters the existing data.
+      B: >-
+        CREATE OR REPLACE TABLE ... CLUSTER BY (event_date, customer_id) AS SELECT * FROM the same table, which keeps the history and swaps the layout in one commit.
+      C: >-
+        ALTER TABLE ... CLUSTER BY (event_date, customer_id), which replaces the partitioning with clustering keys.
+      D: >-
+        Keep the partitions and run OPTIMIZE ... ZORDER BY (customer_id) after each load.
+    correct: A
+    explanation: >-
+      A partitioned table cannot simply be given clustering keys, because a table is
+      partitioned or clustered, never both. REPLACE PARTITIONED BY WITH CLUSTER BY
+      (Databricks Runtime 18.1 and later) swaps one for the other as a metadata change, so
+      readers and writers carry on, and OPTIMIZE clusters the data afterwards at its own
+      pace. In a run, the conversion added and removed no files; OPTIMIZE FULL then
+      rewrote the five partition files as one clustered file.
+    distractor_rationale:
+      B: >-
+        It works, but it is the rewrite the team wanted to avoid: every row is read and
+        written again in one statement. In a run, all 1,000 rows were rewritten into a new
+        file.
+      C: >-
+        ALTER TABLE ... CLUSTER BY is for unpartitioned tables. On a partitioned one it fails
+        with DELTA_ALTER_TABLE_CLUSTER_BY_ON_PARTITIONED_TABLE_NOT_ALLOWED, and the message
+        points at REPLACE PARTITIONED BY.
+      D: >-
+        That is not liquid clustering: the directories stay, and ZORDER re-sorts the files
+        it touches on every run instead of clustering incrementally.
+    near_misses:
+      - text: >-
+          ALTER TABLE ... CLUSTER BY (event_date, customer_id): the ALTER commits in metadata
+          with no files rewritten, and a later OPTIMIZE FULL clusters the existing data.
+        why: >-
+          The plain ALTER is rejected on a partitioned table with
+          DELTA_ALTER_TABLE_CLUSTER_BY_ON_PARTITIONED_TABLE_NOT_ALLOWED; nothing commits.
+      - text: >-
+          ALTER TABLE ... REPLACE PARTITIONED BY WITH CLUSTER BY (event_date, customer_id):
+          the ALTER commits by rewriting every file in clustered order, and a later OPTIMIZE
+          FULL finds no existing data to cluster.
+        why: >-
+          The conversion is metadata only. In a run, the table had five files before and
+          after it, and the OPTIMIZE FULL that followed rewrote all five into one.
+      - text: >-
+          ALTER TABLE ... CLUSTER BY (event_date, customer_id): the ALTER commits by rewriting
+          every file in clustered order, and a later OPTIMIZE FULL finds no existing data to
+          cluster.
+        why: >-
+          A plain CLUSTER BY fails on a partitioned table, and even on an unpartitioned one a
+          key change rewrites no files; OPTIMIZE does the clustering.
+
+  - id: PRO-S10-Q012
+    objective_ids: [PRO-S10-O2]
+    difficulty: application
+    provenance: original
+    tags: [liquid-clustering, statistics, data-skipping, code]
+    stem: >-
+      store_id is the 36th of a table's 40 columns. ALTER TABLE sales.wide_events CLUSTER
+      BY (store_id) fails with DELTA_CLUSTERING_COLUMN_MISSING_STATS. Which table property
+      makes the second statement succeed?
+    code_language: sql
+    option_style: code
+    code: |-
+      ALTER TABLE sales.wide_events
+        SET TBLPROPERTIES (________);
+      ALTER TABLE sales.wide_events CLUSTER BY (store_id);
+    options:
+      A: |-
+        'delta.dataSkippingStatsColumns' = 'event_date,store_id'
+      B: |-
+        'delta.columnMapping.mode' = 'name'
+      C: |-
+        'delta.autoOptimize.optimizeWrite' = 'true'
+      D: |-
+        'delta.dataSkippingNumIndexedCols' = '32'
+    correct: A
+    explanation: >-
+      A clustering key must be a column Delta collects file statistics for, because
+      clustering only pays off through min/max skipping. By default that is the first 32
+      columns. Naming the columns in delta.dataSkippingStatsColumns, or raising
+      delta.dataSkippingNumIndexedCols to 36, brings store_id into the statistics, and in a
+      run the ALTER then succeeded with either. ANALYZE TABLE ... COMPUTE STATISTICS FOR
+      COLUMNS did not help: those are optimizer statistics in the catalog, not Delta file
+      statistics. Putting likely keys early in the schema avoids the problem.
+    distractor_rationale:
+      B: >-
+        Column mapping allows renames and drops, not statistics. In a run the ALTER still
+        failed with DELTA_CLUSTERING_COLUMN_MISSING_STATS.
+      C: >-
+        Optimized writes change file sizes on write, not which columns have statistics; the
+        ALTER still failed with DELTA_CLUSTERING_COLUMN_MISSING_STATS.
+      D: >-
+        32 is the default, so nothing changes and the ALTER fails the same way.
+    near_misses:
+      - text: |-
+          'delta.dataSkippingNumIndexedCols' = '35'
+        why: >-
+          The count is of leading columns, starting at one: 35 stops one short of the 36th
+          column, and the ALTER still failed with DELTA_CLUSTERING_COLUMN_MISSING_STATS. 36
+          worked.
+      - text: |-
+          'delta.dataSkippingStatsColumns' = 'event_date'
+        why: >-
+          The list replaces the default set rather than adding to it, so statistics now cover
+          event_date only; the ALTER failed with DELTA_CLUSTERING_COLUMN_MISSING_STATS.
+      - text: |-
+          'delta.dataSkippingNumIndexedCols' = 'store_id'
+        why: >-
+          This property takes a number of columns, not a name: SET TBLPROPERTIES fails with
+          DELTA_INVALID_TABLE_PROPERTY_VALUE and the ALTER then fails as before.
+
+  - id: PRO-S10-Q013
+    objective_ids: [PRO-S10-O4]
+    difficulty: analysis
+    provenance: original
+    tags: [semi-additive, periodic-snapshot, measures, aggregation]
+    stem: >-
+      A periodic snapshot fact has one row per account per month end, with a balance
+      column. A dashboard tile shows the quarter's total balance as SUM(balance) over the
+      quarter's three month ends. For four accounts it reports 19,590 when finance expects
+      6,160. What is wrong, and how should the tile aggregate?
+    options:
+      A: >-
+        Balance is semi-additive: sum it across accounts at one month end, the quarter's last, rather than adding the three months.
+      B: >-
+        The fact has duplicate rows for some accounts; deduplicate it before summing.
+      C: >-
+        SUM is the wrong function for a balance; use AVG(balance) over the quarter's rows.
+      D: >-
+        The fact's grain is wrong; add a quarterly balance column to every monthly row and sum that.
+    correct: A
+    explanation: >-
+      Measures differ in which dimensions they add up across. An amount sold adds across
+      everything; a balance is a level at a point in time, so it adds across accounts but
+      not across time, and adding three month ends counts each account three times. Across
+      time, take the closing period (or average the period totals if the question is the
+      average balance). In a run, SUM over the quarter gave 19,590 and the September
+      total gave 6,160.
+    distractor_rationale:
+      B: >-
+        Each account has exactly one row per month end; three rows per account is the
+        snapshot's grain, not duplication.
+      C: >-
+        AVG over the rows averages across accounts as well as months: in a run it returned
+        1,632.50, a per-account figure, not the total.
+      D: >-
+        A quarterly value on monthly rows mixes two grains in one fact, and summing it
+        across the three months triples it again.
+    near_misses:
+      - text: >-
+          Balance is non-additive: sum it across accounts at one month end, the quarter's
+          last, rather than adding the three months.
+        why: >-
+          A non-additive measure, such as a ratio, cannot be summed across any dimension. A
+          balance can be summed across accounts; only time is excluded, which is what
+          semi-additive means.
+      - text: >-
+          Balance is semi-additive: sum it across accounts at each account's highest month
+          end, rather than adding the three months.
+        why: >-
+          Each account's peak is not the closing position. In a run, an account that fell
+          from 900 to 100 was counted at 900, and the tile showed 6,960 instead of 6,160.
+      - text: >-
+          Balance is non-additive: sum it across accounts at each account's highest month
+          end, rather than adding the three months.
+        why: >-
+          Balance does add across accounts, so it is semi-additive, and a peak per account
+          overstates any account whose balance fell during the quarter.
