@@ -482,3 +482,107 @@ questions:
         why: >-
           The harms run the other way (marketing over-kept, logs destroyed), and a
           seven-year cutoff over-retains every shorter category.
+
+  - id: PRO-S7-Q014
+    objective_ids: [PRO-S7-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [row-filter, column-mask, ctas, downstream-copies]
+    stem: >-
+      The employees table has a row filter on region and a mask on salary; members
+      of hr pass both. A nightly job running as a service principal in hr builds
+      reporting.employees with CREATE TABLE AS SELECT * FROM employees, and analysts
+      outside hr are granted SELECT on the copy. What do the analysts see?
+    options:
+      A: >-
+        Every row with the real salary. The job stored what it was allowed to see, and the copy has no row filter or mask of its own.
+      B: >-
+        Only their own region's rows with salary NULL, because a CTAS copies the row filter and mask onto the new table.
+      C: >-
+        Nothing; reading the copy also requires SELECT on employees, which they do not have.
+      D: >-
+        An error; a table with a row filter or column mask cannot be the source of a CREATE TABLE AS SELECT.
+    correct: A
+    explanation: >-
+      Row filters and column masks are evaluated when a table is read, for whoever
+      reads it; they do not travel with the data. A CTAS stores the result the writer
+      saw, with no policy attached, so a privileged job writes raw values into an
+      unprotected table and a restricted writer writes masked ones. Copies of
+      protected data need their own filter and mask, or should be built from data
+      that is already de-identified.
+    distractor_rationale:
+      B: >-
+        The copy is a new table with no policy; DESCRIBE TABLE EXTENDED on it shows no Row Filter or Column Masks rows.
+      C: >-
+        The copy is an independent table. SELECT on it, with USE CATALOG and USE SCHEMA, is all a reader needs.
+      D: >-
+        The CTAS runs; the filter and mask are applied while the source is read, as for any query.
+    near_misses:
+      - text: >-
+          Every row with the real salary is stored, but the copy keeps the row filter and mask of the source, so they see only their own region with salary NULL.
+        why: >-
+          Nothing is carried over: DESCRIBE TABLE EXTENDED on the copy shows no Row
+          Filter or Column Masks rows, and the analysts read the raw values the job stored.
+      - text: >-
+          Salary is stored as NULL in every row, because a CTAS evaluates the mask without the writer's group membership; the copy has no row filter or mask of its own.
+        why: >-
+          The mask runs for the writer like any other reader. A CTAS run by the
+          principal the mask lets through stored the real salaries; only a restricted
+          writer stores masked ones.
+      - text: >-
+          Salary is stored as NULL in every row, because a CTAS evaluates the mask without the writer's group membership, and the copy keeps the row filter and mask of the source.
+        why: >-
+          The privileged writer stored real salaries, and the copy has no policy at all,
+          so the analysts see every row unmasked.
+
+  - id: PRO-S7-Q015
+    objective_ids: [PRO-S7-O4]
+    difficulty: analysis
+    provenance: original
+    tags: [pii-detection, streaming, checkpoint, backfill]
+    stem: >-
+      A Structured Streaming job reads bronze.tickets, masks phone numbers in notes
+      with regexp_replace and appends to silver.tickets. An audit finds that the
+      pattern missed numbers written as (555) 987 6543, and thousands of such rows are
+      already in silver. The team fixes the pattern. What else makes silver compliant?
+    options:
+      A: >-
+        Restart the stream on its existing checkpoint, and run a one-off UPDATE on silver.tickets that applies the corrected pattern to the rows already written.
+      B: >-
+        Nothing; restarting with the new code makes the stream reprocess bronze, so every existing row is masked again.
+      C: >-
+        Add a column mask on silver.tickets.notes so readers no longer see the numbers.
+      D: >-
+        Run OPTIMIZE on silver.tickets so the rows are rewritten through the new pattern.
+    correct: A
+    explanation: >-
+      A streaming query processes each source row once: the checkpoint records how far
+      it has read, so new code applies only to rows that arrive after the restart.
+      Data already written by the old logic has to be corrected separately, here with
+      a batch UPDATE on the target. Changing the source instead breaks the stream, and
+      a fresh checkpoint re-reads the source and appends it a second time. A fix to
+      masking logic always has two parts: the code going forward and a backfill of
+      what it already produced.
+    distractor_rationale:
+      B: >-
+        The checkpoint marks the old bronze rows as processed; after the restart only new rows went through the fixed pattern and the old ones still held the numbers.
+      C: >-
+        A mask hides the value from readers but leaves it stored in silver, which is what the audit is about.
+      D: >-
+        OPTIMIZE compacts files without changing any values.
+    near_misses:
+      - text: >-
+          Restart the stream on its existing checkpoint, and run a one-off UPDATE on bronze.tickets that applies the corrected pattern, so the stream carries the corrected rows into silver.
+        why: >-
+          An UPDATE on a streaming source stops the stream: the restart failed with
+          DELTA_SOURCE_TABLE_IGNORE_CHANGES. Silver keeps the leaked rows either way.
+      - text: >-
+          Restart the stream on a new checkpoint location, and run a one-off UPDATE on silver.tickets that applies the corrected pattern to the rows already written.
+        why: >-
+          The old rows are fixed, but a fresh checkpoint re-reads all of bronze and
+          appends it again: every ticket ended up in silver twice.
+      - text: >-
+          Restart the stream on a new checkpoint location, and run a one-off UPDATE on bronze.tickets that applies the corrected pattern, so the stream carries the corrected rows into silver.
+        why: >-
+          The fresh checkpoint appends a corrected copy of every ticket next to the old
+          rows, so silver holds each ticket twice and the leaked versions stay.
