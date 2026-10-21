@@ -248,6 +248,306 @@ questions:
           A shared Git folder has one checked-out branch, so a switch by one engineer moves
           the other, and merging straight into main skips review.
 
+  - id: ASSOC-S5-Q007
+    objective_ids: [ASSOC-S5-O1]
+    difficulty: application
+    provenance: original
+    tags: [git-folders, merge, rebase, collaboration]
+    stem: >-
+      You and a teammate both push to the feature branch orders-refactor, each from
+      your own Git folder. main has moved on, and you need its latest commits in the
+      feature branch before opening the pull request. Which Git folder operation should
+      you use?
+    options:
+      A: >-
+        Merge main into the feature branch from the Git dialog: it pushes normally, so your
+        teammate's next pull is routine.
+      B: >-
+        Rebase the feature branch onto main, because a linear history is what Databricks
+        recommends for Git folders.
+      C: >-
+        Pull, which brings main's new commits into whichever branch is checked out.
+      D: >-
+        Reset the feature branch to main, then make your changes again on top of it.
+    correct: A
+    explanation: >-
+      Merge runs git merge and, when there is no conflict, a plain git push: the commits
+      already on the shared branch stay exactly as they were, so your teammate's next pull
+      is an ordinary fast-forward or merge. Rebase replays your commits on main's tip,
+      which gives them new identities, and Git folders follow it with git push --force.
+      Databricks recommends merge over rebase for exactly this reason. The principle: never
+      rewrite history that someone else has already pulled.
+    distractor_rationale:
+      B: >-
+        Databricks recommends the opposite - merge over rebase - because rebase rewrites
+        history and force-pushes, which breaks the copy a collaborator already has.
+      C: >-
+        Pull fetches the remote of the branch you have checked out, here the feature
+        branch. It does not bring in another branch's commits.
+      D: >-
+        Reset is a hard reset plus a force push: it throws away the feature branch's work,
+        locally and on the remote, including your teammate's commits.
+    near_misses:
+      - text: >-
+          Rebase the feature branch onto main from the Git dialog: it pushes normally, so your
+          teammate's next pull is routine.
+        why: >-
+          Replayed commits are new commits, so rebase does rewrite the branch, and Git folders
+          finish it with git push --force. Your teammate's copy still holds the old commits.
+      - text: >-
+          Merge main into the feature branch from the Git dialog: it force-pushes, and your
+          teammate's next pull is still routine.
+        why: >-
+          A merge with no conflict ends in a plain git push. The force push belongs to
+          rebase, which is why merge is the safe choice on a shared branch.
+      - text: >-
+          Rebase the feature branch onto main from the Git dialog: it force-pushes, and your
+          teammate's next pull is still routine.
+        why: >-
+          The force push is the problem: it replaces commits your teammate already has with
+          rewritten ones, so their next pull meets a diverged history - the versioning
+          trouble the documentation warns rebase causes for collaborators.
+
+  - id: ASSOC-S5-Q008
+    objective_ids: [ASSOC-S5-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [dabs, variables, precedence, ci]
+    stem: >-
+      A bundle declares the variable catalog with the default dev_catalog, and its prod
+      target sets catalog to prod_catalog. The CI job exports BUNDLE_VAR_catalog=ci_catalog
+      and runs databricks bundle deploy -t prod with no --var flag. Which catalog do the
+      prod jobs receive?
+    options:
+      A: >-
+        ci_catalog: an exported BUNDLE_VAR_ variable outranks the target's value, and only
+        a --var flag would outrank it.
+      B: >-
+        prod_catalog: a value written in the target always wins over anything set outside
+        the bundle files.
+      C: >-
+        None - the deploy fails, because the variable is set in two places and the CLI will
+        not choose between them.
+      D: >-
+        prod_catalog, because BUNDLE_VAR_ variables apply only to targets in development
+        mode.
+    correct: A
+    explanation: >-
+      Variable values are resolved in a fixed order, first match wins: --var, then a
+      BUNDLE_VAR_ environment variable, then .databricks/bundle/<target>/variable-overrides.json,
+      then the target's variables block, then the default. Run against this bundle on Free
+      Edition, validate -t prod resolved the job parameter to ci_catalog; adding
+      --var="catalog=hotfix_catalog" gave hotfix_catalog. This matters in CI: an environment
+      variable left set on a runner silently beats what the bundle says for every target.
+    distractor_rationale:
+      B: >-
+        The target's value is fourth of five. Both command-line sources - --var and the
+        environment - beat it.
+      C: >-
+        Several sources setting one variable is the normal case; the precedence order picks
+        one and the deploy goes ahead.
+      D: >-
+        mode has nothing to do with variable resolution. The environment variable was
+        applied to a mode: production target in the run above.
+    near_misses:
+      - text: >-
+          ci_catalog: an exported BUNDLE_VAR_ variable outranks the target's value, and only a
+          variable-overrides.json file would outrank it.
+        why: >-
+          The overrides file ranks below the environment. With both set, validate resolved
+          ci_catalog; the file only beat the target's value. --var is what outranks the
+          environment.
+      - text: >-
+          prod_catalog: the target's value outranks an exported BUNDLE_VAR_ variable, and only
+          a --var flag would outrank it.
+        why: >-
+          The environment variable beats the target. validate -t prod with
+          BUNDLE_VAR_catalog exported resolved ci_catalog, not prod_catalog.
+      - text: >-
+          prod_catalog: the target's value outranks an exported BUNDLE_VAR_ variable, and only
+          a variable-overrides.json file would outrank it.
+        why: >-
+          Both halves are inverted. The order is --var, environment, overrides file, target,
+          default, so the environment's ci_catalog wins here.
+
+  - id: ASSOC-S5-Q009
+    objective_ids: [ASSOC-S5-O3]
+    difficulty: application
+    provenance: original
+    tags: [dabs, deployment-modes, development, schedules]
+    stem: >-
+      A bundle defines a job named nightly etl with a daily 02:00 schedule. An engineer
+      deploys it to the shared workspace with -t dev, a target set to mode: development.
+      What is in the workspace afterwards?
+    options:
+      A: >-
+        A job named [dev <their short name>] nightly etl whose schedule is paused, alongside
+        any production copy.
+      B: >-
+        The production nightly etl job, updated with the engineer's code.
+      C: >-
+        Nothing yet: development mode uploads files only, and the job is created on the
+        first databricks bundle run.
+      D: >-
+        A job named nightly etl that runs at 02:00 under the engineer's identity instead of
+        the service principal's.
+    correct: A
+    explanation: >-
+      Development mode exists so that many people can deploy the same bundle to one
+      workspace without colliding with each other or with production. It prefixes every
+      resource name with [dev <short_name>], adds a dev tag, pauses every schedule and
+      trigger, and turns off the deployment lock. Validated on Free Edition, the job above
+      resolved to "[dev <user>] nightly etl" with pause_status PAUSED (and
+      max_concurrent_runs 4). The developer runs it on demand with bundle run.
+    distractor_rationale:
+      B: >-
+        Development mode deploys under its own name and root folder, so it never touches
+        the production job.
+      C: >-
+        deploy creates or updates the job itself; bundle run only triggers a run of what is
+        already deployed.
+      D: >-
+        The name is prefixed and the schedule paused precisely so a developer's copy never
+        fires at 02:00 next to production.
+    near_misses:
+      - text: >-
+          A job named [dev <their short name>] nightly etl whose schedule runs at 02:00 like
+          production's, alongside any production copy.
+        why: >-
+          Development mode pauses schedules and triggers: the deployed job's schedule
+          resolved to pause_status PAUSED. A paused copy can still be run by hand.
+      - text: >-
+          A job named nightly etl whose schedule is paused, next to the production job of the
+          same name.
+        why: >-
+          Development mode prefixes the name: the job resolved to "[dev <user>] nightly etl",
+          so the two are told apart in the Jobs list.
+      - text: >-
+          A job named nightly etl whose schedule runs at 02:00, next to the production job of
+          the same name.
+        why: >-
+          Neither happens in development mode: the name gets the [dev <short_name>] prefix and
+          the schedule is paused.
+
+  - id: ASSOC-S5-Q010
+    objective_ids: [ASSOC-S5-O3]
+    difficulty: analysis
+    provenance: original
+    tags: [dabs, deployment-modes, production, git-branch]
+    stem: >-
+      The prod target sets mode: production, a workspace.root_path and git.branch: main. An
+      engineer runs databricks bundle deploy -t prod from a checkout of the branch
+      hotfix-42. What happens?
+    options:
+      A: >-
+        The deploy fails with "not on the right Git branch"; only the --force flag would
+        deploy from that branch.
+      B: >-
+        The deploy succeeds, and the bundle records hotfix-42 as the deployed branch.
+      C: >-
+        The CLI checks out main and deploys that instead.
+      D: >-
+        The deploy succeeds, because the git.branch check applies only to targets in
+        development mode.
+    correct: A
+    explanation: >-
+      git.branch pins a target to a branch so that what reaches production is what was
+      reviewed and merged. Run on Free Edition with CLI v1.6.0, deploying from another
+      branch exited 1 with "not on the right Git branch: expected according to
+      configuration: main, actual: ...". The message names --force as the override; that
+      flag exists for emergencies and pushes unreviewed code. The CI equivalent is to deploy
+      prod only from a workflow that runs on main.
+    distractor_rationale:
+      B: >-
+        The branch is checked before the deploy proceeds, and a mismatch is an error, not a
+        note in the deployment metadata.
+      C: >-
+        The CLI never changes your checkout. It compares the current branch with the
+        configured one and stops.
+      D: >-
+        The check is not tied to a mode. It refused the deploy in development mode too when
+        git.branch was set.
+    near_misses:
+      - text: >-
+          The deploy fails with "not on the right Git branch"; only the --force-lock flag
+          would deploy from that branch.
+        why: >-
+          --force-lock overrides the deployment lock, a different safeguard. Rerun with it,
+          the deploy failed with the same branch error; the flag that skips the check is
+          --force.
+      - text: >-
+          The deploy goes ahead with a "not on the right Git branch" warning; the --force flag
+          would only silence the warning.
+        why: >-
+          It is an error, not a warning: the command exited 1 and nothing was deployed.
+          --force is what lets the deploy proceed from the wrong branch.
+      - text: >-
+          The deploy goes ahead with a "not on the right Git branch" warning; the --force-lock
+          flag would silence it.
+        why: >-
+          The mismatch stops the deploy with exit code 1, and --force-lock does not help: it
+          failed the same way. Only --force skips the branch check.
+
+  - id: ASSOC-S5-Q011
+    objective_ids: [ASSOC-S5-O4]
+    difficulty: application
+    provenance: original
+    tags: [databricks-cli, bundle-generate, bind, migration]
+    stem: >-
+      A job built in the Jobs UI, with ID 1234, is to be managed by the team's bundle from
+      now on; the bundle has no definition of it yet. An engineer runs databricks bundle
+      generate job --existing-job-id 1234 --key nightly_etl, then databricks bundle deploy.
+      What is in the workspace afterwards?
+    options:
+      A: >-
+        Two jobs: job 1234, left as it was, and a new copy created from the generated YAML,
+        because nothing linked the key to job 1234; generate --bind or bundle deployment
+        bind would have.
+      B: >-
+        One job: job 1234, now updated from the bundle, because generate always takes over
+        the job it reads.
+      C: >-
+        One job: the deploy deleted job 1234 and recreated it from the generated YAML.
+      D: >-
+        Only job 1234: the deploy refuses because a job with that name already exists.
+    correct: A
+    explanation: >-
+      generate only writes files: the job's YAML under resources/ and its notebooks under
+      src/. Until the key is bound to the existing job, the bundle believes nothing of its
+      own exists, so deploy creates a new one. Run on Free Edition, the unbound deploy left
+      two jobs with the same name; generate with --bind (or a later databricks bundle
+      deployment bind nightly_etl 1234) made the next deploy update the original instead.
+      Adopting existing resources is always generate plus bind.
+    distractor_rationale:
+      B: >-
+        generate takes nothing over by itself. Without --bind the deploy created a second
+        job.
+      C: >-
+        A deploy never deletes a job it does not manage, and job 1234 was not linked to the
+        bundle.
+      D: >-
+        Job names need not be unique. The deploy succeeded and the two jobs shared a name.
+    near_misses:
+      - text: >-
+          Two jobs: job 1234, left as it was, and a new copy created from the generated YAML,
+          because nothing linked the key to job 1234; generate --force would have.
+        why: >-
+          --force only lets generate overwrite files it wrote before ("already exists. Use
+          --force to overwrite"). It links nothing, so the deploy still creates a copy;
+          linking is --bind or bundle deployment bind.
+      - text: >-
+          One job: job 1234, now updated from the bundle, because generate links the key to
+          the job it read; --bind only locks the job against edits in the UI.
+        why: >-
+          generate links nothing, so the deploy created a second job. --bind is what links
+          the key to job 1234; the UI lock comes from being deployed by a bundle at all.
+      - text: >-
+          One job: job 1234, now updated from the bundle, because generate links the key to
+          the job it read; --force would have made a separate copy.
+        why: >-
+          It is the other way round: plain generate leaves the key unlinked and the deploy
+          made a copy. --force only overwrites local files; --bind is the link.
+
   # ---------------------------------------------------------------- S6 troubleshooting
 
   - id: ASSOC-S6-Q003
@@ -398,3 +698,411 @@ questions:
           Spill is executor-side, per task, and lossless: spilled data is read back, so the
           result is correct and only slower. Driver memory exhaustion is an out-of-memory
           failure instead.
+
+  - id: ASSOC-S6-Q008
+    objective_ids: [ASSOC-S6-O1]
+    difficulty: analysis
+    provenance: original
+    tags: [run-history, system-tables, baseline, retention]
+    stem: >-
+      A job's transform task has crept from 12 to 19 minutes. To find when the trend began
+      you want its per-task durations over the last five months, but the job's Runs page
+      only reaches back a couple of months. Where are the older runs?
+    options:
+      A: >-
+        The Jobs UI keeps run history for 60 days; older per-task durations are in the
+        system table system.lakeflow.job_task_run_timeline, which keeps 365 days.
+      B: >-
+        They were removed with the compute that ran them, because run history is stored on
+        the cluster.
+      C: >-
+        On the Runs page, behind a filter for archived runs that shows every run since the
+        job was created.
+      D: >-
+        Nowhere: Databricks keeps no record of a run once it leaves the Runs page.
+    correct: A
+    explanation: >-
+      The Jobs UI is a 60-day window - Databricks recommends exporting runs you need
+      before they expire. For longer baselines the jobs system tables in system.lakeflow
+      keep 365 days: job_run_timeline for runs and job_task_run_timeline for tasks, with
+      result_state and execution_duration_seconds per task. Both tables answered queries
+      on Free Edition. A slow creep is exactly the trend a 60-day window can hide, so a
+      baseline older than that has to come from the system tables.
+    distractor_rationale:
+      B: >-
+        Run records belong to the Jobs service, not the compute; serverless runs have no
+        cluster at all and still have history.
+      C: >-
+        There is no such filter. The UI's limit is retention, not a hidden view.
+      D: >-
+        The system tables keep job and task runs for 365 days, well beyond the UI's 60.
+    near_misses:
+      - text: >-
+          The Jobs UI keeps run history for 30 days; older per-task durations are in the
+          system table system.lakeflow.job_task_run_timeline, which keeps 365 days.
+        why: >-
+          The UI keeps 60 days, not 30. The system table is the right place for the older
+          runs.
+      - text: >-
+          The Jobs UI keeps run history for 60 days; older per-task durations are in the
+          compute's event log, which keeps 365 days.
+        why: >-
+          An event log records compute lifecycle events - starts, resizes, terminations - not
+          task durations, and serverless tasks have no cluster event log. Task durations are
+          in system.lakeflow.job_task_run_timeline.
+      - text: >-
+          The Jobs UI keeps run history for 30 days; older per-task durations are in the
+          compute's event log, which keeps 365 days.
+        why: >-
+          The UI keeps 60 days, and the event log holds compute events, not task durations.
+          The 365-day record of task runs is system.lakeflow.job_task_run_timeline.
+
+  - id: ASSOC-S6-Q009
+    objective_ids: [ASSOC-S6-O2]
+    difficulty: application
+    provenance: original
+    tags: [jobs-ui, dag, run-if, upstream-failed]
+    stem: >-
+      In a run's graph view, the task load_silver is red, and publish_report, which depends
+      on it with the default run condition, is grey and marked Upstream failed. What does
+      that tell you?
+    options:
+      A: >-
+        publish_report never started; the error to read is in load_silver's output, and
+        publish_report's own code is not implicated.
+      B: >-
+        publish_report ran and failed because the data it read from load_silver was
+        incomplete.
+      C: >-
+        publish_report is still waiting, and starts on its own once load_silver is retried.
+      D: >-
+        publish_report was canceled by a user after load_silver failed.
+    correct: A
+    explanation: >-
+      With the default run_if of ALL_SUCCESS a task starts only when every dependency
+      succeeded. When one fails, the dependant is never started: its life cycle state is
+      SKIPPED and its result UPSTREAM_FAILED, with the message "An upstream task failed."
+      (measured on Free Edition for the ASSOC-S6 lesson). The graph is for exactly this: a
+      grey task points you up the DAG to the red one, which is where the error and the fix
+      are. Repairing the run reruns the failed task and the ones it blocked.
+    distractor_rationale:
+      B: >-
+        A task that ran and failed is red, with an error of its own. Upstream failed means
+        it never ran.
+      C: >-
+        The run is over: once a task is upstream-failed nothing restarts it unless you
+        repair the run.
+      D: >-
+        A cancellation shows as Canceled, or Upstream canceled for the tasks below it. Upstream
+        failed is decided by the run condition, not a person.
+    near_misses:
+      - text: >-
+          publish_report never started; the error to read is in publish_report's own output,
+          which records why its run condition was not met.
+        why: >-
+          A task that never started has no output to read. Its state message only says "An
+          upstream task failed."; the cause is in load_silver.
+      - text: >-
+          publish_report started and failed on missing input; the error to read is in
+          load_silver's output, and publish_report's own code is not implicated.
+        why: >-
+          An upstream-failed task never starts: life cycle SKIPPED, result UPSTREAM_FAILED.
+          Started and failed would show it red with its own error.
+      - text: >-
+          publish_report started and failed on missing input; the error to read is in
+          publish_report's own output.
+        why: >-
+          It never started, so there is no output of its own. Upstream failed sends you to
+          the red task above it.
+
+  - id: ASSOC-S6-Q010
+    objective_ids: [ASSOC-S6-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [jobs-ui, duration-warning, timeout, notifications]
+    stem: >-
+      A nightly job usually takes 25 minutes. The team wants to be told when a run passes
+      45 minutes, but a slow run must still finish so the morning report is complete. What
+      should they configure on the job?
+    options:
+      A: >-
+        A duration warning threshold of 45 minutes with a notification; the run carries on
+        past it.
+      B: >-
+        A retry policy with a 45-minute retry interval.
+      C: >-
+        max_concurrent_runs set to 1, which alerts when a run is still going as the next one
+        is due.
+      D: >-
+        A 45-minute timeout on the task that is usually slowest, so the rest of the job is
+        unaffected.
+    correct: A
+    explanation: >-
+      The two settings look alike and do opposite things. A duration warning (the Warning
+      field, or a RUN_DURATION_SECONDS health rule) only raises an event you can notify on.
+      A timeout ends the run and marks it Timed Out. Run on Free Edition against a task
+      that slept 90 seconds: with a 20-second warning threshold the run finished SUCCESS
+      after 106 seconds; with a 20-second timeout it ended TIMEDOUT ("Run timed out.")
+      before the task finished. Warn on the expected duration, time out only well above
+      it.
+    distractor_rationale:
+      B: >-
+        Retries react to failure. A slow run is not a failure, so nothing would be retried or
+        reported.
+      C: >-
+        That limits how many runs overlap, and with queueing it holds the next run back. It
+        notifies no one about duration.
+      D: >-
+        A timeout stops that task, and its dependants are then upstream-failed - the report
+        would be incomplete.
+    near_misses:
+      - text: >-
+          A duration warning threshold of 45 minutes with a notification; the run is
+          canceled at that point and marked Timed Out.
+        why: >-
+          The warning stops nothing. With a 20-second threshold, the 90-second run carried on
+          and ended SUCCESS.
+      - text: >-
+          A 45-minute timeout on the job with a notification; the run carries on past it and
+          is labelled Timed Out only at the end.
+        why: >-
+          A timeout ends the run. With a 20-second timeout the 90-second task was stopped and
+          the run ended TIMEDOUT, "Run timed out."
+      - text: >-
+          A 45-minute timeout on the job with a notification; the run is canceled at that
+          point and marked Timed Out.
+        why: >-
+          That is what a timeout does, which is the problem: the slow run never finishes and
+          the report is incomplete. Only a warning threshold notifies and lets it run on.
+
+  - id: ASSOC-S6-Q011
+    objective_ids: [ASSOC-S6-O4]
+    difficulty: application
+    provenance: original
+    tags: [predictive-optimization, managed-tables, external-tables, maintenance]
+    stem: >-
+      Predictive optimization is enabled on the catalog sales. Its managed tables are being
+      compacted and vacuumed automatically, but the external table
+      sales.raw.clickstream, in the same schema, keeps accumulating small files. Why?
+    options:
+      A: >-
+        Predictive optimization maintains only Unity Catalog managed tables, running
+        OPTIMIZE, VACUUM and ANALYZE on them; an external table's maintenance stays yours to
+        schedule.
+      B: >-
+        Each schema must enable predictive optimization itself; a catalog's setting is not
+        inherited.
+      C: >-
+        Predictive optimization maintains only Z-ordered tables, and clickstream has never
+        been Z-ordered.
+      D: >-
+        Predictive optimization runs once a week, and clickstream's turn has not come yet.
+    correct: A
+    explanation: >-
+      Predictive optimization works because Unity Catalog owns a managed table's layout
+      and files. For an external table the files belong to someone else's storage, so it is
+      never touched: you keep scheduling OPTIMIZE and VACUUM yourself. On managed tables it
+      runs OPTIMIZE (which also triggers incremental clustering), VACUUM and ANALYZE, on
+      serverless jobs compute. Docs-checked: predictive optimization documentation.
+    distractor_rationale:
+      B: >-
+        Settings are inherited: catalog to schema to table, each level able to override.
+        The managed tables in the same schema are being maintained.
+      C: >-
+        It is the reverse: predictive optimization never runs ZORDER, and ignores
+        Z-ordered files.
+      D: >-
+        It decides when each table needs work; no amount of waiting brings an external
+        table into scope.
+    near_misses:
+      - text: >-
+          Predictive optimization maintains only Unity Catalog managed tables, running
+          OPTIMIZE with ZORDER, VACUUM and ANALYZE on them; an external table's maintenance
+          stays yours to schedule.
+        why: >-
+          Its OPTIMIZE never runs ZORDER; Z-ordered files are ignored. Clustering comes from
+          liquid clustering keys, not Z-order.
+      - text: >-
+          Predictive optimization maintains only tables created after it was enabled,
+          running OPTIMIZE, VACUUM and ANALYZE on them; older tables stay yours to schedule.
+        why: >-
+          Scope is decided by table type, not age: existing managed tables inherit the
+          catalog's setting, and an external table is excluded whenever it was created.
+      - text: >-
+          Predictive optimization maintains only tables created after it was enabled,
+          running OPTIMIZE with ZORDER, VACUUM and ANALYZE on them; older tables stay yours to
+          schedule.
+        why: >-
+          It covers every managed table regardless of age and never Z-orders. clickstream is
+          left alone because it is external.
+
+  - id: ASSOC-S6-Q012
+    objective_ids: [ASSOC-S6-O4]
+    difficulty: application
+    provenance: original
+    tags: [liquid-clustering, optimize-full, sql]
+    stem: >-
+      Queries on sales.orders now filter by region instead of customer_id, so the team
+      changed the table's liquid clustering keys. The existing data was clustered by
+      customer_id. Which statement lays the existing data out by the new key?
+    code_language: sql
+    option_style: code
+    code: |-
+      ALTER TABLE sales.orders CLUSTER BY (region);
+      ________;
+    options:
+      A: |-
+        OPTIMIZE sales.orders FULL
+      B: |-
+        OPTIMIZE sales.orders
+      C: |-
+        OPTIMIZE sales.orders ZORDER BY (region)
+      D: |-
+        VACUUM sales.orders FULL
+    correct: A
+    explanation: >-
+      Changing keys rewrites nothing: on Free Edition the CLUSTER BY history entry added
+      no files. It only tells later writes and OPTIMIZE runs which keys to use. Plain
+      OPTIMIZE is incremental and skips data it considers already clustered, so the old
+      customer_id layout stays. OPTIMIZE ... FULL reclusters every record, which the
+      documentation names as the step after enabling clustering or changing keys. On a large
+      table it is a big rewrite, so it is run once, deliberately.
+    distractor_rationale:
+      B: >-
+        It runs, but it is incremental: right after the key change it rewrote no files.
+        Data clustered under the old keys is left as it was.
+      C: >-
+        Fails with DELTA_CLUSTERING_WITH_ZORDER_BY: a liquid-clustered table cannot be
+        Z-ordered.
+      D: >-
+        Runs, but VACUUM only deletes files the table no longer references. FULL here is
+        VACUUM's listing mode; it moves no data.
+    near_misses:
+      - text: |-
+          OPTIMIZE sales.orders FULL ZORDER BY (region)
+        why: >-
+          FULL does not make Z-order acceptable: the statement fails with
+          DELTA_CLUSTERING_WITH_ZORDER_BY. The clustering keys already say region.
+      - text: |-
+          OPTIMIZE sales.orders WHERE region = 'EU'
+        why: >-
+          Fails with DELTA_CLUSTERING_WITH_PARTITION_PREDICATE: OPTIMIZE on a clustered table
+          takes no predicate, and one region would not cover the table anyway.
+      - text: |-
+          REORG TABLE sales.orders APPLY (PURGE)
+        why: >-
+          Runs, but it rewrites files to purge rows marked by deletion vectors. It does not
+          recluster anything by the new key.
+
+  - id: ASSOC-S6-Q013
+    objective_ids: [ASSOC-S6-O5]
+    difficulty: application
+    provenance: original
+    tags: [init-scripts, access-modes, cluster-startup, volumes]
+    stem: >-
+      A team moves a cluster from dedicated to standard access mode on Databricks Runtime
+      15.4 LTS. Its cluster-scoped init script, stored as a workspace file, is now
+      rejected and the cluster will not use it. What makes the script run again?
+    options:
+      A: >-
+        Move the script to a Unity Catalog volume and have an admin add that path to the
+        allowlist.
+      B: >-
+        Install the script as a cluster library, so it is copied to every node.
+      C: >-
+        Make it a global init script, which standard access mode runs before cluster-scoped
+        ones.
+      D: >-
+        Switch the runtime back to an LTS release from before Unity Catalog.
+    correct: A
+    explanation: >-
+      Where an init script may live depends on the access mode. Dedicated access mode
+      accepts workspace files, volumes and cloud storage. Standard access mode, which
+      isolates users on shared compute, accepts only Unity Catalog volumes and cloud object
+      storage (13.3 LTS and above), and only once an admin has added the script to the
+      allowlist. DBFS is no longer valid in any mode. Docs-checked: init scripts
+      documentation; serverless has no init scripts, so this cannot be run on Free Edition.
+    distractor_rationale:
+      B: >-
+        Libraries are packages installed into the environment, not scripts run at startup.
+      C: >-
+        Global init scripts run on dedicated and no-isolation compute, not standard access
+        mode.
+      D: >-
+        Going backwards trades the problem for an unsupported runtime and loses Unity
+        Catalog; the fix is where the script lives.
+    near_misses:
+      - text: >-
+          Move the script to a Unity Catalog volume; standard access mode runs it without an
+          allowlist entry.
+        why: >-
+          Standard access mode requires an admin to add the script to the allowlist first.
+          The volume is the right place, but it is not enough on its own.
+      - text: >-
+          Move the script to DBFS and have an admin add that path to the allowlist.
+        why: >-
+          Init scripts on DBFS have reached end of life and can no longer be used, allowlisted
+          or not.
+      - text: >-
+          Move the script to DBFS; standard access mode runs it without an allowlist entry.
+        why: >-
+          DBFS init scripts are end of life in every access mode, and standard access mode
+          also needs an allowlist entry for any location it does accept.
+
+  - id: ASSOC-S6-Q014
+    objective_ids: [ASSOC-S6-O5]
+    difficulty: analysis
+    provenance: original
+    tags: [driver-oom, collect, max-result-size, memory]
+    stem: >-
+      A notebook ends with rows = big_df.collect() and fails with "Total size of
+      serialized results of 412 tasks (4.1 GiB) is bigger than spark.driver.maxResultSize
+      (4.0 GiB)". What is the cause, and the fix?
+    options:
+      A: >-
+        The result is too big for the driver; write it to a table, or aggregate first,
+        instead of collecting it.
+      B: >-
+        Too many shuffle partitions; lower spark.sql.shuffle.partitions so fewer tasks
+        return results.
+      C: >-
+        Raise spark.driver.maxResultSize to 8g; the limit is a safety margin and the driver
+        will cope.
+      D: >-
+        The cluster's local disks are full; attach larger disks to the workers.
+    correct: A
+    explanation: >-
+      collect() asks every task to send its rows to one process, the driver.
+      maxResultSize is the guard that fails the job before the driver runs out of memory.
+      The number of tasks or workers does not change the total that has to land in that
+      one JVM. Keep the data distributed: write it to a table, or reduce it with an
+      aggregation or limit() before bringing anything back. Docs-checked; serverless
+      exposes neither the setting nor a cluster, so this is theory on Free Edition.
+    distractor_rationale:
+      B: >-
+        Fewer tasks still return the same total of 4.1 GiB; the limit is on the sum, not
+        the count.
+      C: >-
+        Raising the guard just moves the failure to a driver out-of-memory crash, the thing
+        it exists to prevent.
+      D: >-
+        The error names serialized results sent to the driver, not storage on the workers.
+    near_misses:
+      - text: >-
+          The result is too big for the driver; add workers, so the result is spread over
+          more memory.
+        why: >-
+          Workers do not hold a collected result: it all lands in the driver's one JVM, so
+          more workers change nothing.
+      - text: >-
+          The result is too big for the executors; write it to a table, or aggregate
+          first, instead of collecting it.
+        why: >-
+          The limit is the driver's: maxResultSize caps what tasks send back to it. The
+          executors computed their parts without trouble.
+      - text: >-
+          The result is too big for the executors; add workers, so the result is spread
+          over more memory.
+        why: >-
+          The error is about the driver receiving results, so the executors are not the
+          problem, and adding workers does not reduce what collect() brings back.
