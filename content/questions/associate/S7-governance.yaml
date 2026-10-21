@@ -425,3 +425,132 @@ questions:
         why: >-
           Policies match governed tags, not comments, and a tag added after the policy
           applies straight away.
+
+  # ---------------------------------------------------------------- O1 convert
+  - id: ASSOC-S7-Q012
+    objective_ids: [ASSOC-S7-O1]
+    difficulty: application
+    provenance: original
+    tags: [external-table, managed-table, set-managed, convert]
+    stem: >-
+      An external Delta table, sales.orders_ext, is read by name from dozens of jobs and
+      dashboards. The team wants Unity Catalog to manage it from now on, without renaming
+      it or re-granting its permissions. What should they run, and what happens to the
+      data?
+    options:
+      A: >-
+        ALTER TABLE sales.orders_ext SET MANAGED; the data is copied into managed storage,
+        and the name, grants and history carry over.
+      B: >-
+        CREATE TABLE sales.orders AS SELECT * FROM sales.orders_ext, then drop the external
+        table; the grants and history carry over to the new table.
+      C: >-
+        DROP TABLE sales.orders_ext, then re-create it without a LOCATION; its files move
+        into managed storage.
+      D: >-
+        Nothing in place: a table's type is fixed when it is created, so the data has to
+        be exported and reloaded into a new table.
+    correct: A
+    explanation: >-
+      ALTER TABLE ... SET MANAGED converts an external Delta table in place. It copies the
+      data and transaction log into Unity Catalog managed storage while readers and writers
+      keep running, then switches the table over with a brief pause, keeping its name,
+      permissions, views and history. The old files stay in the external location for 14
+      days so UNSET MANAGED can roll the conversion back. The table must be Delta and the
+      command is run by its owner; on a table that is already managed it fails with
+      MIGRATION_NOT_SUPPORTED. The general point: managed versus external is a property
+      Unity Catalog can change, and doing it in place beats rebuilding because everything
+      that refers to the table keeps working.
+    distractor_rationale:
+      B: >-
+        CTAS works as a conversion but makes a new table with its own empty history and no
+        grants, and here a new name too. That is exactly what SET MANAGED avoids.
+      C: >-
+        Dropping an external table leaves its files where they are, so the re-created
+        managed table starts empty and the grants on the old one are gone.
+      D: >-
+        The type is not fixed: SET MANAGED converts external to managed, and UNSET MANAGED
+        rolls a conversion back.
+    near_misses:
+      - text: >-
+          ALTER TABLE sales.orders_ext SET MANAGED; the files stay where they are and only
+          the catalog entry is switched to managed.
+        why: >-
+          SET MANAGED copies the data and log into managed storage and registers the new
+          location. The old files are kept for 14 days for rollback, then deleted.
+      - text: >-
+          ALTER TABLE sales.orders_ext SET TBLPROPERTIES ('type' = 'MANAGED'); the data is
+          copied into managed storage, and the name, grants and history carry over.
+        why: >-
+          That is just a custom table property. It ran without error and stored type=MANAGED
+          among the table properties, while the table's actual Type was unchanged.
+      - text: >-
+          ALTER TABLE sales.orders_ext SET TBLPROPERTIES ('type' = 'MANAGED'); the files
+          stay where they are and only the catalog entry is switched to managed.
+        why: >-
+          The property is stored and ignored, so nothing is converted. The real command is
+          SET MANAGED, which copies the data into managed storage.
+
+  # ---------------------------------------------------------------- O4 ABAC scope
+  - id: ASSOC-S7-Q013
+    objective_ids: [ASSOC-S7-O4]
+    difficulty: application
+    provenance: original
+    tags: [abac, policy, except, column-mask]
+    stem: >-
+      Columns tagged pii must be masked for everyone except the privacy team, in every
+      schema of the finance catalog, including schemas and tables added later. The
+      privacy team must see real values. What should the data steward create?
+    options:
+      A: >-
+        One ABAC policy on the finance catalog, applied TO account users EXCEPT the
+        privacy team, that masks columns matching the pii tag.
+      B: >-
+        A column mask on every pii column, with the privacy team granted MODIFY on those
+        tables so they can see the values.
+      C: >-
+        A dynamic view over each table that hides the pii columns, with SELECT on the base
+        tables revoked from everyone.
+      D: >-
+        One row filter policy on the finance catalog that removes rows containing pii
+        columns for everyone except the privacy team.
+    correct: A
+    explanation: >-
+      An ABAC policy is attached to a catalog, schema or table and covers everything under
+      it, so a policy on the catalog reaches schemas and tables created later as soon as
+      their columns carry the tag. Who it applies to is part of the policy: TO names the
+      principals and EXCEPT exempts some of them, so the exemption is declared in one place
+      rather than written into each mask function. Ownership does not exempt anyone: the
+      table owner saw the masked value too. The design principle is to put a rule at the
+      highest level whose scope matches the requirement, and to express exceptions in the
+      rule itself.
+    distractor_rationale:
+      B: >-
+        Per-column masks miss every table added later, and MODIFY is a write privilege; it
+        does not change what a mask returns.
+      C: >-
+        Views per table have to be created for each new table, and anyone who still reaches
+        the base tables bypasses them. Nothing here is automatic.
+      D: >-
+        A row filter keeps or drops whole rows; it cannot hide a column's value while
+        leaving the row visible.
+    near_misses:
+      - text: >-
+          One ABAC policy on the finance catalog, applied TO account users, that masks
+          columns matching the pii tag, with the privacy team made owner of the tables.
+        why: >-
+          Owners are not exempt from a policy. The table's owner queried it and saw the
+          masked value; only an EXCEPT on the policy exempted a principal.
+      - text: >-
+          One ABAC policy on each existing finance table, applied TO account users EXCEPT
+          the privacy team, that masks columns matching the pii tag.
+        why: >-
+          A table-level policy covers only that table. A table created afterwards with a
+          pii-tagged column returned the real value.
+      - text: >-
+          One ABAC policy on each existing finance table, applied TO account users, that
+          masks columns matching the pii tag, with the privacy team made owner of the
+          tables.
+        why: >-
+          New tables fall outside table-level policies (a later tagged column came back
+          unmasked), and ownership exempts nobody: the owner saw the masked value.
