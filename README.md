@@ -15,16 +15,19 @@ Everything on the required path runs on a **free** Databricks workspace.
 
 ## Status
 
-Early. The exam objective maps are complete and verified against the official
-guides; content is being built section by section.
+Both exams are covered end to end: every section has notes, lessons, a graded
+assignment and questions. Work now goes into depth and polish rather than gaps.
 
 | | State |
 | --- | --- |
 | Objective maps (78 objectives, both exams) | ✅ Complete, traced to official guides |
 | Free Edition feasibility analysis | ✅ Verified against a live workspace |
-| Question bank | 🚧 74 questions, 41/78 objectives covered; Professional needs ~50 more |
-| Lessons, labs, assignments | ✅ All 17 sections; Associate has written notes, Professional notes in progress |
-| Study app | ✅ Databricks App in [`app/`](app/): Learn + Test, Associate fully usable; Professional test mode unlocks when its bank reaches 59 questions |
+| Question bank | ✅ 197 questions covering all 78 objectives, each with near misses for Medium and Hard; some objectives have only one or two questions so far |
+| Notes, lessons, assignments | ✅ All 17 sections, with interactive diagrams in the notes |
+| Study app | ✅ Databricks App in [`app/`](app/): Learn + Test, practice and timed tests for both exams |
+
+`python3 tools/validate_content.py` and `python3 tools/build_app_content.py --stats`
+print the current coverage, so these numbers can be checked rather than trusted.
 
 ---
 
