@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Job DAG with run_if and repair</title>
+<style>
+  :root {
+    --fg: #1d2330;
+    --muted: #5b6475;
+    --line: #c9cfdb;
+    --card: #ffffff;
+    --card-edge: #d5dae4;
+    --panel: #f3f5f9;
+    --accent: #1f5fbf;
+    --accent-fg: #ffffff;
+    --focus: #1f5fbf;
+    --ok: #17703a;      --ok-bg: #e4f4ea;
+    --bad: #b3261e;     --bad-bg: #fbe7e5;
+    --up: #8a4b00;      --up-bg: #fdf0dc;
+    --ex: #4f5868;      --ex-bg: #eceef2;
+    --run: #1f5fbf;     --run-bg: #e3edfb;
+    --fault: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #e6e9ef;
+      --muted: #a3abba;
+      --line: #4a5163;
+      --card: #1e232d;
+      --card-edge: #3a4152;
+      --panel: #242a35;
+      --accent: #7fb0ff;
+      --accent-fg: #0d1626;
+      --focus: #9cc2ff;
+      --ok: #7fd69b;      --ok-bg: #173323;
+      --bad: #ff9a90;     --bad-bg: #3d1d1b;
+      --up: #f5bf6b;      --up-bg: #3a2a12;
+      --ex: #b8bfcc;      --ex-bg: #2c323d;
+      --run: #9cc2ff;     --run-bg: #1b2b44;
+      --fault: #ff9a90;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: light dark; }
+  body {
+    margin: 0;
+    background: transparent;
+    color: var(--fg);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 4px 2px 8px; }
+  p.lead { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+
+  /* DAG */
+  .dag { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 26px 12px; padding: 4px 0 6px; }
+  .dag svg.edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .edges path { fill: none; stroke: var(--line); stroke-width: 1.6; }
+  .edges marker path { fill: var(--line); stroke: none; }
+  .node {
+    position: relative; z-index: 1;
+    background: var(--card); border: 1.5px solid var(--card-edge); border-radius: 10px;
+    padding: 8px 9px 9px; min-width: 0;
+  }
+  .node.center { grid-column: 1 / span 2; justify-self: center; width: min(100%, 250px); }
+  .node[data-state="SUCCESS"] { border-color: var(--ok); }
+  .node[data-state="FAILED"] { border-color: var(--bad); }
+  .node[data-state="UPSTREAM_FAILED"] { border-color: var(--up); border-style: dashed; }
+  .node[data-state="EXCLUDED"] { border-color: var(--ex); border-style: dashed; }
+  .node[data-state="RUNNING"] { border-color: var(--run); }
+  .node-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .key { font-weight: 650; }
+  .key .letter { display: inline-block; min-width: 1.4em; color: var(--muted); font-weight: 600; }
+  button.fault {
+    margin-left: auto; font: inherit; font-size: 12px; line-height: 1.2;
+    padding: 3px 7px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--card-edge); background: transparent; color: var(--muted);
+  }
+  button.fault[aria-pressed="true"] { border-color: var(--fault); color: var(--fault); font-weight: 600; }
+  label.runif { display: block; margin-top: 6px; font-size: 12px; color: var(--muted); }
+  label.runif select {
+    display: block; width: 100%; margin-top: 2px; padding: 3px 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px;
+    color: var(--fg); background: var(--panel); border: 1px solid var(--card-edge); border-radius: 6px;
+  }
+  .noif { margin-top: 6px; font-size: 12px; color: var(--muted); }
+  .badge {
+    display: inline-block; margin-top: 7px; padding: 2px 7px; border-radius: 6px;
+    font-size: 12px; font-weight: 600; background: var(--panel); color: var(--muted);
+  }
+  .badge[data-state="SUCCESS"] { background: var(--ok-bg); color: var(--ok); }
+  .badge[data-state="FAILED"] { background: var(--bad-bg); color: var(--bad); }
+  .badge[data-state="UPSTREAM_FAILED"] { background: var(--up-bg); color: var(--up); }
+  .badge[data-state="EXCLUDED"] { background: var(--ex-bg); color: var(--ex); }
+  .badge[data-state="RUNNING"] { background: var(--run-bg); color: var(--run); }
+  .why { margin-top: 4px; font-size: 12px; color: var(--muted); }
+  .why:empty { display: none; }
+  .commits { margin-top: 2px; font-size: 12px; color: var(--muted); }
+  .commits:empty { display: none; }
+
+  /* Controls */
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0 6px; }
+  .bar .result { margin-left: auto; font-size: 13px; }
+  .btn {
+    font: inherit; font-weight: 600; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--accent); background: var(--accent); color: var(--accent-fg);
+  }
+  .btn.secondary { background: transparent; color: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  button:focus-visible, select:focus-visible, input:focus-visible {
+    outline: 2px solid var(--focus); outline-offset: 2px;
+  }
+  .panel { background: var(--panel); border-radius: 10px; padding: 9px 10px; margin-top: 8px; }
+  .panel h3 { margin: 0 0 6px; font-size: 13px; }
+  fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+  legend { padding: 0; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .opt { display: flex; gap: 6px; align-items: flex-start; margin: 3px 0; font-size: 13px; }
+  .opt input { margin-top: 3px; }
+  .picks { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 4px 0 2px 22px; font-size: 13px; }
+  .picks[hidden] { display: none; }
+  .picks label { display: inline-flex; gap: 4px; align-items: center; }
+  pre.req {
+    margin: 8px 0 0; padding: 7px 8px; border-radius: 6px; background: var(--card);
+    border: 1px solid var(--card-edge); white-space: pre-wrap; word-break: break-word;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px;
+  }
+  .live { min-height: 1.4em; margin: 8px 0 0; font-size: 13px; }
+
+  /* Matrix */
+  table.matrix { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; table-layout: fixed; }
+  .matrix th, .matrix td { padding: 4px 4px; text-align: left; border-bottom: 1px solid var(--card-edge); vertical-align: top; }
+  .matrix th { font-weight: 600; color: var(--muted); }
+  .matrix th:first-child { width: 22%; }
+  .matrix td .s { font-weight: 600; }
+  .matrix td .s[data-state="SUCCESS"] { color: var(--ok); }
+  .matrix td .s[data-state="FAILED"] { color: var(--bad); }
+  .matrix td .s[data-state="UPSTREAM_FAILED"] { color: var(--up); }
+  .matrix td .s[data-state="EXCLUDED"] { color: var(--ex); }
+  .matrix td.kept { color: var(--muted); font-style: italic; }
+  .note { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+  @media (max-width: 420px) {
+    .dag { gap: 24px 8px; }
+    .node { padding: 7px 6px 8px; }
+    label.runif select { font-size: 11px; padding: 3px 2px; letter-spacing: -0.2px; }
+    table.matrix { font-size: 11px; }
+    .matrix th, .matrix td { padding: 4px 2px; }
+  }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="lead">Click a task's <b>fails</b> toggle, pick each dependant's <code>run_if</code> (the default is <code>ALL_SUCCESS</code>), then <b>Run now</b>. After the run, <b>Repair</b> re-runs a subset inside the same run.</p>
+
+  <div class="dag" id="dag" role="group" aria-label="Job tasks">
+    <svg class="edges" id="edges" aria-hidden="true" focusable="false">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z"></path>
+        </marker>
+      </defs>
+      <g id="edge-paths"></g>
+    </svg>
+  </div>
+
+  <div class="bar">
+    <button type="button" class="btn" id="run">Run now</button>
+    <button type="button" class="btn secondary" id="reset">Reset</button>
+    <span class="result" id="result" aria-hidden="true"></span>
+  </div>
+
+  <section class="panel" id="repair-panel" aria-labelledby="repair-h">
+    <h3 id="repair-h">Repair this run</h3>
+    <fieldset>
+      <legend class="sr">What to re-run</legend>
+      <label class="opt"><input type="radio" name="mode" value="failed" checked> <span><code>rerun_all_failed_tasks</code>: every failed task and the tasks skipped as <i>Upstream failed</i></span></label>
+      <label class="opt"><input type="radio" name="mode" value="selected"> <span><code>rerun_tasks</code> + <code>rerun_dependent_tasks</code>: the tasks you pick and everything downstream</span></label>
+      <div class="picks" id="picks" hidden role="group" aria-label="Tasks to re-run"></div>
+      <label class="opt"><input type="checkbox" id="fix" checked> <span>Fix the cause first (clear every <b>fails</b> toggle)</span></label>
+    </fieldset>
+    <pre class="req" id="req" aria-label="Repair request"></pre>
+    <div class="bar"><button type="button" class="btn" id="repair" disabled aria-describedby="repair-hint">Repair run</button> <span class="note" id="repair-hint"></span></div>
+  </section>
+
+  <p class="live" id="live" aria-live="polite"></p>
+
+  <section class="panel" aria-labelledby="matrix-h">
+    <h3 id="matrix-h">Run history, like the Jobs matrix view</h3>
+    <table class="matrix" id="matrix"></table>
+    <p class="note">A grey <i>kept</i> cell was not re-run: the task keeps its earlier result, and anything it wrote stays committed. A job is not a transaction.</p>
+  </section>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // The DAG: A -> (B, C) -> D -> E. D is the fan-in.
+  const TASKS = [
+    { id: 'A', key: 'ingest',    deps: [],         center: true },
+    { id: 'B', key: 'orders',    deps: ['A'] },
+    { id: 'C', key: 'customers', deps: ['A'] },
+    { id: 'D', key: 'report',    deps: ['B', 'C'], center: true },
+    { id: 'E', key: 'cleanup',   deps: ['D'],      center: true },
+  ];
+  const RUN_IFS = ['ALL_SUCCESS', 'AT_LEAST_ONE_SUCCESS', 'NONE_FAILED', 'ALL_DONE', 'AT_LEAST_ONE_FAILED', 'ALL_FAILED'];
+  const LABEL = {
+    SUCCESS: 'Succeeded', FAILED: 'Failed', UPSTREAM_FAILED: 'Upstream failed',
+    EXCLUDED: 'Excluded', RUNNING: 'Running', PENDING: 'Not run yet',
+  };
+  const GLYPH = { SUCCESS: '✓', FAILED: '✕', UPSTREAM_FAILED: '↧', EXCLUDED: '⊘', RUNNING: '…', PENDING: '' };
+  const byId = Object.fromEntries(TASKS.map(t => [t.id, t]));
+  const children = id => TASKS.filter(t => t.deps.includes(id)).map(t => t.id);
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const STEP_MS = reduceMotion ? 0 : 380;
+
+  // What a dependant does, given its run_if and the latest states of its
+  // dependencies. Messages are the state messages Databricks shows.
+  function decide(runIf, depStates) {
+    if (depStates.every(s => s === 'EXCLUDED')) {
+      return { state: 'EXCLUDED', msg: 'Excluded because all dependencies were also excluded.' };
+    }
+    // An excluded dependency is left out; the rest are counted.
+    const live = depStates.filter(s => s !== 'EXCLUDED');
+    const anyExcluded = live.length < depStates.length;
+    const ok = live.filter(s => s === 'SUCCESS').length;
+    const bad = live.length - ok;   // FAILED and UPSTREAM_FAILED both count as failed
+    const run = { state: 'RUN' };
+    switch (runIf) {
+      case 'ALL_SUCCESS':
+        if (bad) return { state: 'UPSTREAM_FAILED', msg: 'An upstream task failed.' };
+        if (anyExcluded) return { state: 'EXCLUDED', msg: 'Excluded because dependency type condition was not met.' };
+        return run;
+      case 'AT_LEAST_ONE_SUCCESS':
+        return ok ? run : { state: 'UPSTREAM_FAILED', msg: 'All upstream tasks failed.' };
+      case 'NONE_FAILED':
+        return bad ? { state: 'UPSTREAM_FAILED', msg: 'One or more upstream tasks failed.' } : run;
+      case 'ALL_DONE':
+        return run;
+      case 'AT_LEAST_ONE_FAILED':
+        return bad ? run : { state: 'EXCLUDED', msg: 'All upstream tasks succeeded.' };
+      case 'ALL_FAILED':
+        return ok ? { state: 'EXCLUDED', msg: 'One or more upstream tasks succeeded.' } : run;
+    }
+    return run;
+  }
+
+  // ---- State ----
+  const S = {};
+  let columns = [];      // [{label, results: {id: {state, msg} | null}}]
+  let repairIds = [];
+  let busy = false;
+  const RUN_ID = 409924;
+
+  function freshTask(t) {
+    return { fail: t.id === 'B', runIf: t.id === 'E' ? 'ALL_DONE' : 'ALL_SUCCESS', commits: 0, live: null };
+  }
+  function resetAll() {
+    TASKS.forEach(t => { S[t.id] = freshTask(t); });
+    columns = []; repairIds = [];
+  }
+  const latestAt = id => {
+    for (let i = columns.length - 1; i >= 0; i--) {
+      const r = columns[i].results[id];
+      if (r) return i;
+    }
+    return -1;
+  };
+  const latest = id => { const i = latestAt(id); return i < 0 ? null : columns[i].results[id]; };
+
+  // ---- DOM ----
+  const $ = id => document.getElementById(id);
+  const dag = $('dag');
+  const nodes = {};
+
+  TASKS.forEach(t => {
+    const el = document.createElement('div');
+    el.className = 'node' + (t.center ? ' center' : '');
+    el.id = 'node-' + t.id;
+    el.setAttribute('role', 'group');
+    el.setAttribute('aria-label', `Task ${t.id}, ${t.key}`);
+    const head = document.createElement('div');
+    head.className = 'node-head';
+    head.innerHTML = `<span class="key"><span class="letter">${t.id}</span><span class="mono">${t.key}</span></span>`;
+    const fault = document.createElement('button');
+    fault.type = 'button';
+    fault.className = 'fault';
+    fault.addEventListener('click', () => {
+      if (busy) return;
+      S[t.id].fail = !S[t.id].fail;
+      announce(`${t.id} ${t.key} will ${S[t.id].fail ? 'fail' : 'succeed'} when it runs.`);
+      render();
+    });
+    head.appendChild(fault);
+    el.appendChild(head);
+
+    let select = null;
+    if (t.deps.length) {
+      const lab = document.createElement('label');
+      lab.className = 'runif';
+      lab.textContent = `run_if, on ${t.deps.join(' and ')}`;
+      select = document.createElement('select');
+      RUN_IFS.forEach(v => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = v;
+        select.appendChild(o);
+      });
+      select.addEventListener('change', () => { S[t.id].runIf = select.value; render(); });
+      lab.appendChild(select);
+      el.appendChild(lab);
+    } else {
+      const n = document.createElement('div');
+      n.className = 'noif';
+      n.textContent = 'No dependencies, so no run_if';
+      el.appendChild(n);
+    }
+    const badge = document.createElement('div');
+    badge.className = 'badge';
+    el.appendChild(badge);
+    const why = document.createElement('div');
+    why.className = 'why';
+    el.appendChild(why);
+    const commits = document.createElement('div');
+    commits.className = 'commits';
+    el.appendChild(commits);
+    dag.appendChild(el);
+    nodes[t.id] = { el, fault, select, badge, why, commits };
+  });
+
+  // Picks for "selected tasks + dependents"
+  const picks = $('picks');
+  TASKS.forEach(t => {
+    const lab = document.createElement('label');
+    lab.innerHTML = `<input type="checkbox" value="${t.id}"> ${t.id} <span class="mono">${t.key}</span>`;
+    lab.querySelector('input').addEventListener('change', render);
+    picks.appendChild(lab);
+  });
+  document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener('change', render));
+  $('fix').addEventListener('change', render);
+
+  // ---- Edges ----
+  function drawEdges() {
+    const box = dag.getBoundingClientRect();
+    const g = $('edge-paths');
+    let d = '';
+    TASKS.forEach(t => t.deps.forEach(p => {
+      const a = nodes[p].el.getBoundingClientRect();
+      const b = nodes[t.id].el.getBoundingClientRect();
+      const x1 = a.left + a.width / 2 - box.left, y1 = a.bottom - box.top;
+      const x2 = b.left + b.width / 2 - box.left, y2 = b.top - box.top - 1;
+      const my = (y1 + y2) / 2;
+      d += `<path d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}" marker-end="url(#arrow)"></path>`;
+    }));
+    g.innerHTML = d;
+  }
+  if (window.ResizeObserver) new ResizeObserver(drawEdges).observe(dag);
+  window.addEventListener('resize', drawEdges);
+
+  // ---- Repair scope ----
+  function mode() { return document.querySelector('input[name="mode"]:checked').value; }
+  function picked() { return [...picks.querySelectorAll('input:checked')].map(i => i.value); }
+  function downstream(ids) {
+    const out = new Set(ids);
+    const stack = [...ids];
+    while (stack.length) children(stack.pop()).forEach(c => { if (!out.has(c)) { out.add(c); stack.push(c); } });
+    return out;
+  }
+  function repairScope() {
+    if (!columns.length) return new Set();
+    if (mode() === 'failed') {
+      return new Set(TASKS.filter(t => {
+        const r = latest(t.id);
+        return r && (r.state === 'FAILED' || r.state === 'UPSTREAM_FAILED');
+      }).map(t => t.id));
+    }
+    return downstream(picked());
+  }
+  function requestText() {
+    const lines = [`  "run_id": ${RUN_ID}`];
+    if (mode() === 'failed') lines.push('  "rerun_all_failed_tasks": true');
+    else {
+      lines.push(`  "rerun_tasks": [${picked().map(id => `"${byId[id].key}"`).join(', ')}]`);
+      lines.push('  "rerun_dependent_tasks": true');
+    }
+    if (repairIds.length) lines.push(`  "latest_repair_id": ${repairIds[repairIds.length - 1]}`);
+    return 'databricks jobs repair-run --json \'{\n' + lines.join(',\n') + '\n}\'';
+  }
+
+  // ---- Render ----
+  function render() {
+    TASKS.forEach(t => {
+      const n = nodes[t.id], st = S[t.id];
+      const shown = st.live ? st.live : (latest(t.id) || { state: 'PENDING' });
+      n.el.dataset.state = shown.state;
+      n.fault.setAttribute('aria-pressed', String(st.fail));
+      n.fault.textContent = st.fail ? 'fails ✕' : 'fails: off';
+      n.fault.setAttribute('aria-label', `${t.key} fails when it runs`);
+      n.fault.disabled = busy;
+      if (n.select) { n.select.value = st.runIf; n.select.disabled = busy; }
+      n.badge.dataset.state = shown.state;
+      const skipped = shown.state === 'UPSTREAM_FAILED' || shown.state === 'EXCLUDED';
+      n.badge.textContent = (GLYPH[shown.state] ? GLYPH[shown.state] + ' ' : '') + LABEL[shown.state] + (skipped ? ' (skipped)' : '');
+      const at = latestAt(t.id);
+      const kept = !st.live && at >= 0 && at < columns.length - 1 ? `Kept from ${columns[at].label}: not re-run. ` : '';
+      n.why.textContent = kept + (shown.msg ? `“${shown.msg}”` : '');
+      n.commits.textContent = st.commits ? `Committed writes from ${st.commits} successful run${st.commits > 1 ? 's' : ''}` : '';
+    });
+
+    const res = $('result');
+    if (columns.length && !busy) {
+      const failed = TASKS.some(t => ['FAILED', 'UPSTREAM_FAILED'].includes(latest(t.id).state));
+      res.innerHTML = `Run result: <b>${failed ? 'Failed' : 'Succeeded'}</b>`;
+    } else res.textContent = '';
+
+    picks.hidden = mode() !== 'selected';
+    picks.querySelectorAll('input').forEach(i => { i.disabled = busy; });
+    document.querySelectorAll('#repair-panel input[type=radio], #fix').forEach(i => { i.disabled = busy; });
+    $('req').textContent = requestText();
+    const scope = repairScope();
+    $('repair').disabled = busy || !columns.length || scope.size === 0;
+    $('repair-hint').textContent = !columns.length ? 'Run the job first.'
+      : scope.size === 0 ? (mode() === 'failed' ? 'Nothing failed or was skipped as Upstream failed.' : 'Pick at least one task.')
+      : `Will re-run: ${TASKS.filter(t => scope.has(t.id)).map(t => t.id).join(', ')}.`;
+    $('run').disabled = busy;
+    $('reset').disabled = busy;
+    renderMatrix();
+    drawEdges();
+  }
+
+  function renderMatrix() {
+    const tbl = $('matrix');
+    if (!columns.length) { tbl.innerHTML = '<tbody><tr><td>Run the job to start its history.</td></tr></tbody>'; return; }
+    // The first run and the two latest repairs, to fit a phone screen.
+    const idx = columns.length <= 3 ? columns.map((_, i) => i) : [0, columns.length - 2, columns.length - 1];
+    let h = '<thead><tr><th scope="col">Task</th>' + idx.map(i => `<th scope="col">${columns[i].label}</th>`).join('') + '</tr></thead><tbody>';
+    TASKS.forEach(t => {
+      h += `<tr><th scope="row">${t.id} <span class="mono">${t.key}</span></th>`;
+      idx.forEach(i => {
+        const r = columns[i].results[t.id];
+        if (!r) h += '<td class="kept">kept</td>';
+        else h += `<td><span class="s" data-state="${r.state}">${GLYPH[r.state]}&nbsp;${LABEL[r.state]}</span></td>`;
+      });
+      h += '</tr>';
+    });
+    tbl.innerHTML = h + '</tbody>';
+  }
+
+  // ---- Running ----
+  const live = $('live');
+  function announce(text) { live.textContent = text; }
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+
+  async function execute(scope, label) {
+    busy = true;
+    const col = { label, results: {} };
+    columns.push(col);
+    TASKS.forEach(t => { col.results[t.id] = null; });
+    render();
+    for (const t of TASKS) {              // TASKS is already in dependency order
+      if (!scope.has(t.id)) continue;
+      const st = S[t.id];
+      let outcome;
+      if (t.deps.length) {
+        const d = decide(st.runIf, t.deps.map(p => latest(p).state));
+        outcome = d.state === 'RUN' ? null : d;
+      }
+      if (!outcome) {
+        st.live = { state: 'RUNNING' };
+        render();
+        await wait(STEP_MS);
+        outcome = st.fail ? { state: 'FAILED', msg: 'Workload failed, see run output for details' } : { state: 'SUCCESS' };
+        if (!st.fail) st.commits += 1;
+      } else {
+        await wait(STEP_MS / 2);
+      }
+      st.live = null;
+      col.results[t.id] = outcome;
+      render();
+    }
+    busy = false;
+    render();
+    const parts = TASKS.map(t => {
+      const r = col.results[t.id];
+      if (!r) return `${t.id} kept`;
+      const skip = r.state === 'UPSTREAM_FAILED' || r.state === 'EXCLUDED' ? ' (skipped)' : '';
+      return `${t.id} ${LABEL[r.state].toLowerCase()}${skip}`;
+    });
+    const failed = TASKS.some(t => ['FAILED', 'UPSTREAM_FAILED'].includes(latest(t.id).state));
+    announce(`${label} finished, run result ${failed ? 'Failed' : 'Succeeded'}: ${parts.join(', ')}.`);
+  }
+
+  $('run').addEventListener('click', () => {
+    if (busy) return;
+    columns = []; repairIds = [];
+    TASKS.forEach(t => { S[t.id].commits = 0; });
+    execute(new Set(TASKS.map(t => t.id)), 'Run');
+  });
+
+  $('repair').addEventListener('click', () => {
+    if (busy || !columns.length) return;
+    const scope = repairScope();
+    if (!scope.size) return;
+    if ($('fix').checked) TASKS.forEach(t => { S[t.id].fail = false; });
+    repairIds.push(723588 + repairIds.length * 62866);
+    execute(scope, `Repair ${repairIds.length}`);
+  });
+
+  $('reset').addEventListener('click', () => {
+    if (busy) return;
+    resetAll();
+    picks.querySelectorAll('input').forEach(i => { i.checked = false; });
+    document.querySelector('input[name="mode"][value="failed"]').checked = true;
+    $('fix').checked = true;
+    announce('Reset: B orders is set to fail; every run_if is the default except E cleanup, which is ALL_DONE.');
+    render();
+  });
+
+  resetAll();
+  render();
+})();
+</script>
+</body>
+</html>

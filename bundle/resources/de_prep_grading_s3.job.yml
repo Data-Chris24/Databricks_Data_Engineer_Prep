@@ -1,0 +1,10 @@
+resources:
+  jobs:
+    grade_assoc_s3:
+      name: "[DE prep] Grade ASSOC-S3"
+      tasks:
+        - task_key: grade
+          notebook_task:
+            notebook_path: ../../grading/ASSOC-S3/grade.py
+      queue:
+        enabled: true

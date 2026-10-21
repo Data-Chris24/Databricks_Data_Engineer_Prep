@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Streaming watermark timeline</title>
+<style>
+  :root {
+    --fg: #1f2328;
+    --muted: #59636e;
+    --line: #d1d9e0;
+    --panel: #f6f8fa;
+    --accent: #0969da;
+    --accent-fg: #ffffff;
+    --ok: #1a7f37;
+    --ok-bg: #dafbe1;
+    --open: #0969da;
+    --open-bg: #ddf4ff;
+    --new: #8250df;
+    --bad: #cf222e;
+    --bad-bg: #ffebe9;
+    --wm: #bc4c00;
+    --gone: #6e7781;
+    --gone-bg: #eaeef2;
+    --focus: #0969da;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #e6edf3;
+      --muted: #9198a1;
+      --line: #3d444d;
+      --panel: #151b23;
+      --accent: #4493f8;
+      --accent-fg: #0d1117;
+      --ok: #3fb950;
+      --ok-bg: #12261e;
+      --open: #4493f8;
+      --open-bg: #121d2f;
+      --new: #ab7df8;
+      --bad: #f85149;
+      --bad-bg: #2d1416;
+      --wm: #f0883e;
+      --gone: #9198a1;
+      --gone-bg: #262c36;
+      --focus: #4493f8;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: transparent;
+    color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { padding: 4px 2px 8px; max-width: 760px; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+
+  fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  legend { float: left; margin-right: 6px; color: var(--muted); font-size: 13px; padding: 0; }
+  .settings { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-bottom: 10px; }
+  .seg button {
+    border: 1px solid var(--line);
+    background: transparent;
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-size: 13px;
+  }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+
+  .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .nav { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 5px 12px; }
+  .nav.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .nav:disabled { opacity: 0.45; cursor: default; }
+  .counter { color: var(--muted); font-size: 13px; }
+
+  .status {
+    margin: 10px 0 8px;
+    padding: 8px 10px;
+    border-left: 3px solid var(--accent);
+    background: var(--panel);
+    border-radius: 0 6px 6px 0;
+    min-height: 3.2em;
+  }
+  .status strong { display: block; }
+
+  svg { display: block; width: 100%; overflow: visible; }
+  .axis line, .axis path { stroke: var(--line); }
+  .tick { fill: var(--muted); font-size: 11px; }
+  .lane-label { fill: var(--muted); font-size: 11px; }
+  .win rect { stroke-width: 1.5; }
+  .win.open rect { fill: var(--open-bg); stroke: var(--open); }
+  .win.closed rect { fill: var(--ok-bg); stroke: var(--ok); }
+  .win.released rect { fill: var(--gone-bg); stroke: var(--gone); stroke-dasharray: 3 3; }
+  .win.none rect { fill: none; stroke: var(--line); stroke-dasharray: 2 4; }
+  .win text { font-size: 11px; fill: var(--fg); }
+  .win.released text, .win.none text { fill: var(--muted); }
+  .ev circle { stroke-width: 1.5; }
+  .ev.kept circle { fill: var(--ok); stroke: var(--ok); }
+  .ev.dropped circle { fill: var(--panel); stroke: var(--bad); }
+  .ev.dropped line { stroke: var(--bad); stroke-width: 1.5; }
+  .ev.now circle { stroke: var(--new); stroke-width: 3; }
+  .ev.future circle { fill: none; stroke: var(--line); stroke-dasharray: 2 2; }
+  .ev text { font-size: 10px; fill: var(--muted); }
+  .wmline { stroke: var(--wm); stroke-width: 2; }
+  .wmlabel { fill: var(--wm); font-size: 11px; font-weight: 600; }
+  .maxline { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 3; }
+  .maxlabel { fill: var(--muted); font-size: 11px; }
+  .wmzone { fill: var(--wm); opacity: 0.08; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin: 4px 0 10px; padding: 0; list-style: none; }
+  .legend span.sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; border: 1.5px solid; }
+
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 520px) { .panels { grid-template-columns: 1fr; } }
+  .panel { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .panel h3 { margin: 0 0 6px; font-size: 13px; }
+  .panel p.hint { margin: 0 0 6px; color: var(--muted); font-size: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 2px 6px 2px 0; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.fresh td { color: var(--new); font-weight: 600; }
+  tr.gone td { color: var(--muted); text-decoration: line-through; }
+  .empty { color: var(--muted); font-style: italic; font-size: 13px; }
+  .tag { font-size: 11px; border-radius: 4px; padding: 0 4px; margin-left: 4px; }
+  .tag.open { background: var(--open-bg); color: var(--open); }
+  .tag.closing { background: var(--ok-bg); color: var(--ok); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="settings">
+    <fieldset class="seg" id="delay-set">
+      <legend>Watermark delay</legend>
+      <button type="button" data-delay="5">5 min</button>
+      <button type="button" data-delay="10">10 min</button>
+      <button type="button" data-delay="15">15 min</button>
+    </fieldset>
+    <fieldset class="seg" id="win-set">
+      <legend>Windows</legend>
+      <button type="button" data-win="tumbling">5 min tumbling</button>
+      <button type="button" data-win="sliding">10 min, sliding every 5</button>
+    </fieldset>
+    <fieldset class="seg" id="mode-set">
+      <legend>Output mode</legend>
+      <button type="button" data-mode="append">append</button>
+      <button type="button" data-mode="update">update</button>
+    </fieldset>
+  </div>
+
+  <div class="controls">
+    <button type="button" class="nav" id="prev">◀ Back</button>
+    <button type="button" class="nav primary" id="next">Next micro-batch ▶</button>
+    <button type="button" class="nav" id="reset">Reset</button>
+    <span class="counter" id="counter"></span>
+  </div>
+
+  <div class="status" id="status" aria-live="polite"></div>
+
+  <svg id="chart" viewBox="0 0 720 230" role="img" aria-labelledby="chart-desc">
+    <desc id="chart-desc">Event-time axis from 12:00 to 12:55 with windows, events and the watermark line.</desc>
+  </svg>
+  <ul class="legend">
+    <li><span class="sw" style="background:var(--ok);border-color:var(--ok)"></span>row counted</li>
+    <li><span class="sw" style="background:var(--panel);border-color:var(--bad)"></span>row dropped (late)</li>
+    <li><span class="sw" style="background:transparent;border-color:var(--new);border-width:3px"></span>arrived this batch</li>
+    <li><span class="sw" style="background:var(--open-bg);border-color:var(--open)"></span>window in state (number = rows counted)</li>
+    <li><span class="sw" style="background:var(--gone-bg);border-color:var(--gone);border-style:dashed"></span>window released</li>
+    <li><span class="sw" style="background:var(--wm);border-color:var(--wm);height:3px;vertical-align:3px"></span>watermark</li>
+  </ul>
+
+  <div class="panels">
+    <section class="panel" aria-labelledby="out-h">
+      <h3 id="out-h">Written to the sink this batch</h3>
+      <p class="hint" id="out-hint"></p>
+      <div id="out"></div>
+    </section>
+    <section class="panel" aria-labelledby="state-h">
+      <h3 id="state-h">State kept after this batch</h3>
+      <p class="hint">One row per window still open. A window is released when the watermark passes its end.</p>
+      <div id="state"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  // Event times in minutes after 12:00, grouped by the micro-batch that reads them
+  // (processing order). The same rows were run on Free Edition with a 10 minute delay.
+  var BATCHES = [
+    [2, 7],
+    [14, 1],
+    [21, 3],
+    [12, 33],
+    [24, 22, 19],
+    [45],
+    [40, 50]
+  ];
+  var AXIS_MIN = -5, AXIS_MAX = 55;   // 11:55 to 12:55
+
+  var cfg = { delay: 10, win: "tumbling", mode: "append" };
+  var steps = [];
+  var pos = 0;
+
+  function hhmm(m) {
+    if (m === null || m === undefined) return "none";
+    var h = 12 + Math.floor(m / 60), mm = ((m % 60) + 60) % 60;
+    if (m < 0) { h = 11; mm = 60 + m; }
+    return h + ":" + (mm < 10 ? "0" : "") + mm;
+  }
+  function winLabel(w) { return "[" + hhmm(w.s) + ", " + hhmm(w.e) + ")"; }
+
+  function windowsFor(t) {
+    if (cfg.win === "tumbling") {
+      var s = Math.floor(t / 5) * 5;
+      return [{ s: s, e: s + 5 }];
+    }
+    // 10 minute windows starting every 5 minutes: each row lands in two.
+    var s2 = Math.floor(t / 5) * 5;
+    return [{ s: s2 - 5, e: s2 + 5 }, { s: s2, e: s2 + 10 }];
+  }
+
+  // Build every micro-batch, data and no-data, from the settings.
+  function simulate() {
+    var out = [];
+    var wm = null;            // watermark in force for the next batch
+    var maxSeen = null;       // latest event time seen so far
+    var state = {};           // key -> {s, e, count}
+    var events = [];          // every row with its fate
+    var sink = {};            // what the sink holds (for the summary)
+    var batchId = 0;
+
+    function snapshot(kind, arrived, wmDuring, wmAfter, written, released, note) {
+      var st = Object.keys(state).map(function (k) { return state[k]; })
+        .sort(function (a, b) { return a.s - b.s; })
+        .map(function (w) { return { s: w.s, e: w.e, count: w.count }; });
+      out.push({
+        id: batchId++, kind: kind, arrived: arrived, wmDuring: wmDuring, wmAfter: wmAfter,
+        maxSeen: maxSeen, written: written, released: released, state: st,
+        events: events.map(function (e) { return { t: e.t, batch: e.batch, fate: e.fate, partial: e.partial }; }),
+        prevMax: note
+      });
+    }
+
+    function closeWindows(newWm) {
+      var released = [];
+      Object.keys(state).forEach(function (k) {
+        var w = state[k];
+        if (newWm !== null && w.e <= newWm) { released.push(w); delete state[k]; }
+      });
+      released.sort(function (a, b) { return a.s - b.s; });
+      return released;
+    }
+
+    BATCHES.forEach(function (rows, bi) {
+      var wmDuring = wm;
+      var prevMax = maxSeen;
+      var changed = {};
+      var arrived = [];
+      var batchMax = null;
+      rows.forEach(function (t) {
+        var ev = { t: t, batch: out.length, fate: "kept", partial: false };
+        // A row is dropped for a window that has already ended at the watermark,
+        // not merely for being older than the watermark.
+        var all = windowsFor(t);
+        var wins = all.filter(function (w) { return wmDuring === null || w.e > wmDuring; });
+        ev.partial = wins.length > 0 && wins.length < all.length;
+        if (wins.length === 0) {
+          ev.fate = "dropped";
+        } else {
+          wins.forEach(function (w) {
+            var k = w.s + "-" + w.e;
+            if (!state[k]) state[k] = { s: w.s, e: w.e, count: 0 };
+            state[k].count++;
+            changed[k] = true;
+          });
+        }
+        events.push(ev);
+        arrived.push(ev);
+        batchMax = batchMax === null ? t : Math.max(batchMax, t);
+      });
+      if (batchMax !== null) maxSeen = maxSeen === null ? batchMax : Math.max(maxSeen, batchMax);
+      // Computed at the end of the batch; it governs the next one. It never moves back.
+      var candidate = maxSeen - cfg.delay;
+      var wmAfter = wm === null ? candidate : Math.max(wm, candidate);
+
+      var written = [];
+      if (cfg.mode === "update") {
+        written = Object.keys(changed).map(function (k) { return { s: state[k].s, e: state[k].e, count: state[k].count }; })
+          .sort(function (a, b) { return a.s - b.s; });
+      }
+      // Within this batch the old watermark still applies, so nothing is evicted yet.
+      snapshot("data", arrived, wmDuring, wmAfter, written, [], prevMax);
+      wm = wmAfter;
+
+      // Whenever the watermark advances, Spark runs a batch with no input under the
+      // new watermark: it evicts every window that has ended (and, in append mode,
+      // writes it). On Free Edition this batch ran even when nothing closed.
+      if (wmAfter !== wmDuring) {
+        var released = closeWindows(wm);
+        var w2 = cfg.mode === "append" ? released.map(function (w) { return { s: w.s, e: w.e, count: w.count }; }) : [];
+        snapshot("nodata", [], wm, wm, w2, released, null);
+      }
+    });
+    return out;
+  }
+
+  // ---------- rendering ----------
+  var svg = document.getElementById("chart");
+  var NS = "http://www.w3.org/2000/svg";
+  // Drawn in CSS pixels at the frame's width, so labels stay readable on a phone.
+  var W = 720, X0 = 14, X1 = 706;
+  function x(m) { return X0 + (Math.max(AXIS_MIN, Math.min(AXIS_MAX, m)) - AXIS_MIN) / (AXIS_MAX - AXIS_MIN) * (X1 - X0); }
+  function el(name, attrs, text) {
+    var n = document.createElementNS(NS, name);
+    for (var a in attrs) n.setAttribute(a, attrs[a]);
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+
+  function drawChart(step) {
+    while (svg.lastChild && svg.lastChild.tagName !== "desc") svg.removeChild(svg.lastChild);
+    var lanes = cfg.win === "tumbling" ? 1 : 2;
+    var winTop = 18, laneH = 26;
+    var evY = winTop + lanes * laneH + 46;
+    var axisY = evY + 56;
+    W = Math.max(280, Math.round(svg.getBoundingClientRect().width) || 720);
+    X1 = W - 14;
+    svg.setAttribute("viewBox", "0 0 " + W + " " + (axisY + 24));
+    svg.style.height = (axisY + 24) + "px";   // fixed, so the height never depends on the width
+
+    // Watermark zone: event time already behind the watermark.
+    if (step.wmDuring !== null) {
+      var wx = x(step.wmDuring);
+      svg.appendChild(el("rect", { "class": "wmzone", x: X0, y: 4, width: Math.max(0, wx - X0), height: axisY - 4 }));
+    }
+
+    // Windows: every window the scenario could touch.
+    var stateKeys = {};
+    step.state.forEach(function (w) { stateKeys[w.s + "-" + w.e] = w; });
+    var releasedNow = {};
+    step.released.forEach(function (w) { releasedNow[w.s + "-" + w.e] = w; });
+    var everHad = {};
+    steps.slice(0, pos).forEach(function (s) {
+      s.state.forEach(function (w) { everHad[w.s + "-" + w.e] = w; });
+      s.released.forEach(function (w) { everHad[w.s + "-" + w.e] = w; });
+    });
+
+    var span = cfg.win === "tumbling" ? 5 : 10;
+    for (var s = AXIS_MIN; s < AXIS_MAX; s += 5) {
+      var e = s + span;
+      var k = s + "-" + e;
+      var lane = cfg.win === "tumbling" ? 0 : (((s / 5) % 2) + 2) % 2;
+      var cls = "none", label = "";
+      if (stateKeys[k]) { cls = "open"; label = String(stateKeys[k].count); }
+      else if (releasedNow[k]) { cls = "closed"; label = String(releasedNow[k].count); }
+      else if (everHad[k]) { cls = "released"; label = String(everHad[k].count); }
+      var g = el("g", { "class": "win " + cls });
+      var x0 = x(Math.max(s, AXIS_MIN)), x1 = x(Math.min(e, AXIS_MAX));
+      g.appendChild(el("rect", { x: x0 + 1, y: winTop + lane * laneH, width: Math.max(0, x1 - x0 - 2), height: laneH - 6, rx: 4 }));
+      if (label) g.appendChild(el("text", { x: (x0 + x1) / 2, y: winTop + lane * laneH + 14, "text-anchor": "middle" }, label));
+      svg.appendChild(g);
+    }
+
+    // Events, stacked when they share a minute.
+    var seen = {};
+    var currentBatch = steps.indexOf(step);
+    var all = step.events;
+    // Show rows still to come as faint outlines so the learner sees what is ahead.
+    var future = [];
+    steps.slice(pos + 1).forEach(function (s) { s.arrived.forEach(function (a) { future.push(a); }); });
+    svg.appendChild(el("text", { "class": "lane-label", x: X0, y: evY - 26 }, "rows by event time"));
+    var labels = [];
+    all.concat(future.map(function (f) { return { t: f.t, batch: -2, fate: "future" }; })).forEach(function (ev) {
+      var n = seen[ev.t] = (seen[ev.t] || 0) + 1;
+      var cy = evY - (n - 1) * 14;
+      var cx = x(ev.t);
+      var cls = "ev " + ev.fate + (ev.batch === currentBatch ? " now" : "");
+      var g = el("g", { "class": cls });
+      g.appendChild(el("circle", { cx: cx, cy: cy, r: 5 }));
+      if (ev.fate === "dropped") {
+        g.appendChild(el("line", { x1: cx - 4, y1: cy - 4, x2: cx + 4, y2: cy + 4 }));
+      }
+      if (ev.batch === currentBatch) labels.push({ x: cx, t: ev.t, g: g });
+      svg.appendChild(g);
+    });
+    // Times of this batch's rows under the dots, on a second line when they would collide.
+    labels.sort(function (a, b) { return a.x - b.x; });
+    var lastX = [-1e9, -1e9, -1e9];
+    labels.forEach(function (l) {
+      var row = 0;
+      while (row < 2 && l.x - lastX[row] < 28) row++;
+      lastX[row] = l.x;
+      l.g.appendChild(el("text", { x: l.x, y: evY + 16 + row * 11, "text-anchor": "middle" }, hhmm(l.t)));
+    });
+
+    // Axis
+    var ax = el("g", { "class": "axis" });
+    ax.appendChild(el("line", { x1: X0, y1: axisY, x2: X1, y2: axisY }));
+    for (var m = AXIS_MIN; m <= AXIS_MAX; m += 5) {
+      ax.appendChild(el("line", { x1: x(m), y1: axisY, x2: x(m), y2: axisY + 4 }));
+      if (m % 10 === 0) ax.appendChild(el("text", { "class": "tick", x: x(m), y: axisY + 16, "text-anchor": "middle" }, hhmm(m)));
+    }
+    svg.appendChild(ax);
+
+    // Max event time and watermark
+    if (step.maxSeen !== null) {
+      var mx = x(step.maxSeen);
+      svg.appendChild(el("line", { "class": "maxline", x1: mx, y1: 8, x2: mx, y2: axisY }));
+      svg.appendChild(el("text", { "class": "maxlabel", x: Math.min(mx + 4, X1 - 58), y: axisY - 4 }, "max " + hhmm(step.maxSeen)));
+    }
+    if (step.wmDuring !== null) {
+      var wx2 = x(step.wmDuring);
+      svg.appendChild(el("line", { "class": "wmline", x1: wx2, y1: 4, x2: wx2, y2: axisY }));
+      svg.appendChild(el("text", { "class": "wmlabel", x: wx2 - 104 >= X0 ? wx2 - 4 : wx2 + 4, y: 11,
+        "text-anchor": wx2 - 104 >= X0 ? "end" : "start" }, "watermark " + hhmm(step.wmDuring)));
+    }
+  }
+
+  function table(rows, opts) {
+    if (!rows.length) return '<p class="empty">' + opts.empty + "</p>";
+    var h = "<table><thead><tr><th>window</th><th class=\"n\">count</th></tr></thead><tbody>";
+    rows.forEach(function (r) {
+      h += "<tr" + (opts.cls ? ' class="' + opts.cls(r) + '"' : "") + "><td>" + winLabel(r) +
+        (opts.tag ? opts.tag(r) : "") + '</td><td class="n">' + r.count + "</td></tr>";
+    });
+    return h + "</tbody></table>";
+  }
+
+  function describe(step) {
+    var d = cfg.delay;
+    var head, body = [];
+    if (pos === 0 && step === null) return;
+    if (step.kind === "data") {
+      head = "Micro-batch " + step.id + ": " + step.arrived.length + (step.arrived.length === 1 ? " row arrives" : " rows arrive") +
+        " (" + step.arrived.map(function (a) { return hhmm(a.t); }).join(", ") + ").";
+      body.push(step.wmDuring === null
+        ? "No watermark yet, so no row can be late."
+        : "Watermark during this batch: " + hhmm(step.wmDuring) + " (max " + hhmm(step.prevMax) + " of earlier batches − " + d + " min).");
+      var times = function (list) { return list.map(function (a) { return hhmm(a.t); }).join(", "); };
+      var dropped = step.arrived.filter(function (a) { return a.fate === "dropped"; });
+      var behind = step.arrived.filter(function (a) { return a.fate === "kept" && step.wmDuring !== null && a.t < step.wmDuring; });
+      var ooo = step.arrived.filter(function (a) { return a.fate === "kept" && step.prevMax !== null && a.t < step.prevMax && !(step.wmDuring !== null && a.t < step.wmDuring); });
+      var partial = step.arrived.filter(function (a) { return a.partial; });
+      if (dropped.length) body.push("Dropped: " + times(dropped) + ", because every window it belongs to has already ended at the watermark.");
+      if (behind.length) body.push("Counted although older than the watermark: " + times(behind) + ", because a window it belongs to is still open.");
+      if (ooo.length) body.push("Out of order but on time: " + times(ooo) + ".");
+      if (partial.length) body.push(times(partial) + ": dropped from the window that has ended, counted in the one still open.");
+      var same = step.arrived.filter(function (a) {
+        return a.fate === "kept" && behind.indexOf(a) < 0 && windowsFor(a.t).every(function (w) { return w.e <= step.wmAfter; });
+      });
+      if (same.length) body.push("Under the watermark this batch's own max will set, " + times(same) + " would be dropped; it is judged against the earlier one, so it counts.");
+      body.push(step.wmAfter === step.wmDuring
+        ? "The max is unchanged, so the watermark stays at " + hhmm(step.wmAfter) + "."
+        : "At the end of the batch the watermark becomes max " + hhmm(step.maxSeen) + " − " + d + " min = " + hhmm(step.wmAfter) + ", for the next batch.");
+    } else {
+      head = "Micro-batch " + step.id + ": no input rows. Spark runs it because the watermark moved to " + hhmm(step.wmDuring) + ".";
+      if (!step.released.length) {
+        body.push("No window ends at or before " + hhmm(step.wmDuring) + ", so nothing is written or released.");
+      } else {
+        body.push("It has passed the end of " + step.released.map(winLabel).join(", ") + ". ");
+        body.push(cfg.mode === "append"
+          ? "Those windows are final, so append writes them now and their state is released."
+          : "Update already wrote them as they changed, so nothing is written; their state is released.");
+      }
+    }
+    return "<strong>" + head + "</strong>" + body.join(" ");
+  }
+
+  function render() {
+    var step = steps[pos - 1];
+    document.getElementById("counter").textContent = "Step " + pos + " of " + steps.length;
+    document.getElementById("prev").disabled = pos === 0;
+    document.getElementById("next").disabled = pos === steps.length;
+    var status = document.getElementById("status");
+    var outHint = document.getElementById("out-hint");
+    outHint.textContent = cfg.mode === "append"
+      ? "append: a window is written once, when the watermark has passed its end."
+      : "update: every window whose count changed in this batch, closed or not.";
+
+    if (!step) {
+      status.innerHTML = "<strong>Before the first batch.</strong> Rows arrive in processing order, not event-time order. Press Next micro-batch to read the first one.";
+      drawChart({ wmDuring: null, maxSeen: null, state: [], released: [], events: [], arrived: [] });
+      document.getElementById("out").innerHTML = '<p class="empty">Nothing yet.</p>';
+      document.getElementById("state").innerHTML = '<p class="empty">Empty.</p>';
+      return;
+    }
+    status.innerHTML = describe(step);
+    drawChart(step);
+    document.getElementById("out").innerHTML = table(step.written, {
+      empty: cfg.mode === "append" ? "Nothing: no window has closed in this batch." : "Nothing changed.",
+      cls: function () { return "fresh"; }
+    });
+    var stateRows = step.state.concat(step.released.map(function (w) { return { s: w.s, e: w.e, count: w.count, gone: true }; }))
+      .sort(function (a, b) { return a.s - b.s; });
+    var wmNext = step.wmAfter;
+    document.getElementById("state").innerHTML = table(stateRows, {
+      empty: "Empty: no window is open.",
+      cls: function (r) { return r.gone ? "gone" : ""; },
+      tag: function (r) {
+        if (r.gone) return '<span class="tag closing">released</span>';
+        if (step.kind === "data" && wmNext !== null && r.e <= wmNext) return '<span class="tag closing">closes next batch</span>';
+        return "";
+      }
+    });
+  }
+
+  function syncButtons() {
+    [["delay-set", "delay"], ["win-set", "win"], ["mode-set", "mode"]].forEach(function (p) {
+      var set = document.getElementById(p[0]);
+      Array.prototype.forEach.call(set.querySelectorAll("button"), function (b) {
+        b.setAttribute("aria-pressed", String(b.dataset[p[1]] === String(cfg[p[1]])));
+      });
+    });
+  }
+
+  function rebuild(keepPos) {
+    steps = simulate();
+    pos = keepPos ? Math.min(pos, steps.length) : 0;
+    syncButtons();
+    render();
+  }
+
+  document.getElementById("delay-set").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    cfg.delay = Number(b.dataset.delay); rebuild(false);
+  });
+  document.getElementById("win-set").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    cfg.win = b.dataset.win; rebuild(false);
+  });
+  document.getElementById("mode-set").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    cfg.mode = b.dataset.mode; rebuild(false);
+  });
+  document.getElementById("next").addEventListener("click", function () { if (pos < steps.length) { pos++; render(); } });
+  document.getElementById("prev").addEventListener("click", function () { if (pos > 0) { pos--; render(); } });
+  document.getElementById("reset").addEventListener("click", function () { pos = 0; render(); });
+
+  var lastW = 0;
+  new ResizeObserver(function () {
+    var w = Math.round(svg.getBoundingClientRect().width);
+    if (w && w !== lastW) { lastW = w; render(); }
+  }).observe(svg);
+
+  rebuild(false);
+})();
+</script>
+</body>
+</html>

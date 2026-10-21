@@ -1,0 +1,252 @@
+{
+  "_generated_by": "solutions/PRO-S8/solution.py, run on Free Edition serverless",
+  "report_rows": 17,
+  "rows_by_principal": {
+    "de_prep_engineer": 6,
+    "de_prep_auditor": 5,
+    "de_prep_analyst": 5,
+    "de_prep_intern": 1
+  },
+  "rows_by_level": {
+    "SCHEMA": 6,
+    "CATALOG": 10,
+    "TABLE": 1
+  },
+  "effective_by_principal": {
+    "de_prep_engineer": 6,
+    "de_prep_analyst": 5,
+    "de_prep_intern": 1
+  },
+  "ineffective_rows": 5,
+  "report": [
+    [
+      "de_prep_analyst",
+      "hr",
+      "absences",
+      "SELECT",
+      "CATALOG",
+      true,
+      true,
+      true
+    ],
+    [
+      "de_prep_analyst",
+      "hr",
+      "employees",
+      "SELECT",
+      "CATALOG",
+      true,
+      true,
+      true
+    ],
+    [
+      "de_prep_analyst",
+      "sales",
+      "customers",
+      "SELECT",
+      "CATALOG",
+      true,
+      true,
+      true
+    ],
+    [
+      "de_prep_analyst",
+      "sales",
+      "order_lines",
+      "SELECT",
+      "CATALOG",
+      true,
+      true,
+      true
+    ],
+    [
+      "de_prep_analyst",
+      "sales",
+      "orders",
+      "SELECT",
+      "CATALOG",
+      true,
+      true,
+      true
+    ],
+    [
+      "de_prep_auditor",
+      "hr",
+      "absences",
+      "SELECT",
+      "CATALOG",
+      true,
+      false,
+      false
+    ],
+    [
+      "de_prep_auditor",
+      "hr",
+      "employees",
+      "SELECT",
+      "CATALOG",
+      true,
+      false,
+      false
+    ],
+    [
+      "de_prep_auditor",
+      "sales",
+      "customers",
+      "SELECT",
+      "CATALOG",
+      true,
+      false,
+      false
+    ],
+    [
+      "de_prep_auditor",
+      "sales",
+      "order_lines",
+      "SELECT",
+      "CATALOG",
+      true,
+      false,
+      false
+    ],
+    [
+      "de_prep_auditor",
+      "sales",
+      "orders",
+      "SELECT",
+      "CATALOG",
+      true,
+      false,
+      false
+    ],
+    [
+      "de_prep_engineer",
+      "sales",
+      "customers",
+      "MODIFY",
+      "SCHEMA",
+      true,
+      true,
+      true
+    ],
+    [
+      "de_prep_engineer",
+      "sales",
+      "customers",
+      "SELECT",
+      "SCHEMA",
+      true,
+      true,
+      true
+    ],
+    [
+      "de_prep_engineer",
+      "sales",
+      "order_lines",
+      "MODIFY",
+      "SCHEMA",
+      true,
+      true,
+      true
+    ],
+    [
+      "de_prep_engineer",
+      "sales",
+      "order_lines",
+      "SELECT",
+      "SCHEMA",
+      true,
+      true,
+      true
+    ],
+    [
+      "de_prep_engineer",
+      "sales",
+      "orders",
+      "MODIFY",
+      "SCHEMA",
+      true,
+      true,
+      true
+    ],
+    [
+      "de_prep_engineer",
+      "sales",
+      "orders",
+      "SELECT",
+      "SCHEMA",
+      true,
+      true,
+      true
+    ],
+    [
+      "de_prep_intern",
+      "sales",
+      "orders",
+      "SELECT",
+      "TABLE",
+      true,
+      true,
+      true
+    ]
+  ],
+  "doc_rows": 5,
+  "documented": 3,
+  "with_table_comment": 2,
+  "pii_tables": [
+    "customers",
+    "employees"
+  ],
+  "documentation": [
+    [
+      "hr",
+      "absences",
+      false,
+      2,
+      0,
+      0,
+      false,
+      false
+    ],
+    [
+      "hr",
+      "employees",
+      true,
+      3,
+      2,
+      1,
+      true,
+      true
+    ],
+    [
+      "sales",
+      "customers",
+      false,
+      3,
+      2,
+      2,
+      true,
+      true
+    ],
+    [
+      "sales",
+      "order_lines",
+      false,
+      3,
+      0,
+      0,
+      false,
+      false
+    ],
+    [
+      "sales",
+      "orders",
+      true,
+      4,
+      3,
+      2,
+      false,
+      true
+    ]
+  ]
+}

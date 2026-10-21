@@ -1,0 +1,93 @@
+# Declarative Automation Bundle for the DE prep platform.
+#
+# Resources land in bundle/resources/*.yml as content is built out (Phase 2
+# onwards: dataset generators, lesson jobs, per-section grading jobs, the study
+# app). Right now the bundle is deliberately near-empty - it exists so the
+# deploy pipeline is real and testable before there is anything riding on it.
+#
+#   databricks bundle validate -t free --profile FREE
+#   databricks bundle deploy -t free --profile FREE
+
+bundle:
+  name: databricks-de-prep
+
+include:
+  - resources/*.yml
+  # Maintainer-only jobs (reference solutions, anti-transplant proofs). These
+  # files define resources under `targets.verify`, so they exist in no other target.
+  - resources/verify/*.yml
+
+# The bundle lives in bundle/ but its notebooks live in notebooks/, above it.
+# By default a bundle can only sync files under its own root, so widen the sync
+# root to the repository. Without this, any notebook_task path fails validation
+# with "is not contained in sync root path".
+sync:
+  paths:
+    - ..
+  # The app's content JSON is generated, not committed (it is gitignored), and
+  # sync honours .gitignore - so re-include it, or the remote app build gets no
+  # content. deploy.yml runs tools/build_app_content.py before `bundle deploy`.
+  # `bundle validate` warns that this matches nothing (same false warning as
+  # solutions/** below); `bundle sync --dry-run --full` lists all six files.
+  include:
+    - ../app/shared/content/*.json
+  # No global exclude list: bundle sync already honours .gitignore, which covers
+  # .venv, __pycache__ and the rest. The learner targets below exclude
+  # ../solutions/** - note that `validate --strict` wrongly warns that the pattern
+  # matches nothing (it checks against the bundle folder, not the sync root), so
+  # deploy.yml validates without --strict. `bundle sync --dry-run --full` is the
+  # honest check: 0 solutions/ files for free, 35 for verify.
+
+variables:
+  catalog:
+    description: Unity Catalog catalog that lab and assignment data is written to.
+    default: workspace
+  schema:
+    description: Schema within the catalog for lab and assignment tables.
+    default: de_prep
+  # The study app's Lakebase branch and database, as full resource names. These
+  # are IDs we chose, not workspace identifiers, so they are safe as defaults.
+  lakebase_branch:
+    description: Lakebase branch the study app stores learner progress in.
+    default: projects/de-prep/branches/production
+  lakebase_database:
+    description: Lakebase database within that branch.
+    default: projects/de-prep/branches/production/databases/databricks-postgres
+
+targets:
+  # Free Edition - the required path. Serverless only; never add job clusters
+  # here, they do not exist on this tier.
+  free:
+    default: true
+    mode: development
+    # Learners fork this repo and deploy it themselves, as admins of their own
+    # workspace, so nothing can be hidden by permission. Instead the reference
+    # solutions never reach the learner target at all; the graders they need
+    # live under grading/ and are run by the study app.
+    sync:
+      exclude:
+        - ../solutions/**
+
+  # A second environment on the same workspace, standing in for staging. It changes
+  # only the `schema` variable - the job definition is identical, which is the whole
+  # point of promoting rather than duplicating.
+  staging:
+    mode: development
+    sync:
+      exclude:
+        - ../solutions/**
+    variables:
+      schema: de_prep_staging
+
+  # Maintainer target: the only one that deploys solutions/ and the jobs that
+  # run them. Used when authoring a section, to regenerate fixtures and to prove
+  # the lesson's code fails the graded suite (docs/authoring-guide.md).
+  verify:
+    mode: development
+    variables:
+      schema: de_prep_verify
+
+  # Premium/trial workspace for the optional classic-compute labs.
+  # See docs/optional-classic-track.md - this target bills real infrastructure.
+  classic:
+    mode: development

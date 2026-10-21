@@ -1,0 +1,6 @@
+{
+  "_comment": "What the ASSOC-S3 assignment produces, per its README's output contract. A reset drops exactly these. Never list an assess input.",
+  "tables": [
+    "workspace.de_prep.s3_gold_billing_enriched"
+  ]
+}

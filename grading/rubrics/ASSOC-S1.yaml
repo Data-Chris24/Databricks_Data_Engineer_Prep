@@ -1,0 +1,57 @@
+# Advisory AI review for ASSOC-S1. Never overturns the unit tests.
+assignment: ASSOC-S1
+objective_ids: [ASSOC-S1-O1, ASSOC-S1-O2]
+
+context: >-
+  A broken upstream job overwrote a Delta table with fewer rows and every price
+  zeroed. The learner had to recover the last good state from history and write an
+  incident report quantifying the damage.
+
+criteria:
+  - id: measured_not_guessed
+    weight: critical
+    asks: Did they identify the good version by evidence, or by assuming?
+    good: >-
+      Profiled each version - row counts and zero-price counts - and derived which one
+      was last intact.
+    poor: >-
+      Hardcoded "VERSION AS OF 1". It gives the right answer here and would fail on any
+      other incident, which is the definition of not having solved it.
+
+  - id: preserved_evidence
+    weight: high
+    asks: Did they recover alongside the damage, or over it?
+    good: A separate recovered table; the source history left intact.
+    poor: >-
+      RESTORE on the source, which repairs the table and destroys the record of what
+      happened.
+
+  - id: quantified_damage
+    weight: high
+    asks: Does the report say what it cost, or only that something went wrong?
+    good: Rows and value lost, both derived from comparing the two versions.
+    poor: A description with no numbers, which nobody can act on or escalate.
+
+  - id: understood_the_mechanism
+    weight: medium
+    asks: Is it clear they know *why* this was recoverable?
+    good: >-
+      Reasoning that references the transaction log retaining prior versions, rather
+      than treating time travel as a magic incantation.
+    poor: Correct syntax with no evident understanding of what makes it possible.
+
+  - id: gaming
+    weight: critical
+    asks: Was the report derived or transcribed?
+    good: Numbers computed from the two versions.
+    poor: Hardcoded values matching the fixtures.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues: [{severity: high | medium | low, location: string, note: string}]
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail.
+  - Judge the approach, not formatting or naming.

@@ -1,0 +1,98 @@
+# de-prep-study
+
+The study app: **Learn** (section notes with a table of contents, links into the
+lesson notebooks and the graded assignment, progress that resumes where you left
+off) and **Test** (practice with instant feedback and spaced repetition, and timed
+tests at the real exam's length). Built with
+[AppKit](https://developers.databricks.com/docs/appkit/v0/) (TypeScript, React,
+Express) and Lakebase Postgres for per-user progress.
+
+Content is not stored here. `tools/build_app_content.py` renders the objective
+maps, question bank, lesson notes and notebook index from `content/` and
+`notebooks/` into `shared/content/*.json`, which is imported at build time. The
+JSON is generated, not committed: `npm run dev`, `npm test` and `npm run typecheck`
+run `npm run content` first, CI builds it for the PR checks, and the deploy builds
+it before uploading. Commit only the YAML or markdown you edited.
+
+## How it is deployed
+
+Through the repo bundle (`bundle/resources/de_prep_study_app.app.yml`), from
+whichever principal deploys it:
+
+- **Upstream repo:** CI from `main`, as a service principal. Do not also
+  `bundle deploy` from a laptop there: development mode would create a second,
+  dev-prefixed app and Free Edition allows three.
+- **Your fork:** from your laptop, as you (`databricks bundle deploy -t free`,
+  then `bundle run study_app`). Same machine and profile each time.
+
+The Lakebase project (`projects/de-prep`) is created once by hand and is not a
+bundle resource, so no bundle command can delete learner progress.
+
+**Restarting after the 24-hour auto-stop** is safe from the workspace UI
+(Start) as well as from the CLI or a redeploy. The bundle passes its command and
+environment inside each deployment request, so a UI-started deployment sees only
+`app.yaml`; that file names the Lakebase resource and `server/lib/bootstrap.ts`
+recovers the job ids and files root by listing the jobs by name. Bundle-provided
+values always win. If the log says `[bootstrap] still missing ...`, the bundle's
+jobs are not deployed or the app's principal cannot see them.
+
+## Local development
+
+**Deploy before you develop.** The app's service principal must be the role that
+creates the `study` schema on first start, otherwise the deployed app can never
+access it (Postgres schema ownership follows the creating role). Check before
+running anything locally:
+
+```bash
+databricks apps get de-prep-study --profile FREE -o json | jq '.active_deployment.status.state'
+# must be SUCCEEDED before the steps below
+```
+
+Then:
+
+```bash
+npm install
+cp .env.example .env        # fill in the values below
+npm run dev                 # http://localhost:8000, hot reload for UI and server
+```
+
+`.env` (never committed):
+
+```dotenv
+DATABRICKS_CONFIG_PROFILE=FREE
+DATABRICKS_APP_NAME=de-prep-study
+DATABRICKS_APP_PORT=8000
+LAKEBASE_ENDPOINT=projects/de-prep/branches/production/endpoints/primary
+PGHOST=<host from: databricks postgres get-endpoint projects/de-prep/branches/production/endpoints/primary --profile FREE>
+PGPORT=5432
+PGDATABASE=databricks_postgres
+PGSSLMODE=require
+DEV_USER_EMAIL=you@example.com   # stands in for the identity header the platform adds
+```
+
+To run the UI with no server and no database at all:
+
+```bash
+VITE_STORE=memory npm run dev
+```
+
+## Checks
+
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+databricks apps validate --profile FREE    # all of the above, the way the platform runs them
+```
+
+## Layout
+
+```
+shared/content/     generated JSON (exams, questions, notes, notebooks, meta)
+shared/             types, SM-2 scheduling, test sampler, grader - used by both sides
+server/db/          migrations, applied idempotently at startup
+server/routes/      /api/me, /api/config, /api/training, /api/practice, /api/tests
+client/src/lib/     StudyStore (ApiStore | MemoryStore), markdown renderer, timer
+client/src/pages/   Home, train/*, test/*
+```

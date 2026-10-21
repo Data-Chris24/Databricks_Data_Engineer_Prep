@@ -1,0 +1,10 @@
+resources:
+  jobs:
+    generate_datasets_pro_s9:
+      name: "[DE prep] Generate PRO-S9 datasets"
+      tasks:
+        - task_key: generate
+          notebook_task:
+            notebook_path: ../../notebooks/datasets/generate_PRO-S9.py
+      queue:
+        enabled: true

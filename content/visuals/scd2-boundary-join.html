@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SCD2 boundary join</title>
+<style>
+  :root {
+    --text: #1f2328;
+    --muted: #59636e;
+    --line: #d1d9e0;
+    --panel: #f6f8fa;
+    --accent: #0969da;
+    --accent-text: #ffffff;
+    --bar-text: #ffffff;
+    --v1: #8250df;
+    --v2: #bf8700;
+    --v3: #1a7f37;
+    --ok: #1a7f37;
+    --ok-bg: #dafbe1;
+    --dup: #9a6700;
+    --dup-bg: #fff8c5;
+    --miss: #cf222e;
+    --miss-bg: #ffebe9;
+    --cursor: #cf222e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --text: #e6edf3;
+      --muted: #9198a1;
+      --line: #3d444d;
+      --panel: #151b23;
+      --accent: #4493f8;
+      --accent-text: #0d1117;
+    --bar-text: #0d1117;
+      --v1: #ab7df8;
+      --v2: #d29922;
+      --v3: #3fb950;
+      --ok: #3fb950;
+      --ok-bg: #12261e;
+      --dup: #d29922;
+      --dup-bg: #2b2111;
+      --miss: #f85149;
+      --miss-bg: #2d1214;
+      --cursor: #ff7b72;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: transparent;
+    color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { padding: 4px 2px 8px; max-width: 760px; }
+  .controls { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .label { font-weight: 600; font-size: 13px; min-width: 76px; }
+  button {
+    font: inherit;
+    font-size: 13px;
+    padding: 4px 9px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+  }
+  button code { font-size: 12px; }
+  button[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
+  }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  pre {
+    margin: 0 0 12px;
+    padding: 8px 10px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    white-space: pre-wrap;
+    font-size: 12.5px;
+  }
+
+  /* timeline */
+  .timeline { position: relative; margin: 4px 0 6px; padding: 0 0 22px; }
+  .lane { position: relative; height: 30px; margin-bottom: 6px; }
+  .lane-label { font-size: 12px; color: var(--muted); margin: 0 0 2px; }
+  .bar {
+    position: absolute; top: 0; height: 30px;
+    border-radius: 4px;
+    border: 2px solid transparent;
+    color: var(--bar-text);
+    font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; padding: 0 6px;
+    overflow: hidden; white-space: nowrap;
+    opacity: 0.6;
+  }
+  .bar.hit { opacity: 1; border-color: var(--text); }
+  .bar.open::after { content: "\2192"; position: absolute; right: 4px; }
+  .facts { position: relative; height: 34px; border-top: 1px dashed var(--line); margin-top: 4px; }
+  .dot {
+    position: absolute; top: 9px; width: 14px; height: 14px; margin-left: -7px;
+    border-radius: 50%; border: 2px solid var(--text); background: var(--panel);
+    padding: 0;
+  }
+  .dot.sel { background: var(--cursor); border-color: var(--cursor); width: 18px; height: 18px; margin-left: -9px; top: 7px; }
+  .cursor { position: absolute; top: 18px; bottom: 22px; width: 0; border-left: 2px solid var(--cursor); pointer-events: none; }
+  .boundary { position: absolute; top: 18px; bottom: 22px; width: 0; border-left: 1px dotted var(--muted); pointer-events: none; }
+  .ticks { position: absolute; left: 0; right: 0; bottom: 0; height: 18px; border-top: 1px solid var(--line); }
+  .tick { position: absolute; top: 2px; font-size: 11px; color: var(--muted); transform: translateX(-50%); white-space: nowrap; }
+  .tick.minor { display: none; }
+  @media (min-width: 520px) { .tick.minor { display: block; } }
+
+  .mover { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 10px; }
+  .mover input[type=range] { flex: 1 1 200px; min-width: 160px; accent-color: var(--cursor); }
+  .date { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 600; min-width: 92px; }
+
+  .status {
+    padding: 8px 10px; border-radius: 6px; margin: 0 0 12px;
+    border: 1px solid var(--line); background: var(--panel);
+  }
+  .status.ok { border-color: var(--ok); background: var(--ok-bg); }
+  .status.dup { border-color: var(--dup); background: var(--dup-bg); }
+  .status.miss { border-color: var(--miss); background: var(--miss-bg); }
+
+  h3 { font-size: 13px; margin: 0 0 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 12px; }
+  th, td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--line); }
+  th { font-weight: 600; color: var(--muted); font-size: 12px; }
+  td.num { font-variant-numeric: tabular-nums; }
+  tr.sel td { font-weight: 600; }
+  tr.cur td { background: var(--panel); }
+  .tag { font-size: 11px; font-weight: 600; padding: 0 5px; border-radius: 4px; white-space: nowrap; }
+  .tag.ok { color: var(--ok); border: 1px solid var(--ok); }
+  .tag.dup { color: var(--dup); border: 1px solid var(--dup); }
+  .tag.miss { color: var(--miss); border: 1px solid var(--miss); }
+  .null { color: var(--miss); font-style: italic; }
+  .two { display: grid; grid-template-columns: 1fr; gap: 0 16px; }
+  @media (min-width: 600px) { .two { grid-template-columns: 1fr 1fr; } }
+  .note { font-size: 12px; color: var(--muted); margin: 0; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="controls">
+    <div class="row" role="group" aria-label="Join predicate">
+      <span class="label">Predicate</span>
+      <button type="button" data-pred="half" aria-label="Half-open: greater or equal valid_from, less than valid_to"><code>&gt;= … &lt;</code> half-open</button>
+      <button type="button" data-pred="incl" aria-label="Inclusive on both ends: less or equal valid_to"><code>&lt;=</code> both ends</button>
+      <button type="button" data-pred="strict" aria-label="Strict start: greater than valid_from, less than valid_to"><code>&gt;</code> strict start</button>
+      <button type="button" data-pred="flip" aria-label="Strict start, inclusive end: greater than valid_from, less or equal valid_to"><code>&gt; … &lt;=</code></button>
+    </div>
+    <div class="row" role="group" aria-label="Open end of the current row">
+      <span class="label">Open end</span>
+      <button type="button" data-open="far" aria-label="Open end stored as 9999-12-31"><code>9999-12-31</code></button>
+      <button type="button" data-open="null" aria-label="Open end stored as NULL"><code>NULL</code></button>
+      <button type="button" data-open="coalesce" aria-label="Open end stored as NULL, join uses coalesce"><code>NULL</code> + <code>coalesce</code></button>
+    </div>
+  </div>
+
+  <pre id="sql" aria-label="Join condition"></pre>
+
+  <div class="timeline" id="timeline" aria-hidden="true">
+    <p class="lane-label">dim_customer, C1</p>
+    <div class="lane" id="lane"></div>
+    <p class="lane-label">fact_orders</p>
+    <div class="facts" id="facts"></div>
+    <div class="ticks" id="ticks"></div>
+  </div>
+
+  <div class="row" role="group" aria-label="Choose the order to move" style="margin-bottom:6px">
+    <span class="label">Order</span>
+    <span id="orderButtons" class="row"></span>
+  </div>
+  <div class="mover">
+    <label for="day" class="sr">Date of the selected order</label>
+    <button type="button" id="prev" aria-label="One day earlier">&minus;1 day</button>
+    <input type="range" id="day" min="0" step="1">
+    <button type="button" id="next" aria-label="One day later">+1 day</button>
+    <span class="date" id="dateOut"></span>
+  </div>
+  <div class="row" role="group" aria-label="Jump the selected order to a boundary" style="margin:-4px 0 10px">
+    <span class="label">Jump to</span>
+    <span id="jumps" class="row"></span>
+  </div>
+
+  <div id="status" class="status" aria-live="polite"></div>
+
+  <div class="two">
+    <div>
+      <h3>Joined rows (<code>LEFT JOIN</code>)</h3>
+      <table>
+        <thead><tr><th scope="col">order</th><th scope="col">ordered_on</th><th scope="col">segment</th><th scope="col">matches</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div>
+      <h3>Inner-join row count, same 5 facts</h3>
+      <table>
+        <thead><tr><th scope="col">predicate</th><th scope="col">rows</th><th scope="col">what goes wrong</th></tr></thead>
+        <tbody id="compare"></tbody>
+      </table>
+      <p class="note">A dimension join must not change the fact's row count. Counts match runs on Free Edition with these rows (5, 7, 2 and 4 with the starting dates).</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var DAY = 86400000;
+  function d(s) { var p = s.split("-"); return Date.UTC(+p[0], +p[1] - 1, +p[2]) / DAY; }
+  function iso(n) { return new Date(n * DAY).toISOString().slice(0, 10); }
+
+  var AXIS_FROM = d("2025-12-01"), AXIS_TO = d("2027-01-01");
+  var FAR = d("9999-12-31");
+  var versions = [
+    { sk: 1, seg: "SMB", from: d("2026-01-01"), to: d("2026-04-01"), color: "--v1" },
+    { sk: 2, seg: "MID", from: d("2026-04-01"), to: d("2026-07-01"), color: "--v2" },
+    { sk: 3, seg: "ENT", from: d("2026-07-01"), to: null, color: "--v3", current: true }
+  ];
+  var orders = [
+    { id: "O1", day: d("2026-01-01") },
+    { id: "O2", day: d("2026-02-15") },
+    { id: "O3", day: d("2026-04-01") },
+    { id: "O4", day: d("2026-07-01") },
+    { id: "O5", day: d("2026-09-10") }
+  ];
+  var PREDS = {
+    half:   { start: ">=", end: "<",  name: ">= / <" },
+    incl:   { start: ">=", end: "<=", name: ">= / <=" },
+    strict: { start: ">",  end: "<",  name: "> / <" },
+    flip:   { start: ">",  end: "<=", name: "> / <=" }
+  };
+  var state = { pred: "half", open: "far", sel: 2 };
+
+  function validTo(v) {
+    if (!v.current) return v.to;
+    return state.open === "null" ? null : FAR;
+  }
+  // SQL three-valued logic: a comparison with NULL is not true, so the row does not match.
+  function matches(day, v, p) {
+    var to = validTo(v);
+    var startOk = p.start === ">=" ? day >= v.from : day > v.from;
+    if (to === null) return false;
+    var endOk = p.end === "<" ? day < to : day <= to;
+    return startOk && endOk;
+  }
+  function hits(day, p) { return versions.filter(function (v) { return matches(day, v, p); }); }
+  function isChangeover(day) { return versions.some(function (v, i) { return i > 0 && v.from === day; }); }
+  function kind(n) { return n === 1 ? "ok" : n === 0 ? "miss" : "dup"; }
+  function pct(day) { return ((day - AXIS_FROM) / (AXIS_TO - AXIS_FROM)) * 100; }
+  function clampPct(day) { return Math.max(0, Math.min(100, pct(day))); }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  var lane = document.getElementById("lane");
+  var facts = document.getElementById("facts");
+  var timeline = document.getElementById("timeline");
+  var range = document.getElementById("day");
+  range.max = AXIS_TO - 1 - AXIS_FROM;
+
+  // static: ticks and boundaries
+  var ticks = document.getElementById("ticks");
+  ["2026-01-01", "2026-04-01", "2026-07-01", "2026-10-01", "2026-02-01", "2026-03-01", "2026-05-01",
+   "2026-06-01", "2026-08-01", "2026-09-01", "2026-11-01", "2026-12-01"].forEach(function (s, i) {
+    var t = el("span", "tick" + (i > 3 ? " minor" : ""),
+      i > 3 ? new Date(d(s) * DAY).toLocaleString("en", { month: "short", timeZone: "UTC" })
+            : s.slice(5));
+    t.style.left = pct(d(s)) + "%";
+    ticks.appendChild(t);
+  });
+  versions.forEach(function (v, i) {
+    if (i === 0) return;
+    var b = el("div", "boundary"); b.style.left = pct(v.from) + "%"; timeline.appendChild(b);
+  });
+  var cursor = el("div", "cursor"); timeline.appendChild(cursor);
+
+  var bars = versions.map(function (v) {
+    var b = el("div", "bar" + (v.current ? " open" : ""));
+    b.style.left = clampPct(v.from) + "%";
+    b.style.width = (clampPct(v.current ? AXIS_TO : v.to) - clampPct(v.from)) + "%";
+    b.style.background = "var(" + v.color + ")";
+    lane.appendChild(b);
+    return b;
+  });
+  var dots = orders.map(function (o, i) {
+    var b = el("button", "dot");
+    b.type = "button"; b.tabIndex = -1;
+    b.title = o.id;
+    b.addEventListener("click", function () { select(i); });
+    facts.appendChild(b);
+    return b;
+  });
+
+  var orderButtons = document.getElementById("orderButtons");
+  var obtns = orders.map(function (o, i) {
+    var b = el("button", null, o.id); b.type = "button";
+    b.addEventListener("click", function () { select(i); });
+    orderButtons.appendChild(b);
+    return b;
+  });
+  var jumps = document.getElementById("jumps");
+  [["first day", "2026-01-01"], ["Apr 1", "2026-04-01"], ["Jul 1", "2026-07-01"], ["Mar 31", "2026-03-31"]].forEach(function (j) {
+    var b = el("button", null, j[0]); b.type = "button";
+    b.setAttribute("aria-label", "Move the order to " + j[1]);
+    b.addEventListener("click", function () { move(d(j[1])); });
+    jumps.appendChild(b);
+  });
+
+  function select(i) { state.sel = i; render(true); }
+  function move(day) {
+    orders[state.sel].day = Math.max(AXIS_FROM, Math.min(AXIS_TO - 1, day));
+    render(true);
+  }
+  range.addEventListener("input", function () { move(AXIS_FROM + +range.value); });
+  document.getElementById("prev").addEventListener("click", function () { move(orders[state.sel].day - 1); });
+  document.getElementById("next").addEventListener("click", function () { move(orders[state.sel].day + 1); });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-pred]"), function (b) {
+    b.addEventListener("click", function () { state.pred = b.dataset.pred; render(true); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-open]"), function (b) {
+    b.addEventListener("click", function () { state.open = b.dataset.open; render(true); });
+  });
+
+  function sqlText() {
+    var p = PREDS[state.pred];
+    var to = state.open === "coalesce" ? "coalesce(d.valid_to, DATE'9999-12-31')" : "d.valid_to";
+    return "ON  f.customer_id = d.customer_id\n" +
+           "AND f.ordered_on " + (p.start === ">=" ? ">=" : "> ") + " d.valid_from\n" +
+           "AND f.ordered_on " + (p.end === "<" ? "< " : "<=") + " " + to +
+           "\n-- current row: valid_to = " + (state.open === "far" ? "DATE'9999-12-31'" : "NULL");
+  }
+
+  function describe(o, hs, p) {
+    var day = o.day, where = "";
+    versions.forEach(function (v, i) {
+      if (i > 0 && day === v.from) where = " is on the " + versions[i - 1].seg + "→" + v.seg + " changeover";
+    });
+    if (!where && day === versions[0].from) where = " is on C1's first day";
+    var head = o.id + " on " + iso(day) + where + ". With " + p.name + ", ";
+    if (hs.length === 1) {
+      var why = "";
+      if (where && hs[0].from !== day) why = " (the outgoing version: the strict start skips the incoming one)";
+      return head + "it matches " + hs[0].seg + " only" + why + ".";
+    }
+    if (hs.length > 1) return head + "it matches " + hs.map(function (h) { return h.seg; }).join(" and ") +
+      ", so the fact row appears " + hs.length + " times.";
+    var cause = "";
+    var cur = versions[versions.length - 1];
+    if (state.open === "null" && day >= cur.from) cause = " Its version has valid_to NULL, and a comparison with NULL is never true.";
+    else if (day < versions[0].from) cause = " No version starts that early.";
+    else if (p.start === ">" && versions.some(function (v) { return v.from === day; })) cause = " The strict start excludes the version that begins that day" +
+      (p.end === "<" && isChangeover(day) ? ", and the < end excludes the one that ends that day." : ".");
+    return head + "it matches no version, so an inner join drops it and a left join gives a NULL segment." + cause;
+  }
+
+  function render(announce) {
+    var p = PREDS[state.pred];
+    Array.prototype.forEach.call(document.querySelectorAll("[data-pred]"), function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.pred === state.pred));
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-open]"), function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.open === state.open));
+    });
+    obtns.forEach(function (b, i) { b.setAttribute("aria-pressed", String(i === state.sel)); });
+    document.getElementById("sql").textContent = sqlText();
+
+    var o = orders[state.sel];
+    range.value = o.day - AXIS_FROM;
+    range.setAttribute("aria-valuetext", o.id + " on " + iso(o.day));
+    document.getElementById("dateOut").textContent = iso(o.day);
+    cursor.style.left = pct(o.day) + "%";
+    dots.forEach(function (dot, i) {
+      dot.style.left = pct(orders[i].day) + "%";
+      dot.classList.toggle("sel", i === state.sel);
+    });
+    var hs = hits(o.day, p);
+    bars.forEach(function (b, i) {
+      var v = versions[i];
+      b.classList.toggle("hit", hs.indexOf(v) >= 0);
+      b.textContent = v.seg + (v.current ? (state.open === "far" ? "  to 9999-12-31" : "  to NULL") : "");
+    });
+
+    var rows = document.getElementById("rows");
+    rows.textContent = "";
+    var total = 0;
+    orders.forEach(function (ord, i) {
+      var h = hits(ord.day, p), k = kind(h.length);
+      total += h.length;
+      var label = k === "ok" ? "1" : k === "miss" ? "0, unmatched" : h.length + ", duplicated";
+      if (k === "ok" && isChangeover(ord.day) && h[0].from !== ord.day) { k = "dup"; label = "1, old version"; }
+      (h.length ? h : [null]).forEach(function (v) {
+        var tr = el("tr", i === state.sel ? "sel" : "");
+        tr.appendChild(el("td", null, ord.id));
+        tr.appendChild(el("td", null, iso(ord.day)));
+        var seg = el("td", v ? null : "null", v ? v.seg : "NULL");
+        tr.appendChild(seg);
+        var t = el("td"); t.appendChild(el("span", "tag " + k, label)); tr.appendChild(t);
+        rows.appendChild(tr);
+      });
+    });
+
+    var cmp = document.getElementById("compare");
+    cmp.textContent = "";
+    Object.keys(PREDS).forEach(function (key) {
+      var q = PREDS[key], n = 0, miss = 0, dup = 0, shifted = 0;
+      orders.forEach(function (ord) {
+        var h = hits(ord.day, q), c = h.length;
+        n += c; if (c === 0) miss++; if (c > 1) dup++;
+        if (c === 1 && isChangeover(ord.day) && h[0].from !== ord.day) shifted++;
+      });
+      var tr = el("tr", key === state.pred ? "cur" : "");
+      if (key === state.pred) tr.setAttribute("aria-current", "true");
+      var c1 = el("td"); c1.appendChild(el("code", null, q.name)); tr.appendChild(c1);
+      tr.appendChild(el("td", "num", String(n)));
+      var parts = [];
+      if (miss) parts.push(miss + " lost");
+      if (dup) parts.push(dup + " doubled");
+      if (shifted) parts.push(shifted + " on the old version");
+      var t = el("td"); t.appendChild(el("span", "tag " + (parts.length ? (miss ? "miss" : "dup") : "ok"), parts.join(", ") || "exact"));
+      tr.appendChild(t);
+      cmp.appendChild(tr);
+    });
+
+    var st = document.getElementById("status");
+    var sk = kind(hs.length);
+    if (sk === "ok" && isChangeover(o.day) && hs[0].from !== o.day) sk = "dup";
+    st.className = "status " + sk;
+    st.textContent = describe(o, hs, p) + " Inner join: " + total + " rows from " + orders.length + " facts.";
+  }
+
+  render(false);
+})();
+</script>
+</body>
+</html>

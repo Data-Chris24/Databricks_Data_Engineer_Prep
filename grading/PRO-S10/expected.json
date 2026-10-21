@@ -1,0 +1,29 @@
+{
+  "_generated_by": "solutions/PRO-S10/solution.py, run on Free Edition serverless",
+  "dim_rows": 114,
+  "distinct_surrogate_keys": 114,
+  "customers": 80,
+  "customers_with_multiple_versions": 34,
+  "fact_rows": 900,
+  "source_orders": 900,
+  "total_revenue": 4121272.14,
+  "orders_misattributed_by_naive_join": 148,
+  "revenue_by_segment_at_order": {
+    "enterprise": 1440711.54,
+    "mid_market": 1300695.48,
+    "smb": 1379865.12
+  },
+  "orders_by_segment_at_order": {
+    "enterprise": 306,
+    "mid_market": 291,
+    "smb": 303
+  },
+  "probe_orders": [
+    {"order_id": "O-00014", "customer_id": "K-0068", "ordered_on": "2026-03-29", "segment_at_order": "smb",        "region_at_order": "emea", "current_segment": "mid_market"},
+    {"order_id": "O-00026", "customer_id": "K-0007", "ordered_on": "2026-04-08", "segment_at_order": "mid_market", "region_at_order": "emea", "current_segment": "enterprise"},
+    {"order_id": "O-00027", "customer_id": "K-0029", "ordered_on": "2026-03-15", "segment_at_order": "smb",        "region_at_order": "apac", "current_segment": "enterprise"},
+    {"order_id": "O-00042", "customer_id": "K-0073", "ordered_on": "2026-01-05", "segment_at_order": "enterprise", "region_at_order": "amer", "current_segment": "smb"},
+    {"order_id": "O-00043", "customer_id": "K-0039", "ordered_on": "2026-05-16", "segment_at_order": "smb",        "region_at_order": "apac", "current_segment": "mid_market"},
+    {"order_id": "O-00048", "customer_id": "K-0038", "ordered_on": "2026-01-17", "segment_at_order": "mid_market", "region_at_order": "apac", "current_segment": "enterprise"}
+  ]
+}

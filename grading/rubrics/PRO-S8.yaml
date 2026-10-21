@@ -1,0 +1,68 @@
+# Advisory AI review for PRO-S8. Never overturns the unit tests.
+assignment: PRO-S8
+objective_ids: [PRO-S8-O1, PRO-S8-O2]
+
+context: >-
+  The learner audited a Unity Catalog catalog whose grants sit at three different
+  levels, and produced both an effective-access report and a documentation
+  inventory. The lesson audited a catalog where every grant sat on the table it
+  named, so a three-column query over table_privileges was a complete answer.
+
+criteria:
+  - id: resolved_the_level
+    weight: critical
+    asks: Does the report say where each grant lives, or where it applies?
+    good: >-
+      Used inherited_from (or SHOW GRANTS ObjectType) and mapped NONE to TABLE.
+      Understands that revoking at the wrong level succeeds and does nothing.
+    poor: >-
+      Assumed a privilege listed against a table is granted on it. The report then
+      tells an auditor to revoke in a place where there is nothing to revoke.
+
+  - id: composed_the_traversal_chain
+    weight: critical
+    asks: Is a privilege held distinguished from a privilege usable?
+    good: >-
+      Joined catalog_privileges and schema_privileges and required both, so the
+      principal holding SELECT across the catalog with no schema traversal shows as
+      ineffective.
+    poor: >-
+      Treated table_privileges as the answer. Every row then reads as access, which
+      is the specific wrong answer this catalog was built to produce.
+
+  - id: documentation_is_a_definition
+    weight: high
+    asks: Did they apply the stated definition, or substitute "has a comment"?
+    good: >-
+      Joined tables, columns, table_tags and column_tags, and implemented the
+      definition from the README rather than the nearest available column.
+    poor: >-
+      is_documented equals has_table_comment. Convenient, and it under-reports the
+      table whose purpose is recorded as a tag.
+
+  - id: readable_output
+    weight: medium
+    asks: Could a non-engineer act on this report?
+    good: Principals named, levels spelled out, one row per fact.
+    poor: Application ids, or a report that requires the reader to already know the answer.
+
+  - id: checked_for_the_silent_zero
+    weight: medium
+    asks: >-
+      Did they notice if a filter matched nothing, rather than trusting an empty
+      result?
+    good: >-
+      Confirmed the traversal join actually matched - the privilege names are spelled
+      USE_CATALOG and USE_SCHEMA in information_schema, not as they are granted.
+    poor: >-
+      Reported that no principal can reach anything and did not find that surprising.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues: [{severity: high | medium | low, location: string, note: string}]
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail.
+  - Judge the audit reasoning, not naming or formatting.

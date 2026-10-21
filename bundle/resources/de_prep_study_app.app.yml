@@ -1,0 +1,46 @@
+# The study app: Learn (section notes, notebook links) and Test (practice, timed
+# exams). AppKit (TypeScript/React) with Lakebase for per-user progress.
+#
+# Deployed by whoever deploys the bundle: CI in the upstream repo, you in a
+# fork. Use one deployer per workspace - a second development-mode deploy
+# would create a second, dev-prefixed app and eat one of Free Edition's three
+# app slots. For UI work use `npm run dev` in app/.
+#
+# The Lakebase project itself is NOT a bundle resource on purpose: a
+# `bundle destroy` would delete every learner's progress, and the account
+# allows exactly one project. It is created once by hand (docs/architecture.md,
+# Decision 9) and referenced here by name.
+# Scoped to the `free` target: a development-mode deploy of any other target
+# (verify, staging, classic) would otherwise create a second app and use one
+# of Free Edition's three slots.
+targets:
+  free:
+    resources:
+      apps:
+        study_app:
+          name: de-prep-study
+          description: "[DE prep] Study app: Learn and Test"
+          source_code_path: ../../app
+          config:
+            command: ["npm", "run", "start"]
+            env:
+              - name: LAKEBASE_ENDPOINT
+                value_from: postgres
+              # Where the bundle put this repo's files in the workspace. The app
+              # turns repo-relative notebook paths into deep links with it.
+              - name: DE_PREP_FILES_ROOT
+                value: ${workspace.file_path}
+              # No job ids here. The app lists the jobs it may run (granted below)
+              # at startup and finds each by name - server/lib/bootstrap.ts - the
+              # same way whether the bundle or the Apps UI started it.
+          # The database is the app's only resource. Jobs used to be bound here
+          # too, and an app may hold at most 20 resources (measured 2026-09-15),
+          # which Lakebase + 19 jobs had filled. Granting on the jobs instead
+          # (below) has no such limit.
+          resources:
+            - name: postgres
+              postgres:
+                branch: ${var.lakebase_branch}
+                database: ${var.lakebase_database}
+                permission: CAN_CONNECT_AND_CREATE
+

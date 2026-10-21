@@ -1,0 +1,57 @@
+# Advisory AI review for PRO-S3. Never overturns the unit tests.
+assignment: PRO-S3
+objective_ids: [PRO-S3-O1, PRO-S3-O2]
+
+context: >-
+  Every row in the meter-reading table is individually valid. The learner had to find
+  three defects that exist only between rows: a cumulative meter running backwards,
+  gaps where readings stop, and duplicate timestamps with conflicting values.
+
+criteria:
+  - id: recognised_the_shape
+    weight: critical
+    asks: Did they realise row-level rules cannot find any of this?
+    good: >-
+      Established that value-level checks pass, then moved to windows - the design is
+      justified rather than lucky.
+    poor: >-
+      Applied row-level rules, found nothing, and concluded the table is clean. That is
+      the transplant, and it is confidently wrong.
+
+  - id: window_correctness
+    weight: high
+    asks: Are the windows partitioned and ordered correctly?
+    good: Partitioned by device, ordered by timestamp - comparisons stay within a device.
+    poor: >-
+      A global ordering, which compares one device's reading to another's and produces
+      nonsense that still looks like a number.
+
+  - id: found_missing_rows
+    weight: high
+    asks: How did they detect readings that are not there?
+    good: The interval between surviving rows, since absent rows cannot be inspected.
+    poor: A row count against an expected total, which detects that something is missing but not where.
+
+  - id: noticed_interaction
+    weight: medium
+    asks: Did they notice one defect manufacturing another?
+    good: >-
+      Observed that a duplicate with a higher value makes the next reading look like a
+      decrease, and said so rather than silently correcting for it.
+    poor: Reported the raw count with no sign they wondered why it exceeded the obvious cases.
+
+  - id: gaming
+    weight: critical
+    asks: Were the counts derived?
+    good: Computed from windows over the data.
+    poor: Hardcoded values matching the fixtures.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues: [{severity: high | medium | low, location: string, note: string}]
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail.
+  - Judge the approach, not formatting or naming.

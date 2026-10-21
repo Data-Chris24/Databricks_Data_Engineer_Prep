@@ -1,0 +1,489 @@
+# PRO-S8 Data Governance (7%) and PRO-S10 Data Modeling (6%). Original questions;
+# PRO-S8-Q001 and PRO-S10-Q001..Q003 are official samples in official-samples.yaml.
+meta:
+  source: Original, written for this repository.
+  note: Covers PRO-S8-O1..O2 and PRO-S10-O1..O4.
+
+questions:
+  - id: PRO-S8-Q002
+    objective_ids: [PRO-S8-O1]
+    difficulty: application
+    provenance: original
+    tags: [tags, comments, discoverability, information_schema]
+    stem: >-
+      A governance team needs to list every column across the catalog that holds
+      personal data, so masking can be verified. Column comments already say things
+      like "customer email (PII)". Why is that insufficient, and what should be
+      recorded instead?
+    options:
+      A: >-
+        Comments are prose for a human and cannot be filtered reliably; set a tag such as pii = 'true' on each column and query information_schema.column_tags.
+      B: >-
+        Comments are stored only in the UI and are not queryable at all.
+      C: >-
+        Comments are fine; query information_schema.columns with LIKE '%PII%'.
+      D: >-
+        Only table-level metadata is queryable, so the requirement cannot be met per column.
+    correct: A
+    explanation: >-
+      Comments say what something is; tags say what class of thing it is, and only
+      the second is queryable at scale. "Show me everything holding PII" is a
+      query over column_tags, not a text search over free prose that different
+      authors wrote differently.
+    distractor_rationale:
+      B: >-
+        Comments are in information_schema.columns; they are just not structured.
+      C: >-
+        A LIKE over prose misses every column whose author wrote "personal", "sensitive" or nothing.
+      D: >-
+        Column tags exist and have their own information_schema view.
+    near_misses:
+      - text: >-
+          Comments are prose for a human and cannot be filtered reliably; set a tag such as
+          pii = 'true' on each column and query information_schema.table_tags.
+        why: >-
+          table_tags holds only tags set on a table itself. A tag set on a column appears in
+          column_tags and not in table_tags, so this query returns no rows for it.
+      - text: >-
+          Comments are not exposed in information_schema at all; set a tag such as pii =
+          'true' on each column and query information_schema.column_tags.
+        why: >-
+          Column comments are in information_schema.columns.comment. They are queryable,
+          just unstructured prose, so the reason given is wrong even though the fix is
+          right.
+      - text: >-
+          Comments are not exposed in information_schema at all; set a tag such as pii =
+          'true' on each column and query information_schema.table_tags.
+        why: >-
+          Column comments are queryable in information_schema.columns.comment, and a column
+          tag appears in column_tags, not table_tags, so this query finds nothing.
+
+  - id: PRO-S8-Q003
+    objective_ids: [PRO-S8-O1]
+    difficulty: analysis
+    provenance: original
+    tags: [information_schema, filtered, inventory]
+    stem: >-
+      An analyst builds a table inventory from information_schema.tables and
+      reports 120 tables. An admin runs the identical query and gets 340. Neither
+      query has a WHERE clause. What explains the difference?
+    options:
+      A: >-
+        information_schema is filtered by the caller's privileges; each user sees only the objects they can access, so an inventory is only complete when run by a principal that can see everything.
+      B: >-
+        The analyst queried the per-catalog view and the admin queried system.information_schema, which spans all catalogs.
+      C: >-
+        The admin's query included temporary views.
+      D: >-
+        Caching; the analyst's result was stale.
+    correct: A
+    explanation: >-
+      The views are filtered by what the caller may see. That is a feature, and a
+      trap for anyone building governance reports: the same inventory built by
+      two people is two different inventories.
+    distractor_rationale:
+      B: >-
+        The question says the queries were identical; the difference is the caller.
+      C: >-
+        Temporary views are not in information_schema.tables.
+      D: >-
+        information_schema is not a cached snapshot per user.
+    near_misses:
+      - text: >-
+          information_schema is filtered by ownership; each user sees only the objects they
+          own, so an inventory is only complete when run by a principal that can see
+          everything.
+        why: >-
+          Visibility follows any Unity Catalog privilege on the object, not ownership. An
+          analyst granted SELECT on a table someone else owns sees that table's row.
+      - text: >-
+          information_schema is filtered by the caller's privileges; each user sees only the
+          objects they can access, so an inventory is complete when run against
+          system.information_schema, which is not filtered.
+        why: >-
+          system.information_schema filters exactly like each catalog's information_schema.
+          It spans every catalog, but still returns only what the caller may see.
+      - text: >-
+          information_schema is filtered by ownership; each user sees only the objects they
+          own, so an inventory is complete when run against system.information_schema, which
+          is not filtered.
+        why: >-
+          Visibility follows any privilege, not ownership, and system.information_schema is
+          filtered by the caller's privileges too; it only widens the scope to every
+          catalog.
+
+  - id: PRO-S8-Q004
+    objective_ids: [PRO-S8-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [inheritance, revoke, show-grants, inherited_from]
+    stem: >-
+      An access review finds group finance has SELECT on hr.salaries. An engineer
+      runs REVOKE SELECT ON TABLE hr.salaries FROM finance, which succeeds, but the
+      group can still read the table. Why?
+    options:
+      A: >-
+        The privilege was granted on the schema (or catalog) and inherited; revoking on the table removes a grant that was never there. Revoke it where it lives, as SHOW GRANTS' ObjectType or table_privileges.inherited_from shows.
+      B: >-
+        Revokes take effect at the next cluster restart.
+      C: >-
+        finance is also the owner of the table, and owners cannot be revoked.
+      D: >-
+        The group holds SELECT through a row filter that must be dropped first.
+    correct: A
+    explanation: >-
+      A privilege applies where it inherits but lives where it was granted. The
+      revoke reported success and changed nothing, which is why an access review
+      must record the level a grant was made at, not only that it applies.
+    distractor_rationale:
+      B: >-
+        Grants and revokes apply immediately.
+      C: >-
+        Ownership is possible but not implied; the common cause is inheritance.
+      D: >-
+        Row filters restrict rows; they do not grant privileges.
+    near_misses:
+      - text: >-
+          The privilege was granted on the schema (or catalog) and inherited; revoking on
+          the table removes a grant that was never there. Revoke it on every table in the
+          schema, as SHOW GRANTS' ObjectType or table_privileges.inherited_from shows.
+        why: >-
+          Each table-level revoke removes nothing, for the same reason the first one did.
+          The schema-level grant still applies to every table, including tables created
+          later.
+      - text: >-
+          The privilege was granted on the schema (or catalog) and inherited; revoking on
+          the table removes a grant that was never there. Revoke it where it lives, found by
+          running SHOW GRANTS on each parent, since SHOW GRANTS ON TABLE lists only grants
+          made on the table.
+        why: >-
+          SHOW GRANTS ON TABLE lists inherited grants too, with ObjectType CATALOG or SCHEMA
+          and the parent as ObjectKey, so the table's own listing already says where to
+          revoke.
+      - text: >-
+          The privilege was granted on the schema (or catalog) and inherited; revoking on
+          the table removes a grant that was never there. Revoke it on every table in the
+          schema, found by running SHOW GRANTS on each parent, since SHOW GRANTS ON TABLE
+          lists only grants made on the table.
+        why: >-
+          Table-level revokes remove nothing while the schema grant stands, and SHOW GRANTS
+          ON TABLE already lists the inherited grant with ObjectType SCHEMA or CATALOG.
+
+  - id: PRO-S8-Q005
+    objective_ids: [PRO-S8-O2]
+    difficulty: application
+    provenance: original
+    tags: [traversal, use-schema, effective-access]
+    stem: >-
+      A service principal is granted SELECT on every table in catalog reporting via
+      a catalog-level grant, yet its queries fail with PERMISSION_DENIED on every
+      table. information_schema.table_privileges shows the SELECT. What is missing?
+    options:
+      A: >-
+        USE CATALOG on the catalog and USE SCHEMA on each schema; SELECT is inert without the traversal privileges, and no privileges view computes that conjunction for you.
+      B: >-
+        Table ownership; only owners can exercise inherited grants.
+      C: >-
+        A refresh of the catalog's privilege cache.
+      D: >-
+        A workspace binding; service principals cannot read catalogs at all.
+    correct: A
+    explanation: >-
+      USE CATALOG and USE SCHEMA are the right to see that something exists and
+      name it. Holding SELECT without them is the classic support ticket, and it is
+      invisible to a report built from table_privileges alone.
+    distractor_rationale:
+      B: >-
+        Inherited grants work for any grantee; ownership is not required.
+      C: >-
+        There is no privilege cache to refresh.
+      D: >-
+        Service principals are ordinary principals in Unity Catalog.
+    near_misses:
+      - text: >-
+          USE SCHEMA on each schema only, because a catalog-level SELECT grant implies USE
+          CATALOG; SELECT is inert without the traversal privileges, and no privileges view
+          computes that conjunction for you.
+        why: >-
+          A catalog-level SELECT implies no usage privilege. USE CATALOG is a separate
+          grant, and without it every query still fails with PERMISSION_DENIED.
+      - text: >-
+          USE CATALOG and BROWSE on the catalog; SELECT is inert without the traversal
+          privileges, and no privileges view computes that conjunction for you.
+        why: >-
+          BROWSE lets a principal see metadata, not read data, and it does not stand in for
+          USE SCHEMA. Reading a table still needs USE SCHEMA on its schema.
+      - text: >-
+          BROWSE on the catalog only, because a catalog-level SELECT grant implies USE
+          CATALOG; SELECT is inert without the traversal privileges, and no privileges view
+          computes that conjunction for you.
+        why: >-
+          SELECT implies neither usage privilege, and BROWSE grants metadata visibility, not
+          traversal. Reading needs USE CATALOG and USE SCHEMA as well as SELECT.
+
+  - id: PRO-S10-Q004
+    objective_ids: [PRO-S10-O1]
+    difficulty: application
+    provenance: original
+    tags: [surrogate-key, deterministic, rebuild]
+    stem: >-
+      A dimension's surrogate key is generated with monotonically_increasing_id()
+      each time the dimension is rebuilt. Facts published last month reference those
+      keys. What goes wrong at the next rebuild, and what fixes it?
+    options:
+      A: >-
+        Keys are renumbered, so every published fact points at a different version; derive the key deterministically, for example a hash of the natural key and valid_from.
+      B: >-
+        Nothing; monotonically_increasing_id() is stable across runs for the same input.
+      C: >-
+        Keys collide within the rebuild, causing duplicate rows.
+      D: >-
+        The rebuild fails because surrogate keys must be sequential integers.
+    correct: A
+    explanation: >-
+      A scalable model must survive a rebuild. Generated ids depend on partition
+      layout and run order; a hash of the identifying columns produces the same
+      key for the same version every time, so facts already published keep
+      pointing at the right row.
+    distractor_rationale:
+      B: >-
+        The function is deterministic only within a run's layout; another run assigns different ids.
+      C: >-
+        Ids within one run are unique; instability across runs is the problem.
+      D: >-
+        Surrogate keys can be any unique value; strings from a hash are common.
+    near_misses:
+      - text: >-
+          Keys are renumbered, so every published fact points at a different version; derive
+          the key deterministically, for example a hash of the natural key alone.
+        why: >-
+          Every version of a Type 2 row shares its natural key, so all versions get the same
+          key. In a run, 1,100 versions of 1,000 customers produced only 1,000 distinct
+          hashes.
+      - text: >-
+          Keys are renumbered, so every published fact points at a different version; derive
+          the key deterministically, for example row_number() ordered by the natural key and
+          valid_from.
+        why: >-
+          row_number() repeats only while the rows do not change. In a run, one new version
+          for an early customer shifted every later number: 999 of 1,000 keys moved.
+      - text: >-
+          Keys are renumbered, so every published fact points at a different version; derive
+          the key deterministically, for example row_number() ordered by the natural key
+          alone.
+        why: >-
+          Any new row shifts every number after it, and versions that share a natural key
+          tie, so even an unchanged input can number them differently from run to run.
+
+  - id: PRO-S10-Q005
+    objective_ids: [PRO-S10-O4]
+    difficulty: analysis
+    provenance: original
+    tags: [scd2, point-in-time-join, grain]
+    stem: >-
+      An order fact is joined to a Type 2 customer dimension on customer_id only.
+      900 orders go in and 1,180 rows come out, with no error. What happened, and
+      what is the correct join?
+    options:
+      A: >-
+        Customers with several versions matched every version; join on customer_id AND ordered_on >= valid_from AND ordered_on < valid_to so each order matches the one version in effect on its date.
+      B: >-
+        The dimension has duplicate natural keys by mistake; deduplicate it first.
+      C: >-
+        The fact table has duplicate orders; deduplicate the fact.
+      D: >-
+        The join should be a LEFT ANTI join to remove unmatched orders.
+    correct: A
+    explanation: >-
+      A dimension join must not change the fact's row count. In a Type 2
+      dimension the natural key identifies a customer, not a row, so the validity
+      window belongs in the join condition, with asymmetric bounds so a changeover
+      date matches exactly one version.
+    distractor_rationale:
+      B: >-
+        Several versions per key is the definition of a Type 2 dimension, not a mistake.
+      C: >-
+        The fact had 900 distinct orders; the growth came from the join.
+      D: >-
+        An anti join removes matches; the fix is to match exactly one version.
+    near_misses:
+      - text: >-
+          Customers with several versions matched every version; join on customer_id AND
+          ordered_on >= valid_from AND ordered_on <= valid_to so each order matches the one
+          version in effect on its date.
+        why: >-
+          With both bounds inclusive, an order placed on a changeover date matches the old
+          version and the new one. In a run, 4 orders became 5 rows.
+      - text: >-
+          Customers with several versions matched every version; join on customer_id AND
+          current_date() >= valid_from AND current_date() < valid_to so each order matches
+          the one version in effect on its date.
+        why: >-
+          That keeps the row count but picks the version in effect today, not on the order
+          date. In a run, an order placed before the customer moved showed the new city.
+      - text: >-
+          Customers with several versions matched every version; join on customer_id AND
+          current_date() >= valid_from AND current_date() <= valid_to so each order matches
+          the one version in effect on its date.
+        why: >-
+          Every order gets today's version rather than the one on its order date, and on a
+          changeover day the inclusive upper bound matches two versions.
+
+  - id: PRO-S10-Q006
+    objective_ids: [PRO-S10-O2]
+    difficulty: application
+    provenance: original
+    tags: [liquid-clustering, cluster-by-auto, optimize]
+    stem: >-
+      A new fact table's query patterns are not yet known. The team must choose a
+      layout today. Which choice keeps the most options open at the least cost?
+    options:
+      A: >-
+        CLUSTER BY AUTO, letting Databricks choose and revise keys from query history; keys can be changed later without rewriting the table.
+      B: >-
+        PARTITIONED BY the date column, since it is always safe.
+      C: >-
+        ZORDER BY every column that might be filtered, run after each load.
+      D: >-
+        No layout at all until the patterns are known, then partition.
+    correct: A
+    explanation: >-
+      Clustering is a property of the table the engine maintains and that you can
+      change; partitioning is a directory layout fixed at creation. Not knowing the
+      access pattern is the normal state at creation time, and AUTO is built for it.
+    distractor_rationale:
+      B: >-
+        A daily partition on a table that is not large per day produces small files, and the choice cannot be undone without a rewrite.
+      C: >-
+        ZORDER is not incremental and re-sorts everything each run; more columns dilute it.
+      D: >-
+        Partitioning later still means rewriting the table; clustering later is a metadata change.
+    near_misses:
+      - text: >-
+          CLUSTER BY AUTO, letting Databricks choose keys once, from the schema, when the
+          table is created; keys can be changed later without rewriting the table.
+        why: >-
+          AUTO picks keys from the table's query workload and revises them as it shifts. In
+          a run, a new AUTO table had no clustering columns at all until there was history
+          to learn from.
+      - text: >-
+          CLUSTER BY AUTO, letting Databricks choose and revise keys from query history;
+          changing keys later rewrites the whole table at once.
+        why: >-
+          Changing keys is a metadata change. In a run, ALTER TABLE ... CLUSTER BY committed
+          with no files added or removed; existing data is reclustered only by OPTIMIZE
+          FULL.
+      - text: >-
+          CLUSTER BY AUTO, letting Databricks choose keys once, from the schema, when the
+          table is created; changing keys later rewrites the whole table at once.
+        why: >-
+          AUTO chooses keys from query history and keeps revising them, and a key change
+          rewrites no files; later writes and OPTIMIZE apply the new keys.
+
+  - id: PRO-S10-Q007
+    objective_ids: [PRO-S10-O3]
+    difficulty: analysis
+    provenance: original
+    tags: [partitioning, liquid-clustering, skew, small-files]
+    stem: >-
+      A table partitioned by region has one partition ten times larger than the
+      others and thousands of tiny files in the smallest ones. Queries filtering on
+      region are slow for the big region and slow to list for the small ones. Which
+      benefit of liquid clustering addresses both symptoms?
+    options:
+      A: >-
+        Clustering targets file size rather than one directory per value, so a hot key is spread across files and small keys are grouped into full files.
+      B: >-
+        Clustering creates a directory per region like partitioning but compresses them.
+      C: >-
+        Clustering removes the need for statistics, so file counts stop mattering.
+      D: >-
+        Clustering only helps the small partitions; the large region needs ZORDER.
+    correct: A
+    explanation: >-
+      A partition is exactly as big as its key value says, so skew becomes a
+      straggler directory and sparse keys become tiny files. Clustering groups rows
+      into files by the key with no directories, targeting file size, and its
+      OPTIMIZE is incremental.
+    distractor_rationale:
+      B: >-
+        Clustering has no directories; that is the difference.
+      C: >-
+        Statistics are what make skipping possible; clustering provides the locality for them.
+      D: >-
+        ZORDER re-sorts everything each run and does not fix the partition layout.
+    near_misses:
+      - text: >-
+          Clustering targets file size within one directory per value, so a hot key is
+          spread across files and small keys are grouped into full files.
+        why: >-
+          A clustered table has no directories: it has no partition columns, and CLUSTER BY
+          with PARTITIONED BY is rejected. With a directory per value, small keys could
+          never share a file.
+      - text: >-
+          Clustering targets file size rather than one directory per value, so a hot key
+          is kept whole in one large file and small keys are grouped into full files.
+        why: >-
+          The hot key is split at the target file size. In a run, 400,000 rows of one region
+          were written to six files of about 4 MB each.
+      - text: >-
+          Clustering targets file size within one directory per value, so a hot key is kept
+          whole in one large file and small keys are grouped into full files.
+        why: >-
+          Clustering writes no directories, and it splits a hot key across files of the
+          target size rather than keeping it in one.
+
+  - id: PRO-S10-Q008
+    objective_ids: [PRO-S10-O3]
+    difficulty: application
+    provenance: original
+    tags: [partitioning, replace-where, when-to-partition]
+    stem: >-
+      A team reloads one calendar month of a very large table every night by
+      deleting and rewriting that month. Partitions are several gigabytes each. Which
+      layout is the better fit, and why?
+    options:
+      A: >-
+        Partitioning by month: REPLACE WHERE on the partition column drops the old slice's files by metadata alone and writes only the new month, and the partitions are large enough to be worth it.
+      B: >-
+        Liquid clustering by month, because clustering is always preferred.
+      C: >-
+        No layout; deletes and rewrites are cheap regardless.
+      D: >-
+        ZORDER by month, run after each nightly load.
+    correct: A
+    explanation: >-
+      "Always cluster" is not the lesson. Partitioning still wins when partitions
+      are comfortably large and whole slices are dropped or overwritten, because
+      REPLACE WHERE on a partition column has no clustering equivalent.
+    distractor_rationale:
+      B: >-
+        Clustering cannot swap a slice cheaply; the overwrite becomes a row-level rewrite.
+      C: >-
+        A month of a very large table is not cheap to delete and rewrite row by row.
+      D: >-
+        ZORDER is a sort within files and does nothing for slice replacement.
+    near_misses:
+      - text: >-
+          Partitioning by month: REPLACE WHERE on the partition column marks the old slice's
+          rows deleted with deletion vectors and writes only the new month, and the
+          partitions are large enough to be worth it.
+        why: >-
+          A predicate on the partition column removes whole files. In a run it removed one
+          file, wrote no deletion vector and copied no rows; on a table clustered by month
+          the same statement wrote a deletion vector and copied 200,000 rows.
+      - text: >-
+          Partitioning by month: REPLACE WHERE on the partition column drops the old slice's
+          files by metadata alone and writes only the new month, whatever size the
+          partitions are.
+        why: >-
+          Size is the condition. Databricks advises at least 1 GB per partition; small
+          partitions mean small files and slow listing, so partitioning fits here only
+          because each month is several gigabytes.
+      - text: >-
+          Partitioning by month: REPLACE WHERE on the partition column marks the old slice's
+          rows deleted with deletion vectors and writes only the new month, whatever size
+          the partitions are.
+        why: >-
+          Replacing a whole partition drops its files without deletion vectors, and
+          partitioning pays only when each partition holds at least a gigabyte.

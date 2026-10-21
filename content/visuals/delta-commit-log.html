@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delta commit sequence</title>
+<style>
+  :root {
+    --fg: #1f2328;
+    --muted: #59636e;
+    --line: #d1d9e0;
+    --panel: #f6f8fa;
+    --code-bg: #eef1f4;
+    --accent: #0969da;
+    --accent-fg: #ffffff;
+    --live: #1a7f37;
+    --live-bg: #dafbe1;
+    --unref: #9a6700;
+    --unref-bg: #fff8c5;
+    --gone: #6e7781;
+    --gone-bg: #eaeef2;
+    --bad: #cf222e;
+    --bad-bg: #ffebe9;
+    --dv: #8250df;
+    --dv-bg: #fbefff;
+    --focus: #0969da;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #e6edf3;
+      --muted: #9198a1;
+      --line: #3d444d;
+      --panel: #151b23;
+      --code-bg: #212830;
+      --accent: #4493f8;
+      --accent-fg: #0d1117;
+      --live: #3fb950;
+      --live-bg: #12261e;
+      --unref: #d29922;
+      --unref-bg: #2b2111;
+      --gone: #9198a1;
+      --gone-bg: #262c36;
+      --bad: #f85149;
+      --bad-bg: #2d1416;
+      --dv: #ab7df8;
+      --dv-bg: #231a35;
+      --focus: #4493f8;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: transparent;
+    color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { padding: 4px 2px 8px; max-width: 760px; }
+  button {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+  }
+  button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+
+  /* step controls */
+  .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .nav {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    border-radius: 6px;
+    padding: 5px 12px;
+  }
+  .nav:disabled { opacity: 0.45; cursor: default; }
+  .counter { color: var(--muted); font-size: 13px; }
+  .steps { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 10px; padding: 0; list-style: none; }
+  .steps button {
+    border: 1px solid var(--line);
+    background: transparent;
+    border-radius: 999px;
+    padding: 2px 9px;
+    font-size: 12.5px;
+  }
+  @media (max-width: 499px) { .steps { display: none; } .controls { margin-bottom: 8px; } }
+  .steps button[aria-current="step"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-fg);
+  }
+
+  .sql {
+    background: var(--code-bg);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin: 0 0 6px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .sql .res { color: var(--muted); }
+  .sql .err { color: var(--bad); }
+  .explain { margin: 0 0 10px; }
+
+  /* panels */
+  .grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  @media (min-width: 600px) { .grid { grid-template-columns: 1fr 1.15fr; } }
+  .panel {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 10px 10px;
+    background: var(--panel);
+    min-width: 0;
+  }
+  .panel h3 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+  .panel h3 small { font-weight: 400; color: var(--muted); }
+  .sub { margin: 8px 0 4px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .files { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+  .file {
+    border: 1.5px solid var(--line);
+    border-radius: 6px;
+    padding: 3px 8px;
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 13px;
+  }
+  .file .name { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  .file .what { color: var(--muted); font-size: 12px; }
+  .tag { font-size: 11.5px; font-weight: 600; border-radius: 4px; padding: 0 5px; white-space: nowrap; }
+  .file.live { border-color: var(--live); background: var(--live-bg); }
+  .file.live .tag { color: var(--live); }
+  .file.unref { border-style: dashed; border-color: var(--unref); background: var(--unref-bg); }
+  .file.unref .tag { color: var(--unref); }
+  .file.gone { border-style: dotted; border-color: var(--gone); background: var(--gone-bg); color: var(--gone); }
+  .file.gone .name { text-decoration: line-through; }
+  .file.gone .tag { color: var(--gone); }
+  .file.dvf.live { border-color: var(--dv); background: var(--dv-bg); }
+  .file.dvf.live .tag { color: var(--dv); }
+  .file.new { box-shadow: 0 0 0 2px var(--accent); }
+  .empty { color: var(--muted); font-size: 12.5px; font-style: italic; margin: 2px 0; }
+
+  /* log */
+  .log { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+  .log button {
+    width: 100%;
+    text-align: left;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: transparent;
+    padding: 2px 8px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0 8px;
+    align-items: baseline;
+    line-height: 1.35;
+  }
+  .log .v { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--muted); }
+  .log .op { font-weight: 600; font-size: 13px; }
+  .log .acts { grid-column: 2 / 4; font-size: 12px; color: var(--muted); }
+  @media (min-width: 600px) { .log button { padding: 3px 8px; } }
+  .log .reach { font-size: 11.5px; font-weight: 600; }
+  .log .reach.ok { color: var(--live); }
+  .log .reach.no { color: var(--bad); }
+  .log button.reading { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
+  .log button.isnew .op::after { content: " new"; font-size: 11px; font-weight: 600; color: var(--accent); }
+  .hint { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+
+  /* reader */
+  .reader { margin-top: 10px; }
+  .reader .q { margin: 0 0 6px; }
+  .rows { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0; padding: 0; }
+  .rows li {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 0 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12.5px;
+  }
+  .rows li.hidden { text-decoration: line-through; color: var(--muted); border-style: dashed; }
+  .refused { overflow-wrap: anywhere; color: var(--bad); background: var(--bad-bg); border-radius: 6px; padding: 6px 8px; margin: 0; font-size: 13px; }
+  .facts { display: grid; gap: 6px; margin-top: 10px; }
+  @media (min-width: 600px) { .facts { grid-template-columns: 1fr 1fr; } }
+  .fact { overflow-wrap: anywhere; border-left: 3px solid var(--line); padding: 2px 8px; font-size: 13px; }
+  .fact strong { display: block; font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+  .fact.warn { border-left-color: var(--unref); }
+  .fact.good { border-left-color: var(--live); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--muted); margin: 8px 0 0; padding: 0; list-style: none; }
+  .legend span.sw { display: inline-block; width: 14px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; border: 1.5px solid; }
+  .sw.live { border-color: var(--live); background: var(--live-bg); }
+  .sw.unref { border-color: var(--unref); background: var(--unref-bg); border-style: dashed; }
+  .sw.gone { border-color: var(--gone); background: var(--gone-bg); border-style: dotted; }
+  .sr { position: absolute; top: 0; left: 0; margin: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  @media (max-width: 499px) { .legend { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="controls">
+    <button type="button" class="nav" id="prev" aria-label="Previous step">&larr; Prev</button>
+    <button type="button" class="nav" id="next" aria-label="Next step">Next &rarr;</button>
+    <span class="counter" id="counter"></span>
+  </div>
+  <ol class="steps" id="steps" aria-label="Steps"></ol>
+
+  <pre class="sql" id="sql"></pre>
+  <p class="explain" id="explain"></p>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="h-storage">
+      <h3 id="h-storage">Table storage <small>(what is on disk)</small></h3>
+      <div class="sub">Data files (Parquet)</div>
+      <ul class="files" id="data"></ul>
+      <div class="sub">Deletion vectors</div>
+      <ul class="files" id="dvs"></ul>
+      <ul class="legend" aria-label="Legend">
+        <li><span class="sw live"></span>live</li>
+        <li><span class="sw unref"></span>unreferenced: older versions only</li>
+        <li><span class="sw gone"></span>deleted by VACUUM</li>
+      </ul>
+    </section>
+    <section class="panel" aria-labelledby="h-log">
+      <h3 id="h-log"><code>_delta_log/</code> <small>one JSON file per version: <code>00000000000000000000.json</code>, <code>…01.json</code>, …</small></h3>
+      <ol class="log" id="log"></ol>
+      <p class="hint">Pick a version to time travel to it.</p>
+    </section>
+  </div>
+
+  <section class="panel reader" aria-labelledby="h-reader">
+    <h3 id="h-reader">What a reader sees</h3>
+    <div id="reader"></div>
+    <div class="facts">
+      <div class="fact" id="row2"></div>
+      <div class="fact" id="reach"></div>
+    </div>
+  </section>
+
+  <p class="sr" id="live" aria-live="polite"></p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // Physical files. Rows are the ids each Parquet file holds.
+  var FILES = {
+    A:   { kind: "data", name: "part-A.parquet", rows: [1, 2, 3], what: "rows 1, 2, 3" },
+    B:   { kind: "data", name: "part-B.parquet", rows: [4, 5, 6], what: "rows 4, 5, 6" },
+    A2:  { kind: "data", name: "part-A′.parquet", rows: [1, 3], what: "rows 1, 3 (A rewritten)" },
+    C:   { kind: "data", name: "part-C.parquet", rows: [1, 3, 4, 5, 6], what: "rows 1, 3, 4, 5, 6 (compacted)" },
+    dv1: { kind: "dv", name: "deletion_vector_1.bin", rows: [], what: "marks row 2 of part-A deleted" }
+  };
+
+  // Each version: the files it references (a file with ".dv1" is read through that vector).
+  var VERSIONS = [
+    { op: "CREATE TABLE", acts: "schema and protocol; no data files", live: [] },
+    { op: "WRITE", acts: "add part-A", live: ["A"] },
+    { op: "WRITE", acts: "add part-B", live: ["A", "B"] },
+    { op: "DELETE", acts: "remove part-A; add part-A + vector", live: ["A+dv1", "B"] },
+    { op: "REORG", acts: "remove part-A + vector; add part-A\u2032", live: ["A2", "B"] },
+    { op: "VACUUM START", acts: "0 files to delete", live: ["A2", "B"] },
+    { op: "VACUUM END", acts: "0 files deleted", live: ["A2", "B"] },
+    { op: "OPTIMIZE", acts: "remove part-A\u2032, part-B; add part-C", live: ["C"] },
+    { op: "VACUUM START", acts: "4 files to delete", live: ["C"] },
+    { op: "VACUUM END", acts: "4 files deleted", live: ["C"] }
+  ];
+
+  var STEPS = [
+    {
+      label: "CREATE",
+      sql: [["CREATE TABLE t (id INT, name STRING);", ""]],
+      explain: "Commit 0 is the table itself: schema, protocol and properties, with deletion vectors on by default for a new table. No data file exists yet. (A CREATE TABLE ... AS SELECT would land its files in commit 0.)",
+      latest: 0, read: 0, onDisk: [], gone: [], fresh: []
+    },
+    {
+      label: "INSERT",
+      sql: [["INSERT INTO t VALUES (1,'a'), (2,'b'), (3,'c');", ""]],
+      explain: "The write puts a Parquet file in storage first, then appends commit 1 listing it as an add. Until that JSON file exists no reader sees the rows: the commit is what makes the write atomic. DESCRIBE HISTORY calls it WRITE, not INSERT.",
+      latest: 1, read: 1, onDisk: ["A"], gone: [], fresh: ["A"]
+    },
+    {
+      label: "INSERT",
+      sql: [["INSERT INTO t VALUES (4,'d'), (5,'e'), (6,'f');", ""]],
+      explain: "A second file and commit 2. Nothing about part-A changes: Parquet files are never edited in place, only added and later removed from the log.",
+      latest: 2, read: 2, onDisk: ["A", "B"], gone: [], fresh: ["B"]
+    },
+    {
+      label: "DELETE",
+      sql: [["DELETE FROM t WHERE id = 2;", "-- numRemovedFiles 0, numDeletionVectorsAdded 1"]],
+      explain: "With deletion vectors on, no Parquet file is rewritten. A small vector file marks row 2 of part-A as deleted, and commit 3 re-adds part-A with that vector attached. Readers skip the marked row, but row 2 is still in part-A, and part-A is still referenced by the current version.",
+      latest: 3, read: 3, onDisk: ["A", "B", "dv1"], gone: [], fresh: ["dv1"]
+    },
+    {
+      label: "Time travel",
+      sql: [["SELECT * FROM t VERSION AS OF 2;", "-- 6 rows, row 2 included"]],
+      explain: "Time travel replays the log only up to the version asked for. Version 2 lists part-A without a vector, so row 2 comes back. Reading writes no commit: only the reader's pointer moves. RESTORE TABLE t TO VERSION AS OF 2 would write a new commit instead.",
+      latest: 3, read: 2, onDisk: ["A", "B", "dv1"], gone: [], fresh: []
+    },
+    {
+      label: "REORG PURGE",
+      sql: [["REORG TABLE t APPLY (PURGE);", "-- 1 file removed, 1 added, numDeletionVectorsRemoved 1"]],
+      explain: "REORG ... APPLY (PURGE) rewrites every file that carries a deletion vector, leaving the marked rows out. Commit 4 swaps part-A for part-A′. The current version no longer contains row 2 anywhere, but part-A and its vector are still on disk for versions 1 to 3.",
+      latest: 4, read: 4, onDisk: ["A", "B", "dv1", "A2"], gone: [], fresh: ["A2"]
+    },
+    {
+      label: "VACUUM now",
+      sql: [
+        ["VACUUM t DRY RUN;", "-- no files listed"],
+        ["VACUUM t RETAIN 0 HOURS;", "!! DELTA_VACUUM_RETENTION_PERIOD_TOO_SHORT"],
+        ["VACUUM t;", "-- deletes 0 files"]
+      ],
+      explain: "VACUUM removes only files that no current version references and that have been unreferenced longer than delta.deletedFileRetentionDuration (7 days by default). part-A and its vector became unreferenced minutes ago, so nothing goes. RETAIN 0 HOURS is refused until the table property itself is lowered. VACUUM still writes two commits of its own, VACUUM START and VACUUM END.",
+      latest: 6, read: 6, onDisk: ["A", "B", "dv1", "A2"], gone: [], fresh: []
+    },
+    {
+      label: "OPTIMIZE",
+      sql: [["OPTIMIZE t;", "-- 2 files removed, 1 added"]],
+      explain: "OPTIMIZE compacts small files: commit 7 removes part-A′ and part-B and adds part-C. The old files stay on disk, unreferenced, so earlier versions remain readable. Compaction never frees space by itself; only VACUUM does.",
+      latest: 7, read: 7, onDisk: ["A", "B", "dv1", "A2", "C"], gone: [], fresh: ["C"]
+    },
+    {
+      label: "VACUUM +7 days",
+      sql: [["-- 8 days later", ""], ["VACUUM t;", "-- deletes 4 files"]],
+      explain: "Past the retention, VACUUM deletes every file the current version does not reference: part-A, its vector, part-A\u2032 and part-B. Only part-C is left, and row 2 is finally gone from storage. An erasure that cannot wait lowers delta.deletedFileRetentionDuration first",
+      latest: 9, read: 9, onDisk: ["C"], gone: ["A", "B", "dv1", "A2"], fresh: []
+    }
+  ];
+
+  var RETENTION_STEP = 8; // from this step on, versions 0-7 are older than 7 days
+
+  var step = 0;
+  var readV = 0;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  function liveSet(v) {
+    var out = {};
+    VERSIONS[v].live.forEach(function (ref) {
+      var parts = ref.split("+");
+      out[parts[0]] = true;
+      if (parts[1]) out[parts[1]] = true;
+    });
+    return out;
+  }
+
+  function rowsAt(v) {
+    var seen = [], hidden = [];
+    VERSIONS[v].live.forEach(function (ref) {
+      var parts = ref.split("+");
+      FILES[parts[0]].rows.forEach(function (r) {
+        if (parts[1] === "dv1" && r === 2) hidden.push(r); else seen.push(r);
+      });
+    });
+    return { seen: seen.sort(), hidden: hidden };
+  }
+
+  // Can a reader time travel to version v at the current step?
+  function reach(v) {
+    var s = STEPS[step];
+    if (v > s.latest) return null;
+    if (step >= RETENTION_STEP && v <= 7) {
+      var live = liveSet(v);
+      var missing = Object.keys(live).some(function (f) { return s.gone.indexOf(f) >= 0; });
+      return { ok: false, missing: missing };
+    }
+    return { ok: true };
+  }
+
+  function fileState(id) {
+    var s = STEPS[step];
+    if (s.gone.indexOf(id) >= 0) return "gone";
+    return liveSet(s.latest)[id] ? "live" : "unref";
+  }
+
+  function renderFiles(kind, list) {
+    var s = STEPS[step];
+    list.textContent = "";
+    var ids = s.onDisk.concat(s.gone).filter(function (id) { return FILES[id].kind === kind; });
+    if (!ids.length) {
+      list.appendChild(el("li", "empty", kind === "dv" ? "none" : "no data files yet"));
+      return;
+    }
+    ids.forEach(function (id) {
+      var st = fileState(id);
+      var li = el("li", "file " + st + (kind === "dv" ? " dvf" : "") + (s.fresh.indexOf(id) >= 0 ? " new" : ""));
+      var left = el("span");
+      left.appendChild(el("span", "name", FILES[id].name));
+      left.appendChild(document.createTextNode(" "));
+      left.appendChild(el("span", "what", FILES[id].what));
+      li.appendChild(left);
+      var label = st === "live" ? "live" : st === "unref" ? "unreferenced" : "deleted";
+      if (s.fresh.indexOf(id) >= 0) label = "new, " + label;
+      li.appendChild(el("span", "tag", label));
+      list.appendChild(li);
+    });
+  }
+
+  function renderLog() {
+    var s = STEPS[step];
+    var prevLatest = step > 0 ? STEPS[step - 1].latest : -1;
+    var ol = $("log");
+    ol.textContent = "";
+    for (var v = 0; v <= s.latest; v++) {
+      var r = reach(v);
+      var li = el("li");
+      var b = el("button");
+      b.type = "button";
+      b.dataset.v = v;
+      if (v === readV) { b.className = "reading"; b.setAttribute("aria-pressed", "true"); }
+      else b.setAttribute("aria-pressed", "false");
+      if (v > prevLatest) b.className += " isnew";
+      b.appendChild(el("span", "v", "v" + v));
+      b.appendChild(el("span", "op", VERSIONS[v].op));
+      b.appendChild(el("span", "reach " + (r.ok ? "ok" : "no"), v === readV ? "reading" : (r.ok ? "readable" : "refused")));
+      b.appendChild(el("span", "acts", VERSIONS[v].acts));
+      b.setAttribute("aria-label", "Version " + v + ", " + VERSIONS[v].op + ", " + (r.ok ? "readable" : "time travel refused") + ". " + VERSIONS[v].acts);
+      b.addEventListener("click", onPick);
+      li.appendChild(b);
+      ol.appendChild(li);
+    }
+  }
+
+  function renderReader() {
+    var s = STEPS[step];
+    var box = $("reader");
+    box.textContent = "";
+    var current = readV === s.latest;
+    var q = el("p", "q");
+    q.appendChild(el("code", null, current ? "SELECT * FROM t" : "SELECT * FROM t VERSION AS OF " + readV));
+    q.appendChild(document.createTextNode(current ? "  (current version, v" + readV + ")" : "  (time travel)"));
+    box.appendChild(q);
+    var r = reach(readV);
+    if (!r.ok) {
+      box.appendChild(el("p", "refused",
+        "Refused (DELTA_UNSUPPORTED_TIME_TRAVEL_BEYOND_DELETED_FILE_RETENTION_DURATION): v" + readV +
+        " is older than the 7-day file retention." +
+        (r.missing ? " Its files are vacuumed too, so RESTORE to it fails." : " Its file still exists; the age check comes first.")));
+      return;
+    }
+    var rows = rowsAt(readV);
+    if (!rows.seen.length && !rows.hidden.length) {
+      box.appendChild(el("p", "empty", "0 rows: the table is empty at v" + readV + "."));
+      return;
+    }
+    var ul = el("ul", "rows");
+    ul.setAttribute("aria-label", "Rows returned");
+    var all = rows.seen.concat(rows.hidden).sort();
+    all.forEach(function (id) {
+      var hid = rows.hidden.indexOf(id) >= 0;
+      var li = el("li", hid ? "hidden" : "", "id " + id);
+      if (hid) li.title = "skipped: marked by deletion_vector_1";
+      if (hid) li.appendChild(el("span", "sr", " (skipped, marked in deletion vector)"));
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
+    box.appendChild(el("p", "hint", rows.seen.length + " rows returned" + (rows.hidden.length ? "; id 2 is still in part-A but its deletion vector hides it." : ".")));
+  }
+
+  function renderFacts() {
+    var s = STEPS[step];
+    var row2 = $("row2"), reachBox = $("reach");
+    var inA = s.onDisk.indexOf("A") >= 0;
+    var aLive = fileState("A") === "live";
+    row2.className = "fact " + (inA ? "warn" : "good");
+    row2.textContent = "";
+    row2.appendChild(el("strong", null, "Is row 2 still on storage?"));
+    var t;
+    if (step === 0) t = "Not written yet.";
+    else if (!inA) t = "No. VACUUM deleted part-A; no file holds it.";
+    else if (step < 3) t = "Yes, in part-A. It has not been deleted.";
+    else if (aLive) t = "Yes. part-A still holds it and the current version still references part-A. VACUUM can never remove it.";
+    else t = "Yes, in part-A, now unreferenced. VACUUM removes it once the retention has passed.";
+    row2.appendChild(document.createTextNode(t));
+
+    var readable = [], refused = [];
+    for (var v = 0; v <= s.latest; v++) (reach(v).ok ? readable : refused).push(v);
+    reachBox.className = "fact " + (refused.length ? "warn" : "good");
+    reachBox.textContent = "";
+    reachBox.appendChild(el("strong", null, "Time travel can reach"));
+    var span = function (a) { return a.length === 1 ? "v" + a[0] : "v" + a[0] + "–v" + a[a.length - 1]; };
+    var msg = "";
+    if (step < RETENTION_STEP) {
+      msg = span(readable) + ": every version, because none is older than 7 days and every file they list is still on disk.";
+      if (step >= 5) msg += " Unreferenced files are kept for exactly this.";
+    } else {
+      msg = span(readable) + " only. " + span(refused) + " are older than the 7-day file retention, so a Unity Catalog managed table refuses them, even v7, whose file survives. The log (30 days) still lists them.";
+    }
+    reachBox.appendChild(document.createTextNode(msg));
+  }
+
+  function renderSql() {
+    var pre = $("sql");
+    pre.textContent = "";
+    STEPS[step].sql.forEach(function (pair, i) {
+      if (i) pre.appendChild(document.createTextNode("\n"));
+      pre.appendChild(document.createTextNode(pair[0]));
+      if (pair[1]) {
+        var isErr = pair[1].indexOf("!!") === 0;
+        pre.appendChild(document.createTextNode("\n"));
+        pre.appendChild(el("span", isErr ? "err" : "res", isErr ? "-- refused: " + pair[1].slice(3) : pair[1]));
+      }
+    });
+  }
+
+  function renderSteps() {
+    var ol = $("steps");
+    ol.textContent = "";
+    STEPS.forEach(function (s, i) {
+      var li = el("li");
+      var b = el("button", null, (i + 1) + ". " + s.label);
+      b.type = "button";
+      if (i === step) b.setAttribute("aria-current", "step");
+      b.addEventListener("click", function () { go(i, true); });
+      li.appendChild(b);
+      ol.appendChild(li);
+    });
+    $("counter").textContent = "Step " + (step + 1) + " of " + STEPS.length + ": " + STEPS[step].label;
+    $("prev").disabled = step === 0;
+    $("next").disabled = step === STEPS.length - 1;
+  }
+
+  function render() {
+    renderSteps();
+    renderSql();
+    $("explain").textContent = STEPS[step].explain;
+    renderFiles("data", $("data"));
+    renderFiles("dv", $("dvs"));
+    renderLog();
+    renderReader();
+    renderFacts();
+  }
+
+  function go(i, focusStep) {
+    step = Math.max(0, Math.min(STEPS.length - 1, i));
+    readV = STEPS[step].read;
+    render();
+    $("live").textContent = "Step " + (step + 1) + ": " + STEPS[step].label + ". " + STEPS[step].explain;
+    if (focusStep) {
+      var cur = document.querySelector('.steps button[aria-current="step"]');
+      if (cur) cur.focus({ preventScroll: true });
+    }
+  }
+
+  function onPick(e) {
+    var v = Number(e.currentTarget.dataset.v);
+    readV = v;
+    renderLog();
+    renderReader();
+    var r = reach(v);
+    var btn = document.querySelector('.log button[data-v="' + v + '"]');
+    if (btn) btn.focus({ preventScroll: true });
+    $("live").textContent = r.ok
+      ? "Reading version " + v + ": " + rowsAt(v).seen.length + " rows."
+      : "Time travel to version " + v + " refused: older than the retention.";
+  }
+
+  $("prev").addEventListener("click", function () { go(step - 1); if ($("prev").disabled) $("next").focus({ preventScroll: true }); });
+  $("next").addEventListener("click", function () { go(step + 1); if ($("next").disabled) $("prev").focus({ preventScroll: true }); });
+
+  go(0);
+})();
+</script>
+</body>
+</html>

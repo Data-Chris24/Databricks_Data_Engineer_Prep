@@ -1,0 +1,15 @@
+resources:
+  jobs:
+    run_lessons_pro_s4:
+      name: "[DE prep] Run PRO-S4 lessons"
+      tasks:
+        - task_key: delta_sharing
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/professional/S4/01_delta_sharing.py
+        - task_key: federation
+          depends_on:
+            - task_key: delta_sharing
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/professional/S4/02_federation.py
+      queue:
+        enabled: true

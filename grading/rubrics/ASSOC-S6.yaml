@@ -1,0 +1,60 @@
+# Advisory AI review for ASSOC-S6. Never overturns the unit tests.
+assignment: ASSOC-S6
+objective_ids: [ASSOC-S6-O1, ASSOC-S6-O2, ASSOC-S6-O3, ASSOC-S6-O4]
+
+context: >-
+  The learner diagnosed three pathologies in an orders table - duplicate business
+  keys, a null-rate regression after a cutover date, and skew - and published a
+  report. They were graded on diagnosis, not on fixing anything.
+
+criteria:
+  - id: found_the_invisible_two
+    weight: critical
+    asks: >-
+      Did they look beyond the row count? Two of the three problems leave both the row
+      count and the distinct-key count looking normal.
+    good: >-
+      Compared count(*) to count(distinct key), and compared the null rate across time
+      rather than in aggregate.
+    poor: >-
+      Only the skew, which is the one a single GROUP BY finds - the lesson's query
+      transplanted without further thought.
+
+  - id: regression_dating
+    weight: high
+    asks: Did they locate *when* the null rate changed, or only that nulls exist?
+    good: A per-day null rate, with the jump identified as the regression date.
+    poor: >-
+      A total null count, which does not distinguish a source that was always partly
+      empty from one that broke on a particular day.
+
+  - id: evidence_quality
+    weight: high
+    asks: Would a colleague know what to do next?
+    good: Each detail cites the number that evidences it and says what it implies.
+    poor: >-
+      "There are duplicates" with no count, or a restatement of the finding name.
+
+  - id: left_the_evidence
+    weight: medium
+    asks: Did they diagnose, or quietly fix?
+    good: The source table is untouched.
+    poor: >-
+      Deduplicated or backfilled the source, which destroys the evidence and makes the
+      diagnosis unverifiable.
+
+  - id: gaming
+    weight: critical
+    asks: Was this derived from the data or from the expected answers?
+    good: Metrics computed from the table.
+    poor: Hardcoded numbers matching the fixtures.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues: [{severity: high | medium | low, location: string, note: string}]
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail.
+  - Judge the approach, not formatting or naming.

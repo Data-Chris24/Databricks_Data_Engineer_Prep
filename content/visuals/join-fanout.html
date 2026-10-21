@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Join fan-out</title>
+<style>
+  :root {
+    --surface: #ffffff;
+    --raised: #f4f0ec;
+    --ink: #1c1917;
+    --ink-dim: #6b635c;
+    --line: #e6e0da;
+    --accent: #b4471f;
+    --accent-soft: #f6e7e0;
+    --good: #0f766e;
+    --good-soft: #dff2ef;
+    --bad: #9f1239;
+    --bad-soft: #fbe4e9;
+    --warn: #b45309;
+    --warn-soft: #fdf1e0;
+    --code-bg: #1e1a16;
+    --code-ink: #f3eee8;
+    --code-kw: #e8763f;
+    --focus: #b4471f;
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface: #1e1a16;
+      --raised: #272119;
+      --ink: #f3eee8;
+      --ink-dim: #ada49c;
+      --line: #3a322a;
+      --accent: #e8763f;
+      --accent-soft: #3a2117;
+      --good: #35c7b4;
+      --good-soft: #12302c;
+      --bad: #f2637e;
+      --bad-soft: #3a1620;
+      --warn: #f0b04a;
+      --warn-soft: #3a2a10;
+      --code-bg: #0f0d0b;
+      --focus: #f08a58;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: transparent;
+    color: var(--ink);
+    font: 14px/1.45 var(--sans);
+  }
+  .wrap { padding: 4px 2px 8px; display: grid; gap: 14px; }
+  h2 {
+    font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--ink-dim); margin: 0 0 6px;
+  }
+  .inputs { display: grid; gap: 12px; grid-template-columns: 1fr; }
+  @media (min-width: 600px) { .inputs { grid-template-columns: 1fr 1.25fr; } }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px; min-width: 0;
+  }
+  table { border-collapse: collapse; width: 100%; font: 12.5px/1.35 var(--mono); }
+  th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font: 600 11px/1.3 var(--sans); color: var(--ink-dim); }
+  td.num, th.num { text-align: right; }
+  tr:last-child td { border-bottom: 0; }
+  .twoversions td { background: var(--warn-soft); }
+  .orphan td { color: var(--ink-dim); }
+  .tag {
+    display: inline-block; font: 600 10.5px/1 var(--sans); padding: 2px 5px; border-radius: 4px;
+    margin-left: 4px; vertical-align: 1px; white-space: nowrap;
+  }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); border: 1px solid currentColor; }
+  .tag.bad { background: var(--bad-soft); color: var(--bad); border: 1px solid currentColor; }
+  .tag.dim { color: var(--ink-dim); border: 1px solid var(--line); }
+  .null { color: var(--ink-dim); font-style: italic; }
+  .scroll { overflow-x: auto; }
+
+  fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+  legend { font: 600 12px/1.3 var(--sans); color: var(--ink-dim); margin-bottom: 6px; padding: 0; }
+  .controls { display: grid; gap: 10px; }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+  .seg button {
+    font: 500 13px/1.2 var(--sans); color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] {
+    background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600;
+  }
+  .seg button[aria-pressed="true"]::before { content: "\2713\00a0"; }
+  button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  pre {
+    margin: 0; background: var(--code-bg); color: var(--code-ink); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px; font: 12.5px/1.5 var(--mono); white-space: pre-wrap; word-break: break-word;
+  }
+  pre .kw { color: var(--code-kw); }
+  pre .add { background: rgba(53, 199, 180, .18); border-radius: 3px; }
+
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .metric { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .metric .label { font: 600 11px/1.3 var(--sans); color: var(--ink-dim); text-transform: uppercase; letter-spacing: .05em; }
+  .metric .value { font: 600 22px/1.2 var(--mono); margin-top: 2px; }
+  .metric .from { font: 400 12px/1.3 var(--mono); color: var(--ink-dim); }
+  .metric .delta { font: 600 12px/1.3 var(--sans); margin-top: 3px; }
+  .metric.up { border-color: var(--bad); background: var(--bad-soft); }
+  .metric.up .delta { color: var(--bad); }
+  .metric.down { border-color: var(--warn); background: var(--warn-soft); }
+  .metric.down .delta { color: var(--warn); }
+  .metric.same .delta { color: var(--good); }
+
+  .result tr.dup td { background: var(--bad-soft); }
+  .result tr.nomatch td { background: var(--raised); }
+  .result tr.fresh td:first-child { animation: flash .6s ease-out; }
+  @keyframes flash { from { box-shadow: inset 3px 0 0 var(--accent); } to { box-shadow: inset 0 0 0 transparent; } }
+  @media (prefers-reduced-motion: reduce) { .result tr.fresh td:first-child { animation: none; } }
+
+  .status {
+    margin: 0; padding: 8px 10px; border-left: 3px solid var(--accent); background: var(--raised);
+    border-radius: 0 6px 6px 0;
+  }
+  .status.bad { border-left-color: var(--bad); }
+  .status.good { border-left-color: var(--good); }
+  .status.warn { border-left-color: var(--warn); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  @media (max-width: 479px) { .result .cust { display: none; } }
+  .foot { font-size: 12px; color: var(--ink-dim); margin: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="inputs">
+    <section class="card" aria-labelledby="h-orders">
+      <h2 id="h-orders">orders (fact) · 5 rows · SUM 290</h2>
+      <div class="scroll">
+        <table>
+          <thead><tr><th scope="col">order_id</th><th scope="col">customer_id</th><th scope="col">order_date</th><th scope="col" class="num">amount</th></tr></thead>
+          <tbody id="orders"></tbody>
+        </table>
+      </div>
+    </section>
+    <section class="card" aria-labelledby="h-cust">
+      <h2 id="h-cust">customers (SCD2 dimension) · 5 rows</h2>
+      <div class="scroll">
+        <table>
+          <thead><tr><th scope="col">customer_id</th><th scope="col">segment</th><th scope="col">valid_from</th><th scope="col">valid_to</th></tr></thead>
+          <tbody id="customers"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="controls">
+    <fieldset>
+      <legend id="lg-join">Join type</legend>
+      <div class="seg" role="group" aria-labelledby="lg-join" id="join"></div>
+    </fieldset>
+    <fieldset>
+      <legend id="lg-fix">Join condition</legend>
+      <div class="seg" role="group" aria-labelledby="lg-fix" id="fix"></div>
+    </fieldset>
+  </div>
+
+  <pre id="sql" aria-label="The query being run"></pre>
+
+  <div class="metrics">
+    <div class="metric" id="m-rows">
+      <div class="label">Rows out</div>
+      <div class="value" id="rows-out"></div>
+      <div class="from">orders in: 5</div>
+      <div class="delta" id="rows-delta"></div>
+    </div>
+    <div class="metric" id="m-sum">
+      <div class="label">SUM(amount)</div>
+      <div class="value" id="sum-out"></div>
+      <div class="from">orders total: 290</div>
+      <div class="delta" id="sum-delta"></div>
+    </div>
+  </div>
+
+  <p class="status" id="status" aria-live="polite"></p>
+
+  <section class="card" aria-labelledby="h-result">
+    <h2 id="h-result">Result</h2>
+    <div class="scroll">
+      <table class="result">
+        <thead id="result-head"></thead>
+        <tbody id="result"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="foot">Every combination was run on a Databricks SQL warehouse (Free Edition, DBSQL 2026.39) with these exact rows; the counts and totals here are the measured results.</p>
+</div>
+
+<script>
+(function () {
+  var ORDERS = [
+    { id: "o1", cust: "C1", date: "2026-01-10", amount: 100 },
+    { id: "o2", cust: "C2", date: "2026-02-05", amount: 50 },
+    { id: "o3", cust: "C2", date: "2026-03-20", amount: 70 },
+    { id: "o4", cust: "C3", date: "2026-02-15", amount: 40 },
+    { id: "o5", cust: "C9", date: "2026-03-01", amount: 30 }
+  ];
+  var CUSTOMERS = [
+    { cust: "C1", seg: "Bronze", from: "2025-01-01", to: "9999-12-31" },
+    { cust: "C2", seg: "Silver", from: "2025-01-01", to: "2026-03-01" },
+    { cust: "C2", seg: "Gold",   from: "2026-03-01", to: "9999-12-31" },
+    { cust: "C3", seg: "Bronze", from: "2025-06-01", to: "9999-12-31" },
+    { cust: "C4", seg: "Silver", from: "2025-09-01", to: "9999-12-31" }
+  ];
+  var IN_ROWS = ORDERS.length;
+  var IN_SUM = ORDERS.reduce(function (s, o) { return s + o.amount; }, 0);
+
+  var JOINS = [
+    { key: "inner", label: "INNER", sql: "JOIN" },
+    { key: "left",  label: "LEFT",  sql: "LEFT JOIN" },
+    { key: "semi",  label: "LEFT SEMI", sql: "LEFT SEMI JOIN" },
+    { key: "anti",  label: "LEFT ANTI", sql: "LEFT ANTI JOIN" }
+  ];
+  var FIXES = [
+    { key: "key",   label: "Key only" },
+    { key: "pit",   label: "+ point-in-time predicate" },
+    { key: "dedup", label: "Deduplicate dimension first" }
+  ];
+  var state = { join: "inner", fix: "key" };
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]; }); }
+  function versions(cust) { return CUSTOMERS.filter(function (c) { return c.cust === cust; }).length; }
+
+  // The dimension as the join sees it: deduplicating keeps the latest version per key,
+  // as ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY valid_from DESC) = 1 does.
+  function dimension() {
+    if (state.fix !== "dedup") return CUSTOMERS;
+    var latest = {};
+    CUSTOMERS.forEach(function (c) { if (!latest[c.cust] || c.from > latest[c.cust].from) latest[c.cust] = c; });
+    return CUSTOMERS.filter(function (c) { return latest[c.cust] === c; });
+  }
+  function matches(o, c) {
+    if (o.cust !== c.cust) return false;
+    if (state.fix === "pit") return o.date >= c.from && o.date < c.to;  // half-open window
+    return true;
+  }
+  function run() {
+    var dim = dimension(), out = [];
+    ORDERS.forEach(function (o) {
+      var m = dim.filter(function (c) { return matches(o, c); });
+      if (state.join === "semi") { if (m.length) out.push({ o: o, c: null, n: 1 }); return; }
+      if (state.join === "anti") { if (!m.length) out.push({ o: o, c: null, n: 0 }); return; }
+      if (m.length) m.forEach(function (c) { out.push({ o: o, c: c, n: m.length }); });
+      else if (state.join === "left") out.push({ o: o, c: null, n: 0 });
+    });
+    return out;
+  }
+
+  function renderInputs() {
+    document.getElementById("orders").innerHTML = ORDERS.map(function (o) {
+      var orphan = versions(o.cust) === 0;
+      return "<tr" + (orphan ? " class=\"orphan\"" : "") + "><td>" + o.id + "</td><td>" + o.cust +
+        (orphan ? "<span class=\"tag dim\">no customer</span>" : "") + "</td><td>" + o.date +
+        "</td><td class=\"num\">" + o.amount + "</td></tr>";
+    }).join("");
+    document.getElementById("customers").innerHTML = CUSTOMERS.map(function (c) {
+      var two = versions(c.cust) > 1;
+      return "<tr" + (two ? " class=\"twoversions\"" : "") + "><td>" + c.cust +
+        (two ? "<span class=\"tag warn\">2 versions</span>" : "") + "</td><td>" + c.seg + "</td><td>" + c.from +
+        "</td><td>" + c.to + "</td></tr>";
+    }).join("");
+  }
+
+  function renderButtons(id, items, field) {
+    var box = document.getElementById(id);
+    box.innerHTML = "";
+    items.forEach(function (it) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = it.label;
+      b.setAttribute("aria-pressed", String(state[field] === it.key));
+      b.addEventListener("click", function () {
+        if (state[field] === it.key) return;
+        state[field] = it.key;
+        Array.prototype.forEach.call(box.children, function (x, i) {
+          x.setAttribute("aria-pressed", String(items[i].key === it.key));
+        });
+        render(true);
+      });
+      box.appendChild(b);
+    });
+  }
+
+  function sqlText() {
+    var j = JOINS.filter(function (x) { return x.key === state.join; })[0];
+    var leftOnly = state.join === "semi" || state.join === "anti";
+    var sel = leftOnly ? "o.*" : "o.*, c.segment";
+    var dim = state.fix === "dedup"
+      ? "<span class=\"add\">(SELECT * FROM customers\n   QUALIFY row_number() OVER (\n     PARTITION BY customer_id\n     ORDER BY valid_from DESC) = 1)</span> c"
+      : "customers c";
+    var on = "o.customer_id = c.customer_id";
+    if (state.fix === "pit") on += "\n<span class=\"add\">AND o.order_date &gt;= c.valid_from\nAND o.order_date &lt;  c.valid_to</span>";
+    return "<span class=\"kw\">SELECT</span> " + sel + "\n<span class=\"kw\">FROM</span> orders o\n<span class=\"kw\">" + j.sql +
+      "</span> " + dim + "\n  <span class=\"kw\">ON</span> " + on.replace(/\n/g, "\n     ");
+  }
+
+  function render(fresh) {
+    var rows = run();
+    var leftOnly = state.join === "semi" || state.join === "anti";
+    var n = rows.length;
+    var sum = rows.reduce(function (s, r) { return s + r.o.amount; }, 0);
+    var dupRows = rows.filter(function (r) { return r.n > 1; }).length;
+    var extra = rows.reduce(function (s, r) { return s + (r.n > 1 ? r.o.amount * (r.n - 1) / r.n : 0); }, 0);
+    var seen = {};
+    rows.forEach(function (r) { seen[r.o.id] = true; });
+    var dropped = ORDERS.filter(function (o) { return !seen[o.id]; });
+
+    document.getElementById("sql").innerHTML = sqlText();
+
+    document.getElementById("result-head").innerHTML = "<tr><th scope=\"col\">order_id</th><th scope=\"col\" class=\"cust\">customer_id</th><th scope=\"col\">order_date</th><th scope=\"col\" class=\"num\">amount</th>" +
+      (leftOnly ? "" : "<th scope=\"col\">c.segment</th>") + "</tr>";
+    var body = rows.map(function (r) {
+      var cls = r.n > 1 && !leftOnly ? "dup" : (!leftOnly && !r.c ? "nomatch" : "");
+      if (fresh) cls += " fresh";
+      var seg = "";
+      if (!leftOnly) {
+        seg = r.c ? "<td>" + r.c.seg + (r.n > 1 ? "<span class=\"tag bad\">\u00d7" + r.n + "<span class=\"sr\"> duplicate of " + r.o.id + "</span></span>" : "") + "</td>"
+                  : "<td><span class=\"null\">NULL</span></td>";
+      }
+      return "<tr class=\"" + cls.trim() + "\"><td>" + r.o.id + "</td><td class=\"cust\">" + r.o.cust + "</td><td>" + r.o.date +
+        "</td><td class=\"num\">" + r.o.amount + "</td>" + seg + "</tr>";
+    }).join("");
+    document.getElementById("result").innerHTML = body ||
+      "<tr><td colspan=\"5\" class=\"null\">no rows</td></tr>";
+
+    // Metric tiles
+    var mr = document.getElementById("m-rows"), ms = document.getElementById("m-sum");
+    document.getElementById("rows-out").textContent = n;
+    document.getElementById("sum-out").textContent = sum;
+    var dr = n - IN_ROWS, ds = sum - IN_SUM;
+    mr.className = "metric " + (dr > 0 ? "up" : dr < 0 ? "down" : "same");
+    ms.className = "metric " + (ds > 0 ? "up" : ds < 0 ? "down" : "same");
+    // Show the two effects separately: fan-out adds rows, a filtering join removes them.
+    var extraRows = rows.filter(function (r) { return r.n > 1; }).length - rows.filter(function (r) { return r.n > 1; }).reduce(function (s, r) { return s + 1 / r.n; }, 0);
+    var lostSum = dropped.reduce(function (s, o) { return s + o.amount; }, 0);
+    function parts(up, down, upWord, downWord) {
+      var p = [];
+      if (up) p.push("+" + up + " " + upWord);
+      if (down) p.push("\u2212" + down + " " + downWord);
+      return p.join(", ");
+    }
+    document.getElementById("rows-delta").textContent = parts(Math.round(extraRows), dropped.length, "duplicated", "filtered out") || "grain unchanged";
+    document.getElementById("sum-delta").textContent = parts(extra, lostSum, "double-counted", "filtered out") || "matches the orders total";
+
+    // Status line, announced on every change
+    var st = document.getElementById("status"), msg, tone;
+    var lead = n + " rows, SUM " + sum + ". ";
+    if (state.join === "semi") {
+      tone = "good";
+      msg = lead + "A semi join keeps each order that has at least one match, once, with the orders' columns only. C2's two versions cannot duplicate anything; o5 (no customer) is filtered out." +
+        (state.fix !== "key" ? " The condition changes nothing here: every matched order still has a match." : "");
+    } else if (state.join === "anti") {
+      tone = "good";
+      msg = lead + "An anti join keeps only the orders with no match: o5, whose customer C9 is not in the dimension. It filters; it never duplicates.";
+    } else if (dupRows) {
+      tone = "bad";
+      msg = lead + "C2 has two versions, so o2 and o3 each match both and come back twice: " + dupRows + " rows where there should be 2, and SUM overstated by " + extra + ". Nothing errors." +
+        (state.join === "inner" ? " The inner join also drops o5 (" + dropped[0].amount + "), which has no customer." : " o5 is kept with NULLs.");
+    } else if (state.fix === "dedup") {
+      tone = "warn";
+      msg = lead + "One version per key, so no duplicates. But deduplicating to the latest version tags o2 (5 Feb) as Gold, the segment C2 moved to on 1 Mar: the count is right and the attribute is not." +
+        (state.join === "inner" ? " o5 is still dropped by the inner join." : " o5 is kept with NULLs.");
+    } else {
+      tone = state.join === "inner" ? "warn" : "good";
+      msg = lead + "The point-in-time predicate leaves exactly one version per order: o2 (5 Feb) gets Silver, o3 (20 Mar) gets Gold." +
+        (state.join === "inner" ? " The inner join still drops o5 (30), which has no customer: switch to LEFT to keep it." : " LEFT keeps o5 with a NULL segment, so the grain and the total match the orders table.");
+    }
+    st.className = "status " + tone;
+    st.textContent = msg;
+  }
+
+  renderInputs();
+  renderButtons("join", JOINS, "join");
+  renderButtons("fix", FIXES, "fix");
+  render(false);
+})();
+</script>
+</body>
+</html>

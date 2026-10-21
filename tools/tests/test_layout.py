@@ -1,0 +1,211 @@
+"""The layout that keeps answers away from the learner path (docs/authoring-guide.md).
+
+Learners deploy their own fork as workspace admins, so these invariants are the
+only thing standing between the assignment notebook and the reference solution:
+graders live under grading/, solutions never enter a learner target, and the
+assignment folder holds nothing but the task and the starter.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from objectives import load_all  # noqa: E402
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SECTIONS = [s.id for exam in load_all() for s in exam.sections]
+RESOURCES = REPO_ROOT / "bundle" / "resources"
+
+
+@pytest.mark.parametrize("sid", SECTIONS)
+def test_every_section_has_a_grader_with_tests_and_fixtures(sid):
+    g = REPO_ROOT / "grading" / sid
+    assert (g / "grade.py").exists(), f"{sid}: missing grading/{sid}/grade.py"
+    assert list((g / "tests").glob("test_*.py")), f"{sid}: no tests under grading/{sid}/tests"
+    assert (g / "expected.json").exists(), f"{sid}: missing grading/{sid}/expected.json"
+
+
+@pytest.mark.parametrize("sid", SECTIONS)
+def test_assignment_folder_holds_only_the_task_and_starter(sid):
+    allowed = {"README.md", "assignment.py", "publish_summary.py"}
+    present = {p.name for p in (REPO_ROOT / "notebooks" / "assignments" / sid).iterdir()}
+    stray = present - allowed
+    assert not stray, f"{sid}: {sorted(stray)} do not belong next to the assignment notebook"
+
+
+@pytest.mark.parametrize("sid", SECTIONS)
+def test_solutions_hold_no_fixtures(sid):
+    assert not (REPO_ROOT / "solutions" / sid / "expected.json").exists()
+
+
+def test_graders_read_fixtures_and_tests_from_their_own_folder():
+    for grade in (REPO_ROOT / "grading").glob("*/grade.py"):
+        text = grade.read_text()
+        assert '"solutions"' not in text, f"{grade}: still reaches into solutions/"
+        assert 'os.path.join(grading_dir, "expected.json")' in text, f"{grade}: fixture path"
+
+
+def test_no_learner_target_job_references_solutions():
+    for path in RESOURCES.glob("*.yml"):
+        assert "solutions/" not in path.read_text(), (
+            f"{path.name} references solutions/ - move it under bundle/resources/verify/"
+        )
+
+
+def test_verify_files_define_resources_only_under_the_verify_target():
+    files = list((RESOURCES / "verify").glob("*.yml"))
+    assert files, "no verify-target resource files"
+    for path in files:
+        doc = yaml.safe_load(path.read_text())
+        assert set(doc) == {"targets"} and set(doc["targets"]) == {"verify"}, path.name
+        jobs = doc["targets"]["verify"]["resources"]["jobs"]
+        assert jobs, path.name
+
+
+def test_learner_targets_exclude_solutions_from_sync():
+    doc = yaml.safe_load((REPO_ROOT / "bundle" / "databricks.yml").read_text())
+    for target in ("free", "staging"):
+        excludes = ((doc["targets"][target].get("sync") or {}).get("exclude")) or []
+        assert "../solutions/**" in excludes, f"target {target} would deploy solutions/"
+    assert "verify" in doc["targets"]
+    assert not (doc["targets"]["verify"].get("sync") or {}).get("exclude")
+
+
+@pytest.mark.parametrize("sid", SECTIONS)
+def test_each_section_has_a_grade_job_and_a_transplant_check(sid):
+    key = sid.lower().replace("-", "_")
+    free = "\n".join(p.read_text() for p in RESOURCES.glob("*.yml"))
+    verify = "\n".join(p.read_text() for p in (RESOURCES / "verify").glob("*.yml"))
+    assert f"grading/{sid}/grade.py" in free, f"{sid}: no grade job in a learner target"
+    assert f"transplant_check_{key}:" in verify, f"{sid}: no transplant check in the verify target"
+    assert f"transplant_check_{key}:" not in free
+
+
+def test_graders_return_a_structured_result_to_the_app():
+    for grade in (REPO_ROOT / "grading").glob("*/grade.py"):
+        text = grade.read_text()
+        sid = grade.parent.name
+        assert "dbutils.notebook.exit(json.dumps(result))" in text, f"{grade}: no exit value"
+        assert f'"section": "{sid}"' in text, f"{grade}: result names the wrong section"
+        assert "/Volumes/" not in text, f"{grade}: still writes to a volume"
+
+
+def app_grants():
+    """Job key -> permissions granted in the free target (de_prep_study_app_job_grants.yml)."""
+    doc = yaml.safe_load((RESOURCES / "de_prep_study_app_job_grants.yml").read_text())
+    return {k: v["permissions"] for k, v in doc["targets"]["free"]["resources"]["jobs"].items()}
+
+
+def test_app_may_run_every_job_it_uses():
+    """The app's principal gets CAN_MANAGE_RUN on each job instead of binding it
+    as an app resource: an app holds at most 20 resources, which Lakebase and 19
+    jobs had filled. The app finds the jobs by name at startup (bootstrap.ts)."""
+    grants = app_grants()
+    needed = [f"grade_{sid.lower().replace('-', '_')}" for sid in SECTIONS]
+    needed += ["reset_assignment", "generate_datasets", "wake_database"]
+    defined = "\n".join(p.read_text() for p in RESOURCES.glob("*.job.yml"))
+    for key in needed:
+        assert f"\n    {key}:" in defined, f"{key}: granted but no such job"
+        assert grants.get(key) == [
+            {
+                "level": "CAN_MANAGE_RUN",
+                "service_principal_name": "${resources.apps.study_app.service_principal_client_id}",
+            }
+        ], key
+
+
+def test_app_binds_only_its_database():
+    doc = yaml.safe_load((RESOURCES / "de_prep_study_app.app.yml").read_text())
+    app = doc["targets"]["free"]["resources"]["apps"]["study_app"]
+    assert [r["name"] for r in app["resources"]] == ["postgres"]
+    env = {e["name"] for e in app["config"]["env"]}
+    assert not any(n.startswith("DATABRICKS_JOB_") for n in env), "job ids come from bootstrap.ts, not the bundle"
+
+
+def test_graders_report_short_uncoloured_failures():
+    for grade in (REPO_ROOT / "grading").glob("*/grade.py"):
+        text = grade.read_text()
+        assert '"--color=no"' in text, f"{grade}: pytest output would carry colour codes into the app"
+        assert "reprcrash" in text, f"{grade}: failure messages would be stack-trace tails"
+
+
+def test_every_starter_embeds_its_current_readme():
+    """The learner's starter is provisioned without the README next to it, so the
+    task text lives in the starter's second cell, generated from README.md."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from sync_assignment_tasks import ASSIGNMENTS, BEGIN, END, synced
+
+    checked = 0
+    for section in sorted(p for p in ASSIGNMENTS.iterdir() if p.is_dir()):
+        readme, starter = section / "README.md", section / "assignment.py"
+        if not readme.exists() or not starter.exists():
+            continue
+        source = starter.read_text()
+        assert BEGIN in source and END in source, f"{section.name}: starter has no embedded task cell"
+        assert synced(source, readme.read_text()) == source, f"{section.name}: starter is stale; run tools/sync_assignment_tasks.py"
+        assert "Read `README.md`" not in source, f"{section.name}: still tells the learner to read a README that is not there"
+        checked += 1
+    assert checked == 17
+
+
+def test_starters_carry_no_answers_even_commented_out():
+    """A commented-out solution with one blank to fill is still the solution.
+    See tools/starter_rules.py for what a starter may contain."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from starter_rules import offending_lines
+
+    found = {}
+    for starter in sorted((REPO_ROOT / "notebooks" / "assignments").glob("*/assignment.py")):
+        bad = offending_lines(starter.read_text())
+        if bad:
+            found[starter.parent.name] = bad[:3]
+    assert not found, f"answer code left in starters: {found}"
+
+
+def test_every_grader_check_explains_itself():
+    """Each grader test's docstring is shown to the learner as "this check expects";
+    a missing or terse one leaves a failure unexplained (seen 2026-09-15:
+    "AssertionError: detail cites no number" and nothing else)."""
+    import ast
+
+    thin = []
+    for path in sorted((REPO_ROOT / "grading").glob("*/tests/test_*.py")):
+        tree = ast.parse(path.read_text())
+        for fn in tree.body:
+            if isinstance(fn, ast.FunctionDef) and fn.name.startswith("test_"):
+                doc = ast.get_docstring(fn) or ""
+                if len(doc) < 40:
+                    thin.append(f"{path.parent.parent.name}::{fn.name}")
+    assert not thin, f"grader checks without a learner-facing docstring: {thin}"
+
+
+def test_hints_get_one_cell_each():
+    """A Databricks markdown cell strips `<details>`, so a README's hints would
+    arrive as one wall of text with nothing marking which line is the question.
+    Each hint gets its own cell opening with the problem it answers."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from sync_assignment_tasks import ASSIGNMENTS, split_hints
+
+    checked = 0
+    for section in sorted(p for p in ASSIGNMENTS.iterdir() if p.is_dir()):
+        readme, starter = section / "README.md", section / "assignment.py"
+        if not readme.exists() or not starter.exists():
+            continue
+        _, hints = split_hints(readme.read_text())
+        if not hints:
+            continue
+        source = starter.read_text()
+        cells = source.split("# COMMAND ----------\n")
+        hint_cells = [c for c in cells if "# MAGIC **Hint " in c]
+        assert len(hint_cells) == len(hints), f"{section.name}: {len(hint_cells)} hint cells for {len(hints)} hints"
+        for cell, (problem, _) in zip(hint_cells, hints):
+            first = [ln for ln in cell.splitlines() if ln.startswith("# MAGIC **Hint ")][0]
+            assert problem in first, f"{section.name}: hint cell does not open with {problem!r}"
+        assert "<details>" not in source, f"{section.name}: a stripped-out tag survived into the notebook"
+        checked += 1
+    assert checked == 13

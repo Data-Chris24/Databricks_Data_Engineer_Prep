@@ -1,0 +1,33 @@
+# Runs the Section 2 worked lessons end to end. Primarily a regression check:
+# a lesson that no longer executes is worse than no lesson, because the learner
+# assumes their own mistake.
+resources:
+  jobs:
+    run_lessons_assoc_s2:
+      name: "[DE prep] Run ASSOC-S2 lessons"
+      description: Executes the S2 worked lessons against the teach dataset.
+      tasks:
+        - task_key: copy_into
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/associate/S2/01_copy_into.py
+
+        - task_key: auto_loader
+          depends_on:
+            - task_key: copy_into
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/associate/S2/02_auto_loader.py
+
+        # This task is EXPECTED to fail once. Auto Loader's addNewColumns mode
+        # signals a new column by failing, recording the wider schema, and
+        # succeeding on restart - so a retry policy is not a workaround here, it
+        # is the documented way to run it. The lesson says so explicitly rather
+        # than hiding it behind a caught exception.
+        - task_key: schema_evolution
+          depends_on:
+            - task_key: auto_loader
+          max_retries: 2
+          min_retry_interval_millis: 5000
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/associate/S2/03_schema_evolution.py
+      queue:
+        enabled: true

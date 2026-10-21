@@ -1,0 +1,267 @@
+# Databricks notebook source
+# MAGIC %md
+# MAGIC # ASSOC-S3 assignment — your work goes here
+# MAGIC
+# MAGIC The task and the output contract are in the next cell (the same text as `README.md` in the repo).
+# MAGIC
+# MAGIC **The lesson's joins will not survive this data.** Inspect the source before
+# MAGIC writing anything.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- task:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC ## Assignment — `ASSOC-S3` Data Transformation and Modeling
+# MAGIC
+# MAGIC **Objectives:** `ASSOC-S3-O1`, `O2`, `O4`, `O6`, `O7`
+# MAGIC
+# MAGIC ### Before you start
+# MAGIC
+# MAGIC Work through the three lessons in `notebooks/lessons/associate/S3/`, and make sure
+# MAGIC the tables exist (the study app generates the data the first time you open this section; `databricks bundle run generate_datasets_assoc_s3 -t free` does the same from a terminal).
+# MAGIC
+# MAGIC > **The lesson's joins will not survive this data.** The lessons used clean
+# MAGIC > dimensions — one row per key, every foreign key resolving. This source has neither.
+# MAGIC > Copy the lesson and you will produce a table with the wrong number of rows.
+# MAGIC
+# MAGIC ### The task
+# MAGIC
+# MAGIC Enrich `s3_assess_billing_events` with plan details from `s3_assess_plans` and produce
+# MAGIC an analysis-ready gold table.
+# MAGIC
+# MAGIC **Inspect both tables first.** In particular, check whether `plan_id` is unique in the
+# MAGIC dimension, and what `amount_cents` actually contains.
+# MAGIC
+# MAGIC ### The output contract
+# MAGIC
+# MAGIC Create **`workspace.de_prep.s3_gold_billing_enriched`** with exactly this schema, in
+# MAGIC this order:
+# MAGIC
+# MAGIC | Column | Type | Meaning |
+# MAGIC |---|---|---|
+# MAGIC | `billing_id` | `STRING` | Unique. One row per billing event |
+# MAGIC | `account_id` | `STRING` | |
+# MAGIC | `plan_id` | `STRING` | As recorded on the event |
+# MAGIC | `event_date` | `DATE` | |
+# MAGIC | `event_type` | `STRING` | `charge` or `refund` |
+# MAGIC | `amount` | `DOUBLE` | The event amount **in currency units, not minor units** |
+# MAGIC | `signed_amount` | `DOUBLE` | Negative for refunds, positive for charges |
+# MAGIC | `plan_name` | `STRING` | From the plan version in effect **on the event date**. Null when unknown |
+# MAGIC | `tier` | `STRING` | Same. Null when unknown |
+# MAGIC | `plan_missing` | `BOOLEAN` | True when no plan version matched |
+# MAGIC
+# MAGIC #### Requirements
+# MAGIC
+# MAGIC 1. **Exactly one row per billing event.** Not one per event-plan pair.
+# MAGIC 2. **No event may be dropped**, including events whose plan is absent from the
+# MAGIC    dimension. Flag those with `plan_missing`.
+# MAGIC 3. **Use the plan version in effect on the event date.** Plans change price over time.
+# MAGIC 4. **`amount` is in currency units.** Get this wrong and every total is 100x out, with
+# MAGIC    no error.
+# MAGIC 5. **Column order matters** — the tests compare the whole schema.
+# MAGIC
+# MAGIC ### Grading
+# MAGIC
+# MAGIC ```bash
+# MAGIC databricks bundle run grade_assoc_s3 -t free --profile FREE
+# MAGIC ```
+# MAGIC <!-- task:end -->
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- hints:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC #### Hints, if you want them
+# MAGIC
+# MAGIC One per cell below, each opening with the problem it answers, so you can read only the one you need. To put a hint away again, collapse its cell from the cell menu on its right - a collapsed cell shows its first line only.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 1 - My row count is 870, not 600**
+# MAGIC
+# MAGIC `plan_id` appears more than once in the dimension — it is slowly-changing. A join
+# MAGIC returns one row per matching *pair*. Put the validity window in the join condition.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 2 - My row count is 580**
+# MAGIC
+# MAGIC An inner join dropped the events whose plan is missing. Requirement 2.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 3 - My totals look enormous**
+# MAGIC
+# MAGIC Requirement 4. Look at the raw column name.
+# MAGIC <!-- hints:end -->
+
+# COMMAND ----------
+
+from pyspark.sql import functions as F
+
+spark.sql("USE CATALOG workspace")
+spark.sql("USE SCHEMA de_prep")
+TARGET = "s3_gold_billing_enriched"
+
+events = spark.table("s3_assess_billing_events")
+plans = spark.table("s3_assess_plans")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Step 0 — look before you join
+# MAGIC
+# MAGIC Is `plan_id` unique in the dimension? Do all event plan_ids exist there? What
+# MAGIC does `amount_cents` hold?
+# MAGIC
+# MAGIC <!-- contract: requirements: 1, 4 -->
+# MAGIC <!-- excerpt:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README or the contract marker above, then re-run it -->
+# MAGIC
+# MAGIC **What this step must satisfy** (from the contract at the top)
+# MAGIC
+# MAGIC **Requirement 1.** **Exactly one row per billing event.** Not one per event-plan pair.
+# MAGIC
+# MAGIC **Requirement 4.** **`amount` is in currency units.** Get this wrong and every total is 100x out, with
+# MAGIC no error.
+# MAGIC <!-- excerpt:end -->
+
+# COMMAND ----------
+
+display(plans.orderBy("plan_id", "valid_from"))
+
+# COMMAND ----------
+
+# How many rows would a naive equi-join produce? Compare it to the event count.
+# print("events:", events.count())
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Step 1 — join correctly
+# MAGIC
+# MAGIC <!-- contract: s3_gold_billing_enriched: plan_id, event_date, plan_name, tier, plan_missing; requirements: 1, 2, 3 -->
+# MAGIC <!-- excerpt:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README or the contract marker above, then re-run it -->
+# MAGIC
+# MAGIC **What this step must satisfy** (from the contract at the top)
+# MAGIC
+# MAGIC From **`workspace.de_prep.s3_gold_billing_enriched`** (the full table is at the top):
+# MAGIC
+# MAGIC | Column | Type | Meaning |
+# MAGIC |---|---|---|
+# MAGIC | `plan_id` | `STRING` | As recorded on the event |
+# MAGIC | `event_date` | `DATE` | |
+# MAGIC | `plan_name` | `STRING` | From the plan version in effect **on the event date**. Null when unknown |
+# MAGIC | `tier` | `STRING` | Same. Null when unknown |
+# MAGIC | `plan_missing` | `BOOLEAN` | True when no plan version matched |
+# MAGIC
+# MAGIC **Requirement 1.** **Exactly one row per billing event.** Not one per event-plan pair.
+# MAGIC
+# MAGIC **Requirement 2.** **No event may be dropped**, including events whose plan is absent from the
+# MAGIC dimension. Flag those with `plan_missing`.
+# MAGIC
+# MAGIC **Requirement 3.** **Use the plan version in effect on the event date.** Plans change price over time.
+# MAGIC <!-- excerpt:end -->
+
+# COMMAND ----------
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Step 2 — amounts
+# MAGIC
+# MAGIC <!-- contract: s3_gold_billing_enriched: event_type, amount, signed_amount; requirements: 4 -->
+# MAGIC <!-- excerpt:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README or the contract marker above, then re-run it -->
+# MAGIC
+# MAGIC **What this step must satisfy** (from the contract at the top)
+# MAGIC
+# MAGIC From **`workspace.de_prep.s3_gold_billing_enriched`** (the full table is at the top):
+# MAGIC
+# MAGIC | Column | Type | Meaning |
+# MAGIC |---|---|---|
+# MAGIC | `event_type` | `STRING` | `charge` or `refund` |
+# MAGIC | `amount` | `DOUBLE` | The event amount **in currency units, not minor units** |
+# MAGIC | `signed_amount` | `DOUBLE` | Negative for refunds, positive for charges |
+# MAGIC
+# MAGIC **Requirement 4.** **`amount` is in currency units.** Get this wrong and every total is 100x out, with
+# MAGIC no error.
+# MAGIC <!-- excerpt:end -->
+
+# COMMAND ----------
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Step 3 — write the contracted table
+# MAGIC
+# MAGIC <!-- contract: s3_gold_billing_enriched; requirements: 5 -->
+# MAGIC <!-- excerpt:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README or the contract marker above, then re-run it -->
+# MAGIC
+# MAGIC **What this step must satisfy** (from the contract at the top)
+# MAGIC
+# MAGIC Create **`workspace.de_prep.s3_gold_billing_enriched`** with exactly this schema, in
+# MAGIC this order:
+# MAGIC
+# MAGIC | Column | Type | Meaning |
+# MAGIC |---|---|---|
+# MAGIC | `billing_id` | `STRING` | Unique. One row per billing event |
+# MAGIC | `account_id` | `STRING` | |
+# MAGIC | `plan_id` | `STRING` | As recorded on the event |
+# MAGIC | `event_date` | `DATE` | |
+# MAGIC | `event_type` | `STRING` | `charge` or `refund` |
+# MAGIC | `amount` | `DOUBLE` | The event amount **in currency units, not minor units** |
+# MAGIC | `signed_amount` | `DOUBLE` | Negative for refunds, positive for charges |
+# MAGIC | `plan_name` | `STRING` | From the plan version in effect **on the event date**. Null when unknown |
+# MAGIC | `tier` | `STRING` | Same. Null when unknown |
+# MAGIC | `plan_missing` | `BOOLEAN` | True when no plan version matched |
+# MAGIC
+# MAGIC **Requirement 5.** **Column order matters** — the tests compare the whole schema.
+# MAGIC <!-- excerpt:end -->
+
+# COMMAND ----------
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Check yourself before grading
+# MAGIC
+# MAGIC <!-- contract: s3_gold_billing_enriched; requirements: 1, 2, 3, 4, 5 -->
+# MAGIC <!-- excerpt:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README or the contract marker above, then re-run it -->
+# MAGIC
+# MAGIC **What this step must satisfy** (from the contract at the top)
+# MAGIC
+# MAGIC Create **`workspace.de_prep.s3_gold_billing_enriched`** with exactly this schema, in
+# MAGIC this order:
+# MAGIC
+# MAGIC | Column | Type | Meaning |
+# MAGIC |---|---|---|
+# MAGIC | `billing_id` | `STRING` | Unique. One row per billing event |
+# MAGIC | `account_id` | `STRING` | |
+# MAGIC | `plan_id` | `STRING` | As recorded on the event |
+# MAGIC | `event_date` | `DATE` | |
+# MAGIC | `event_type` | `STRING` | `charge` or `refund` |
+# MAGIC | `amount` | `DOUBLE` | The event amount **in currency units, not minor units** |
+# MAGIC | `signed_amount` | `DOUBLE` | Negative for refunds, positive for charges |
+# MAGIC | `plan_name` | `STRING` | From the plan version in effect **on the event date**. Null when unknown |
+# MAGIC | `tier` | `STRING` | Same. Null when unknown |
+# MAGIC | `plan_missing` | `BOOLEAN` | True when no plan version matched |
+# MAGIC
+# MAGIC **Requirement 1.** **Exactly one row per billing event.** Not one per event-plan pair.
+# MAGIC
+# MAGIC **Requirement 2.** **No event may be dropped**, including events whose plan is absent from the
+# MAGIC dimension. Flag those with `plan_missing`.
+# MAGIC
+# MAGIC **Requirement 3.** **Use the plan version in effect on the event date.** Plans change price over time.
+# MAGIC
+# MAGIC **Requirement 4.** **`amount` is in currency units.** Get this wrong and every total is 100x out, with
+# MAGIC no error.
+# MAGIC
+# MAGIC **Requirement 5.** **Column order matters** — the tests compare the whole schema.
+# MAGIC <!-- excerpt:end -->
+
+# COMMAND ----------
+
+# t = spark.table(TARGET)
+# t.printSchema()

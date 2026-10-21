@@ -1,0 +1,14 @@
+# Runs the authoritative test suite for a section's assignment.
+resources:
+  jobs:
+    grade_assoc_s2:
+      name: "[DE prep] Grade ASSOC-S2"
+      description: >-
+        Runs the graded pytest suite against workspace.de_prep.silver_sensor_readings.
+        Fails with the specific assertions that did not hold.
+      tasks:
+        - task_key: grade
+          notebook_task:
+            notebook_path: ../../grading/ASSOC-S2/grade.py
+      queue:
+        enabled: true

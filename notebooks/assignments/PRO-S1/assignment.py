@@ -1,0 +1,240 @@
+# Databricks notebook source
+# MAGIC %md
+# MAGIC # PRO-S1 assignment — your work goes here
+# MAGIC
+# MAGIC The task and the output contract are in the next cell (the same text as `README.md` in the repo).
+# MAGIC
+# MAGIC **The lesson's pipeline reads a snapshot. This source is a change feed: rows are events about rows, out of order, with tombstones.**
+# MAGIC
+# MAGIC When you are done, go back to the study app and press **Grade my assignment**.
+# MAGIC Each failing check says what it expected and why.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- task:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC ## Assignment — `PRO-S1` Developing Code for Data Processing
+# MAGIC
+# MAGIC **Objectives:** `PRO-S1-O3`, `O4`, `O6`, `O7`, `O8`, `O11`
+# MAGIC
+# MAGIC ### Before you start
+# MAGIC
+# MAGIC Work the two lessons in `notebooks/lessons/professional/S1/`, and generate the data
+# MAGIC (the study app generates the data the first time you open this section; `databricks bundle run generate_datasets_pro_s1 -t free` does the same from a terminal).
+# MAGIC
+# MAGIC > **The lesson's pipeline reads a snapshot.** This source is a *change feed* — rows
+# MAGIC > are events *about* rows. Transform-and-write produces a table of events, not of
+# MAGIC > customers.
+# MAGIC
+# MAGIC ### The task
+# MAGIC
+# MAGIC `workspace.de_prep.pro_s1_assess_changes` is a change feed with `insert`, `update` and
+# MAGIC `delete` operations. Reduce it to **current state**, applying by hand what `AUTO CDC`
+# MAGIC would do for you.
+# MAGIC
+# MAGIC Three things make this harder than a dedup:
+# MAGIC
+# MAGIC 1. **The feed is out of order.** Row order carries no meaning; `seq_num` does.
+# MAGIC 2. **Deletes are tombstones.** A key whose latest event is a delete must be **absent**,
+# MAGIC    not present with a flag.
+# MAGIC 3. **Some keys were deleted and later updated.** Those must be present, because their
+# MAGIC    highest sequence is the update — not the delete.
+# MAGIC
+# MAGIC ### The output contract
+# MAGIC
+# MAGIC **`workspace.de_prep.pro_s1_current_customers`**
+# MAGIC
+# MAGIC | Column | Type | Meaning |
+# MAGIC |---|---|---|
+# MAGIC | `customer_id` | `STRING` | Unique |
+# MAGIC | `tier` | `STRING` | From the winning event |
+# MAGIC | `balance` | `DOUBLE` | From the winning event |
+# MAGIC | `last_seq` | `INT` | The `seq_num` of the winning event |
+# MAGIC | `last_event_ts` | `TIMESTAMP` | Its timestamp |
+# MAGIC
+# MAGIC #### Requirements
+# MAGIC
+# MAGIC 1. **One row per surviving key.**
+# MAGIC 2. **The winning event is the highest `seq_num`**, not the last row encountered.
+# MAGIC 3. **Keys whose latest event is a delete are absent.**
+# MAGIC 4. **Keys deleted and later updated are present.**
+# MAGIC 5. Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC ### Grading
+# MAGIC
+# MAGIC ```bash
+# MAGIC databricks bundle run grade_pro_s1 -t free --profile FREE
+# MAGIC ```
+# MAGIC <!-- task:end -->
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <!-- hints:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README, then re-run it -->
+# MAGIC #### Hints, if you want them
+# MAGIC
+# MAGIC One per cell below, each opening with the problem it answers, so you can read only the one you need. To put a hint away again, collapse its cell from the cell menu on its right - a collapsed cell shows its first line only.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 1 - I have 300 rows**
+# MAGIC
+# MAGIC That is one arbitrary event per key — a plain `dropDuplicates(["customer_id"])`. It
+# MAGIC keeps tombstoned keys and ignores sequencing entirely. Requirements 2 and 3.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 2 - How do I pick the winning event?**
+# MAGIC
+# MAGIC A window partitioned by the key, ordered by `seq_num` descending, taking row 1.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Hint 3 - Should a deleted-then-updated key survive?**
+# MAGIC
+# MAGIC Requirement 4. Ask which event has the higher `seq_num`.
+# MAGIC <!-- hints:end -->
+
+# COMMAND ----------
+
+from pyspark.sql import Window
+from pyspark.sql import functions as F
+
+spark.sql("USE CATALOG workspace")
+spark.sql("USE SCHEMA de_prep")
+SOURCE = "pro_s1_assess_changes"
+TARGET = "pro_s1_current_customers"
+changes = spark.table(SOURCE)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Step 0 — look at the feed
+# MAGIC
+# MAGIC What operations exist, what does `seq_num` do, and are rows in any useful order?
+# MAGIC
+# MAGIC <!-- contract: text: feed is out of order -->
+# MAGIC <!-- excerpt:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README or the contract marker above, then re-run it -->
+# MAGIC
+# MAGIC **What this step must satisfy** (from the contract at the top)
+# MAGIC
+# MAGIC 1. **The feed is out of order.** Row order carries no meaning; `seq_num` does.
+# MAGIC 2. **Deletes are tombstones.** A key whose latest event is a delete must be **absent**,
+# MAGIC    not present with a flag.
+# MAGIC 3. **Some keys were deleted and later updated.** Those must be present, because their
+# MAGIC    highest sequence is the update — not the delete.
+# MAGIC <!-- excerpt:end -->
+
+# COMMAND ----------
+
+# display(changes.orderBy("customer_id", "seq_num").limit(20))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Step 1 — the winning event per key
+# MAGIC
+# MAGIC Requirement 2: the highest `seq_num` wins, not the last row you happen to read.
+# MAGIC
+# MAGIC <!-- contract: pro_s1_current_customers: customer_id, last_seq, last_event_ts; requirements: 1, 2 -->
+# MAGIC <!-- excerpt:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README or the contract marker above, then re-run it -->
+# MAGIC
+# MAGIC **What this step must satisfy** (from the contract at the top)
+# MAGIC
+# MAGIC From **`workspace.de_prep.pro_s1_current_customers`** (the full table is at the top):
+# MAGIC
+# MAGIC | Column | Type | Meaning |
+# MAGIC |---|---|---|
+# MAGIC | `customer_id` | `STRING` | Unique |
+# MAGIC | `last_seq` | `INT` | The `seq_num` of the winning event |
+# MAGIC | `last_event_ts` | `TIMESTAMP` | Its timestamp |
+# MAGIC
+# MAGIC **Requirement 1.** **One row per surviving key.**
+# MAGIC
+# MAGIC **Requirement 2.** **The winning event is the highest `seq_num`**, not the last row encountered.
+# MAGIC <!-- excerpt:end -->
+
+# COMMAND ----------
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Step 2 — apply the tombstones
+# MAGIC
+# MAGIC Requirements 3 and 4: a key whose winner is a delete is absent; a key deleted and later updated is present.
+# MAGIC
+# MAGIC <!-- contract: requirements: 3, 4 -->
+# MAGIC <!-- excerpt:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README or the contract marker above, then re-run it -->
+# MAGIC
+# MAGIC **What this step must satisfy** (from the contract at the top)
+# MAGIC
+# MAGIC **Requirement 3.** **Keys whose latest event is a delete are absent.**
+# MAGIC
+# MAGIC **Requirement 4.** **Keys deleted and later updated are present.**
+# MAGIC <!-- excerpt:end -->
+
+# COMMAND ----------
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Step 3 — write the contracted table
+# MAGIC
+# MAGIC Column order matters; the tests compare the whole schema.
+# MAGIC
+# MAGIC <!-- contract: pro_s1_current_customers; requirements: 5 -->
+# MAGIC <!-- excerpt:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README or the contract marker above, then re-run it -->
+# MAGIC
+# MAGIC **What this step must satisfy** (from the contract at the top)
+# MAGIC
+# MAGIC **`workspace.de_prep.pro_s1_current_customers`**
+# MAGIC
+# MAGIC | Column | Type | Meaning |
+# MAGIC |---|---|---|
+# MAGIC | `customer_id` | `STRING` | Unique |
+# MAGIC | `tier` | `STRING` | From the winning event |
+# MAGIC | `balance` | `DOUBLE` | From the winning event |
+# MAGIC | `last_seq` | `INT` | The `seq_num` of the winning event |
+# MAGIC | `last_event_ts` | `TIMESTAMP` | Its timestamp |
+# MAGIC
+# MAGIC **Requirement 5.** Column order matters — the tests compare the whole schema.
+# MAGIC <!-- excerpt:end -->
+
+# COMMAND ----------
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Check yourself before grading
+# MAGIC
+# MAGIC <!-- contract: pro_s1_current_customers; requirements: 1, 2, 3, 4, 5 -->
+# MAGIC <!-- excerpt:begin  generated from README.md by tools/sync_assignment_tasks.py; edit the README or the contract marker above, then re-run it -->
+# MAGIC
+# MAGIC **What this step must satisfy** (from the contract at the top)
+# MAGIC
+# MAGIC **`workspace.de_prep.pro_s1_current_customers`**
+# MAGIC
+# MAGIC | Column | Type | Meaning |
+# MAGIC |---|---|---|
+# MAGIC | `customer_id` | `STRING` | Unique |
+# MAGIC | `tier` | `STRING` | From the winning event |
+# MAGIC | `balance` | `DOUBLE` | From the winning event |
+# MAGIC | `last_seq` | `INT` | The `seq_num` of the winning event |
+# MAGIC | `last_event_ts` | `TIMESTAMP` | Its timestamp |
+# MAGIC
+# MAGIC **Requirement 1.** **One row per surviving key.**
+# MAGIC
+# MAGIC **Requirement 2.** **The winning event is the highest `seq_num`**, not the last row encountered.
+# MAGIC
+# MAGIC **Requirement 3.** **Keys whose latest event is a delete are absent.**
+# MAGIC
+# MAGIC **Requirement 4.** **Keys deleted and later updated are present.**
+# MAGIC
+# MAGIC **Requirement 5.** Column order matters — the tests compare the whole schema.
+# MAGIC <!-- excerpt:end -->
+
+# COMMAND ----------
+

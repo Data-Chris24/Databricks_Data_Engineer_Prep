@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auto Loader checkpoint vs schema location</title>
+<style>
+  :root {
+    --fg: #1d2330;
+    --muted: #5b6475;
+    --line: #d5dae3;
+    --card: #f6f8fb;
+    --accent: #1f5fbf;
+    --accent-fg: #ffffff;
+    --ok-bg: #e3f3e8;
+    --ok-fg: #1d6b38;
+    --warn-bg: #fdf0d5;
+    --warn-fg: #7a4d00;
+    --bad-bg: #fbe3e1;
+    --bad-fg: #a1261b;
+    --info-bg: #e5eefb;
+    --info-fg: #1f4f99;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #e4e8ef;
+      --muted: #a2abbb;
+      --line: #3a4252;
+      --card: #1e2430;
+      --accent: #6ea4ff;
+      --accent-fg: #0d1626;
+      --ok-bg: #173826;
+      --ok-fg: #8fdba9;
+      --warn-bg: #3d2f12;
+      --warn-fg: #f2c66d;
+      --bad-bg: #431d1b;
+      --bad-fg: #ff9f95;
+      --info-bg: #1a2c4a;
+      --info-fg: #9cc2ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: transparent;
+    color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { padding: 4px 2px 8px; }
+  .opts {
+    font: 12px/1.5 var(--mono);
+    color: var(--muted);
+    margin: 0 0 10px;
+    overflow-wrap: anywhere;
+  }
+  .controls { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .controls .sep { flex-basis: 100%; height: 0; }
+  button {
+    font: inherit;
+    font-size: 13px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--fg);
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+  button.danger { color: var(--bad-fg); }
+  .status {
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    background: var(--info-bg);
+    color: var(--info-fg);
+    min-height: 2.9em;
+  }
+  .status.ok { background: var(--ok-bg); color: var(--ok-fg); }
+  .status.warn { background: var(--warn-bg); color: var(--warn-fg); }
+  .status.bad { background: var(--bad-bg); color: var(--bad-fg); }
+  .status code { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--card);
+    padding: 8px 10px;
+    min-width: 0;
+  }
+  .card h3 { margin: 0; font-size: 13px; }
+  .card .path { font: 11px/1.4 var(--mono); color: var(--muted); margin: 1px 0 6px; overflow-wrap: anywhere; }
+  .card .role { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+  ul.items { list-style: none; margin: 0; padding: 0; }
+  ul.items li {
+    font: 12px/1.4 var(--mono);
+    padding: 3px 0;
+    border-top: 1px dashed var(--line);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    align-items: baseline;
+  }
+  ul.items li:first-child { border-top: 0; }
+  .tag {
+    font: 600 10px/1.6 system-ui, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    padding: 0 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .tag.new { background: var(--warn-bg); color: var(--warn-fg); }
+  .tag.done { background: var(--ok-bg); color: var(--ok-fg); }
+  .tag.bad { background: var(--bad-bg); color: var(--bad-fg); }
+  .tag.cur { background: var(--info-bg); color: var(--info-fg); }
+  .empty { font-size: 12px; color: var(--muted); font-style: italic; }
+  .gone { font-size: 12px; color: var(--bad-fg); font-weight: 600; }
+  .ver { display: block; width: 100%; }
+  .ver .cols { color: var(--muted); }
+  .ver .added { color: var(--fg); font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; font: 12px/1.4 var(--mono); table-layout: fixed; }
+  th, td { text-align: left; padding: 3px 4px; border-top: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+  th { font-weight: 600; color: var(--muted); border-top: 0; }
+  th.n, td.n { width: 2.6em; }
+  th.a, td.a { width: 4.6em; }
+  th.c, td.c { width: 5.6em; }
+  tr.dup td { background: var(--bad-bg); color: var(--bad-fg); }
+  td .null { color: var(--muted); font-style: italic; }
+  .foot { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="opts">cloudFiles.format=json · inferColumnTypes=true · schemaEvolutionMode=addNewColumns (the default) · writer mergeSchema=true · trigger(availableNow=True)</p>
+
+  <div class="controls" role="group" aria-label="Actions">
+    <button type="button" id="run" class="primary">Run stream (availableNow)</button>
+    <span class="sep" aria-hidden="true"></span>
+    <button type="button" id="drop">Drop a file</button>
+    <button type="button" id="dropCol">Drop a file with a new column</button>
+    <button type="button" id="dropBad">Drop a file with amount "abc"</button>
+    <span class="sep" aria-hidden="true"></span>
+    <button type="button" id="delCkpt" class="danger">Delete checkpoint</button>
+    <button type="button" id="delSchema" class="danger">Delete schema location</button>
+    <button type="button" id="reset">Reset</button>
+  </div>
+
+  <div id="status" class="status" role="status" aria-live="polite"></div>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="h-land">
+      <h3 id="h-land">Landing folder</h3>
+      <p class="path">/Volumes/…/landing/</p>
+      <p class="role">The source files. Auto Loader only reads them.</p>
+      <ul class="items" id="land"></ul>
+    </section>
+    <section class="card" aria-labelledby="h-ckpt">
+      <h3 id="h-ckpt">Checkpoint</h3>
+      <p class="path">checkpointLocation → sources/0/rocksdb</p>
+      <p class="role">The ledger of files already consumed. A file in it is never read again.</p>
+      <div id="ckpt"></div>
+    </section>
+    <section class="card" aria-labelledby="h-schema">
+      <h3 id="h-schema">Schema location</h3>
+      <p class="path">cloudFiles.schemaLocation → _schemas/0, 1…</p>
+      <p class="role">The inferred schema and every version of it. No record of files.</p>
+      <div id="schema"></div>
+    </section>
+  </div>
+
+  <section class="card" aria-labelledby="h-table">
+    <h3 id="h-table">Bronze table</h3>
+    <p class="path" id="tcount"></p>
+    <div id="table"></div>
+    <p class="foot" id="foot">Each <code>_rescued_data</code> value also carries <code>_file_path</code>, left out here to save room.</p>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var S;
+  var AMOUNTS = [10.5, 7.25, 3.5, 12.75, 4.75, 9.9, 15.5, 6.25];
+
+  function reset() {
+    S = {
+      files: [],
+      seq: 0,
+      ckpt: { exists: true, entries: [] },   // entries: {name, batch}
+      batch: 0,
+      schema: { exists: true, versions: [], reinferred: false },
+      table: { exists: false, amountType: null, hasChannel: false, rows: [] }
+    };
+    addFile({});
+    addFile({});
+    say("info", "Two files have landed and nothing has run yet. Press <b>Run stream</b>.");
+    render();
+  }
+
+  function pad(n) { return ("00" + n).slice(-3); }
+
+  function addFile(extra) {
+    S.seq += 1;
+    var f = { name: "orders_" + pad(S.seq) + ".json", id: S.seq, amount: AMOUNTS[(S.seq - 1) % AMOUNTS.length] };
+    if (extra.channel) f.channel = extra.channel;
+    if (extra.bad) f.amount = "abc";
+    S.files.push(f);
+    return f;
+  }
+
+  function consumed(name) {
+    for (var i = 0; i < S.ckpt.entries.length; i++) if (S.ckpt.entries[i].name === name) return true;
+    return false;
+  }
+  function latest() { return S.schema.versions[S.schema.versions.length - 1]; }
+  function hasCol(v, c) { for (var i = 0; i < v.length; i++) if (v[i].name === c) return true; return false; }
+  function colType(v, c) { for (var i = 0; i < v.length; i++) if (v[i].name === c) return v[i].type; return null; }
+
+  // Inference over every file present, as Auto Loader samples the directory.
+  function infer() {
+    var allNum = true, chan = false;
+    S.files.forEach(function (f) {
+      if (typeof f.amount !== "number") allNum = false;
+      if (f.channel !== undefined) chan = true;
+    });
+    var cols = [{ name: "amount", type: allNum ? "DOUBLE" : "STRING" }, { name: "id", type: "BIGINT" }];
+    if (chan) cols.push({ name: "channel", type: "STRING" });
+    return cols;
+  }
+
+  function run() {
+    if (!S.files.length) { say("info", "The landing folder is empty: nothing to read."); return render(); }
+    var notes = [];
+    if (!S.schema.exists || !S.schema.versions.length) {
+      var wasDeleted = !S.schema.exists;
+      S.schema.exists = true;
+      S.schema.versions = [infer()];
+      S.schema.reinferred = wasDeleted;
+      notes.push(wasDeleted
+        ? "Schema location was missing, so the schema was <b>re-inferred</b> from every file in the folder now (version 0)."
+        : "No schema yet, so Auto Loader inferred one and saved it as version 0.");
+      var nowAmount = colType(S.schema.versions[0], "amount");
+      if (wasDeleted && S.schema.prevAmount && S.schema.prevAmount !== nowAmount)
+        notes.push("<code>amount</code> is now " + nowAmount + ", not " + S.schema.prevAmount + ": a file in the folder holds \"abc\".");
+    }
+    var ckptWasDeleted = !S.ckpt.exists;
+    if (ckptWasDeleted) { S.ckpt.exists = true; S.ckpt.entries = []; S.batch = 0; }
+
+    var fresh = S.files.filter(function (f) { return !consumed(f.name); });
+    if (!fresh.length) {
+      say("ok", (notes.length ? notes.join(" ") + " " : "") +
+        "Run finished: <b>no new files</b>, so nothing was written. The ledger already lists every file in the folder.");
+      return render();
+    }
+
+    var sch = latest();
+    var unknown = fresh.filter(function (f) { return f.channel !== undefined && !hasCol(sch, "channel"); });
+    if (unknown.length) {
+      S.schema.versions.push(sch.concat([{ name: "channel", type: "STRING" }]));
+      say("bad", (notes.length ? notes.join(" ") + " " : "") +
+        "Stream <b>failed</b>: <code>UNKNOWN_FIELD_EXCEPTION.NEW_FIELDS_IN_RECORD_WITH_FILE_PATH</code> on " +
+        unknown[0].name + ". On purpose: Auto Loader saved the wider schema as <b>version " +
+        (S.schema.versions.length - 1) + "</b> and stopped. Nothing was written and the ledger did not move. " +
+        "Run again (a job's retry does this for you) to load the file.");
+      return render();
+    }
+
+    // The Delta sink: mergeSchema adds new columns; a type it cannot cast fails the write.
+    var amountType = colType(sch, "amount");
+    if (S.table.exists && S.table.amountType === "DOUBLE" && amountType === "STRING") {
+      var bad = fresh.filter(function (f) { return typeof f.amount !== "number"; });
+      if (bad.length) {
+        say("bad", (notes.length ? notes.join(" ") + " " : "") +
+          "Stream <b>failed</b> at the table: <code>CAST_INVALID_INPUT</code>, the value 'abc' cannot be cast to DOUBLE. " +
+          "The re-inferred schema reads <code>amount</code> as STRING, because a file in the folder holds \"abc\", " +
+          "but the table column is DOUBLE. Nothing was written.");
+        return render();
+      }
+    }
+
+    var dupCount = 0, rescued = 0;
+    var seen = {};
+    S.table.rows.forEach(function (r) { seen[r.file] = true; });
+    fresh.forEach(function (f) {
+      var row = { id: f.id, file: f.name, amount: null, channel: null, rescued: null, dup: !!seen[f.name] };
+      if (amountType === "DOUBLE" && typeof f.amount !== "number") {
+        row.rescued = '{"amount":"' + f.amount + '"}';
+        rescued++;
+      } else {
+        row.amount = f.amount;
+      }
+      if (hasCol(sch, "channel")) row.channel = f.channel === undefined ? null : f.channel;
+      else if (f.channel !== undefined) row.rescued = '{"channel":"' + f.channel + '"}';
+      if (row.dup) dupCount++;
+      S.table.rows.push(row);
+      S.ckpt.entries.push({ name: f.name, batch: S.batch });
+    });
+    if (!S.table.exists) { S.table.exists = true; S.table.amountType = amountType; }
+    if (hasCol(sch, "channel")) S.table.hasChannel = true;
+    S.batch += 1;
+
+    var msg = (notes.length ? notes.join(" ") + " " : "") +
+      (ckptWasDeleted ? "The checkpoint was gone, so the ledger started empty. " : "") +
+      "Run finished: read <b>" + fresh.length + " new file" + (fresh.length > 1 ? "s" : "") + "</b> (" +
+      fresh.map(function (f) { return f.name; }).join(", ") + ") and added " + (fresh.length > 1 ? "them" : "it") + " to the ledger.";
+    if (rescued) msg += " <b>" + rescued + "</b> value" + (rescued > 1 ? "s" : "") + " did not fit <code>amount DOUBLE</code>: <code>amount</code> is NULL and the original is in <code>_rescued_data</code>.";
+    if (dupCount) msg += " <b>" + dupCount + " row" + (dupCount > 1 ? "s are duplicates" : " is a duplicate") + "</b> of rows already in the table. No error anywhere.";
+    say(dupCount ? "warn" : "ok", msg);
+    render();
+  }
+
+  function say(kind, html) { S.msg = { kind: kind, html: html }; }
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  function render() {
+    var st = document.getElementById("status");
+    st.className = "status " + (S.msg.kind === "info" ? "" : S.msg.kind);
+    st.innerHTML = S.msg.html;
+
+    // Landing
+    document.getElementById("land").innerHTML = S.files.map(function (f) {
+      var content = "{id:" + f.id + ", amount:" + (typeof f.amount === "number" ? f.amount : '"' + f.amount + '"') +
+        (f.channel !== undefined ? ', channel:"' + f.channel + '"' : "") + "}";
+      var inLedger = S.ckpt.exists && consumed(f.name);
+      return "<li><span>" + esc(f.name) + "</span>" +
+        (inLedger ? '<span class="tag done">in ledger</span>' : '<span class="tag new">new</span>') +
+        '<span class="ver cols">' + esc(content) + "</span></li>";
+    }).join("") || '<li class="empty">Empty</li>';
+
+    // Checkpoint
+    var ck = document.getElementById("ckpt");
+    if (!S.ckpt.exists) {
+      ck.innerHTML = '<p class="gone">Deleted.</p><p class="empty">The next run starts with an empty ledger, so every file in the folder looks new.</p>';
+    } else if (!S.ckpt.entries.length) {
+      ck.innerHTML = '<p class="empty">No files consumed yet.</p>';
+    } else {
+      ck.innerHTML = '<ul class="items">' + S.ckpt.entries.map(function (e) {
+        return "<li><span>" + esc(e.name) + '</span><span class="tag done">batch ' + e.batch + "</span></li>";
+      }).join("") + "</ul>";
+    }
+
+    // Schema location
+    var sc = document.getElementById("schema");
+    if (!S.schema.exists) {
+      sc.innerHTML = '<p class="gone">Deleted.</p><p class="empty">The next run re-infers the schema from the files in the folder. The ledger is untouched, so no file is read again.</p>';
+    } else if (!S.schema.versions.length) {
+      sc.innerHTML = '<p class="empty">Empty until the first run infers a schema.</p>';
+    } else {
+      var n = S.schema.versions.length;
+      sc.innerHTML = '<ul class="items">' + S.schema.versions.map(function (v, i) {
+        var prev = i ? S.schema.versions[i - 1] : [];
+        var cols = v.map(function (c) {
+          var t = esc(c.name + " " + c.type);
+          return hasCol(prev, c.name) || !i ? t : '<span class="added">+ ' + t + "</span>";
+        }).join(", ");
+        return "<li><span>version " + i + "</span>" + (i === n - 1 ? '<span class="tag cur">current</span>' : "") +
+          (i === 0 && S.schema.reinferred ? '<span class="tag new">re-inferred</span>' : "") +
+          '<span class="ver cols">' + cols + "</span></li>";
+      }).join("") + "</ul>";
+    }
+
+    // Table
+    var rows = S.table.rows;
+    var dups = rows.filter(function (r) { return r.dup; }).length;
+    document.getElementById("tcount").textContent = S.table.exists
+      ? rows.length + " row" + (rows.length === 1 ? "" : "s") + (dups ? ", " + dups + " duplicated" : "") +
+        " · amount " + S.table.amountType
+      : "Not created yet: the first successful run creates it.";
+    var tb = document.getElementById("table");
+    document.getElementById("foot").hidden = !S.table.exists;
+    if (!S.table.exists) { tb.innerHTML = ""; }
+    else {
+      var ch = S.table.hasChannel;
+      var h = '<table><caption class="sr">Rows in the bronze table</caption><thead><tr><th class="n" scope="col">id</th><th class="a" scope="col">amount</th>' +
+        (ch ? '<th class="c" scope="col">channel</th>' : "") + '<th scope="col">_rescued_data</th></tr></thead><tbody>';
+      h += rows.map(function (r) {
+        var nul = '<span class="null">NULL</span>';
+        return "<tr" + (r.dup ? ' class="dup"' : "") + '><td class="n">' + r.id + (r.dup ? ' <span class="sr">(duplicate)</span>' : "") +
+          '</td><td class="a">' + (r.amount === null ? nul : esc(r.amount)) + "</td>" +
+          (ch ? '<td class="c">' + (r.channel === null ? nul : esc(r.channel)) + "</td>" : "") +
+          "<td>" + (r.rescued === null ? nul : esc(r.rescued)) + (r.dup ? ' <span class="tag bad">duplicate</span>' : "") + "</td></tr>";
+      }).join("");
+      tb.innerHTML = h + "</tbody></table>";
+    }
+
+    document.getElementById("delCkpt").disabled = !S.ckpt.exists || !S.ckpt.entries.length;
+    document.getElementById("delSchema").disabled = !S.schema.exists || !S.schema.versions.length;
+  }
+
+  document.getElementById("run").addEventListener("click", run);
+  document.getElementById("drop").addEventListener("click", function () {
+    var f = addFile({});
+    say("info", f.name + " landed. It is not in the ledger, so the next run will read it.");
+    render();
+  });
+  document.getElementById("dropCol").addEventListener("click", function () {
+    var f = addFile({ channel: "web" });
+    say("info", f.name + " landed with a column the schema has never seen: <code>channel</code>.");
+    render();
+  });
+  document.getElementById("dropBad").addEventListener("click", function () {
+    var f = addFile({ bad: true });
+    say("info", f.name + " landed with <code>amount = \"abc\"</code>, which is not a number.");
+    render();
+  });
+  document.getElementById("delCkpt").addEventListener("click", function () {
+    S.ckpt.exists = false;
+    say("warn", "Checkpoint deleted. The schema location still holds the schema, but the record of which files were read is gone.");
+    render();
+  });
+  document.getElementById("delSchema").addEventListener("click", function () {
+    S.schema.prevAmount = colType(latest(), "amount");
+    S.schema.exists = false;
+    S.schema.versions = [];
+    say("warn", "Schema location deleted. The checkpoint still lists every file already read.");
+    render();
+  });
+  document.getElementById("reset").addEventListener("click", reset);
+
+  reset();
+})();
+</script>
+</body>
+</html>

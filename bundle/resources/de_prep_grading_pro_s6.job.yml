@@ -1,0 +1,10 @@
+resources:
+  jobs:
+    grade_pro_s6:
+      name: "[DE prep] Grade PRO-S6"
+      tasks:
+        - task_key: grade
+          notebook_task:
+            notebook_path: ../../grading/PRO-S6/grade.py
+      queue:
+        enabled: true

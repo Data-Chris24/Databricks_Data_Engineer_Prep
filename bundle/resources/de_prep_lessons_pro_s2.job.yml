@@ -1,0 +1,15 @@
+resources:
+  jobs:
+    run_lessons_pro_s2:
+      name: "[DE prep] Run PRO-S2 lessons"
+      tasks:
+        - task_key: formats
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/professional/S2/01_formats.py
+        - task_key: append_only
+          depends_on:
+            - task_key: formats
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/professional/S2/02_append_only.py
+      queue:
+        enabled: true

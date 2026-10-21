@@ -1,0 +1,57 @@
+# Advisory AI review for PRO-S1. Never overturns the unit tests.
+assignment: PRO-S1
+objective_ids: [PRO-S1-O3, PRO-S1-O4, PRO-S1-O6, PRO-S1-O7, PRO-S1-O8, PRO-S1-O11]
+
+context: >-
+  The learner reduced an out-of-order change feed to current state by hand, applying
+  what AUTO CDC does: sequence by an explicit column, remove tombstoned keys, and
+  keep keys that were deleted and later updated.
+
+criteria:
+  - id: sequencing
+    weight: critical
+    asks: Did they sequence by the explicit column, or rely on arrival order?
+    good: A window ordered by seq_num, so the result is independent of row order.
+    poor: >-
+      dropDuplicates on the key, or ordering by event_ts without checking it agrees
+      with seq_num. Both give a plausible table that is quietly wrong.
+
+  - id: tombstones
+    weight: critical
+    asks: Are deleted keys absent, or present with a flag?
+    good: Filtered out after sequencing, so the table holds customers rather than events.
+    poor: >-
+      An is_deleted column, which pushes the problem onto every downstream consumer,
+      or filtering deletes BEFORE sequencing, which resurrects everything.
+
+  - id: resurrection
+    weight: high
+    asks: Did they notice keys deleted and later updated?
+    good: Handled naturally by sequencing first and filtering second.
+    poor: >-
+      Excluding any key that ever had a delete - a subtly different rule that is wrong
+      for exactly these keys.
+
+  - id: understood_auto_cdc
+    weight: medium
+    asks: Is it clear they know what they are reimplementing?
+    good: >-
+      Reasoning that maps the steps onto SEQUENCE BY and APPLY AS DELETE WHEN, rather
+      than treating it as a generic dedup puzzle.
+    poor: Correct output with no evident connection to the CDC semantics.
+
+  - id: gaming
+    weight: critical
+    asks: Would this work on a longer feed?
+    good: A general reduction.
+    poor: Hardcoded key lists, or a LIMIT producing exactly 272 rows.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues: [{severity: high | medium | low, location: string, note: string}]
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail.
+  - Judge the approach, not formatting or naming.

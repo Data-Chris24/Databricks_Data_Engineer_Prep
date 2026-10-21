@@ -1,0 +1,81 @@
+# Advisory AI review for PRO-S4. Never overturns the unit tests.
+assignment: PRO-S4
+objective_ids: [PRO-S4-O1, PRO-S4-O2, PRO-S4-O3]
+
+context: >-
+  The learner configured a Delta Sharing setup to a written spec: four objects shared
+  to one recipient on three different sets of terms, and one table that must not be
+  shared. Three of the four objects refuse the obvious statement. The lesson shared
+  tables that had deletion vectors disabled, where one statement per table was enough.
+
+criteria:
+  - id: understood_the_deletion_vector_constraint
+    weight: critical
+    asks: >-
+      Do they know why WITHOUT HISTORY was refused, and why turning the property off
+      is not sufficient on its own?
+    good: >-
+      Disabled delta.enableDeletionVectors AND ran REORG ... APPLY (PURGE), naming the
+      reason - the property stops new deletion vectors; the rewrite removes the ones
+      already written.
+    poor: >-
+      Set the property and retried, or gave up and shared with history. The second one
+      meets no error and breaks the spec.
+
+  - id: found_what_controls_cdf
+    weight: critical
+    asks: >-
+      Did they find that cdf_shared follows the table property, not the clause?
+    good: >-
+      Enabled delta.enableChangeDataFeed on the table and shared it normally, having
+      seen the clause refused on this metastore.
+    poor: >-
+      Kept trying the documented clause, or concluded CDF sharing is impossible here.
+
+  - id: did_not_over_share
+    weight: critical
+    asks: Is the table that must stay private absent from every share?
+    good: >-
+      Absent, and ideally checked for it rather than assumed - there is no statement to
+      write, so nothing confirms it either way.
+    poor: >-
+      Shared it, or shared a whole schema. Over-sharing raises no error and is the
+      failure a sharing review exists to catch.
+
+  - id: aliased_deliberately
+    weight: high
+    asks: Was the alias set when each object was added?
+    good: >-
+      Every object under partner.*, set at ADD time, with an understanding that REMOVE
+      TABLE takes the shared name and so cannot undo it from the source path.
+    poor: >-
+      Shared under the source schema name, exposing internal layout to the partner, or
+      tried to fix it afterwards and could not.
+
+  - id: read_back_what_they_built
+    weight: medium
+    asks: Did they verify the configuration, or trust that it ran?
+    good: >-
+      Read history_sharing and cdf_shared for every row and checked the grants. Every
+      wrong answer in this assignment is a statement that succeeded.
+    poor: Ran the statements and went to grading.
+
+  - id: knows_the_platform_limits
+    weight: low
+    asks: >-
+      Can they say what is not exercisable here and why - open protocol, the consumer
+      side, the federation query path?
+    good: >-
+      Names the metastore's delta_sharing_scope, the absence of a second metastore, and
+      that federation DDL succeeds while the data path does not.
+    poor: Treats the limits as bugs in their own work.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues: [{severity: high | medium | low, location: string, note: string}]
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail.
+  - Judge the sharing decisions, not naming or formatting.

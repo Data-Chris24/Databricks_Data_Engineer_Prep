@@ -1,0 +1,14 @@
+resources:
+  jobs:
+    run_lessons_assoc_s5:
+      name: "[DE prep] Run ASSOC-S5 lessons"
+      tasks:
+        - task_key: bundles_and_variables
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/associate/S5/01_bundles_and_variables.py
+        - task_key: git_and_ci
+          depends_on: [{task_key: bundles_and_variables}]
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/associate/S5/02_git_and_ci.py
+      queue:
+        enabled: true

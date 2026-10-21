@@ -1,0 +1,14 @@
+resources:
+  jobs:
+    run_lessons_assoc_s7:
+      name: "[DE prep] Run ASSOC-S7 lessons"
+      tasks:
+        - task_key: tables_and_grants
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/associate/S7/01_tables_and_grants.py
+        - task_key: masking_and_filters
+          depends_on: [{task_key: tables_and_grants}]
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/associate/S7/02_masking_and_filters.py
+      queue:
+        enabled: true

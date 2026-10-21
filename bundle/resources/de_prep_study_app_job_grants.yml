@@ -1,0 +1,56 @@
+# What the study app may run. Kept beside the app (de_prep_study_app.app.yml)
+# but in its own file: an .app.yml should define only the app.
+#
+# Scoped to `free`, like the app: in any other target there is no app principal
+# to grant to.
+targets:
+  free:
+    resources:
+      # Every job the app runs on a learner's behalf: grade a section, reset an
+      # assignment, generate a section's datasets, wake the database. The app's
+      # principal gets CAN_MANAGE_RUN on each, which lets it see, trigger and
+      # read the job's runs. A new job the app should run needs a line here and
+      # a name bootstrap.ts recognises (jobEnvName).
+      jobs:
+        generate_datasets:
+          permissions: &app_can_run
+            - level: CAN_MANAGE_RUN
+              service_principal_name: ${resources.apps.study_app.service_principal_client_id}
+        grade_assoc_s1:
+          permissions: *app_can_run
+        grade_assoc_s2:
+          permissions: *app_can_run
+        grade_assoc_s3:
+          permissions: *app_can_run
+        grade_assoc_s4:
+          permissions: *app_can_run
+        grade_assoc_s5:
+          permissions: *app_can_run
+        grade_assoc_s6:
+          permissions: *app_can_run
+        grade_assoc_s7:
+          permissions: *app_can_run
+        grade_pro_s1:
+          permissions: *app_can_run
+        grade_pro_s10:
+          permissions: *app_can_run
+        grade_pro_s2:
+          permissions: *app_can_run
+        grade_pro_s3:
+          permissions: *app_can_run
+        grade_pro_s4:
+          permissions: *app_can_run
+        grade_pro_s5:
+          permissions: *app_can_run
+        grade_pro_s6:
+          permissions: *app_can_run
+        grade_pro_s7:
+          permissions: *app_can_run
+        grade_pro_s8:
+          permissions: *app_can_run
+        grade_pro_s9:
+          permissions: *app_can_run
+        reset_assignment:
+          permissions: *app_can_run
+        wake_database:
+          permissions: *app_can_run

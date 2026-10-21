@@ -1,0 +1,14 @@
+resources:
+  jobs:
+    run_lessons_assoc_s1:
+      name: "[DE prep] Run ASSOC-S1 lessons"
+      tasks:
+        - task_key: delta_guarantees
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/associate/S1/01_delta_guarantees.py
+        - task_key: catalog_and_compute
+          depends_on: [{task_key: delta_guarantees}]
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/associate/S1/02_catalog_and_compute.py
+      queue:
+        enabled: true

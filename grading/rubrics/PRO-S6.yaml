@@ -1,0 +1,59 @@
+# Advisory AI review for PRO-S6. Never overturns the unit tests.
+assignment: PRO-S6
+objective_ids: [PRO-S6-O1, PRO-S6-O2, PRO-S6-O3, PRO-S6-O5]
+
+context: >-
+  The learner diagnosed three unrelated causes of query cost on one table - many
+  small files, a wide table read in full, and a near-unique column that would be a
+  bad clustering key - and recommended a fix for each without changing the table.
+
+criteria:
+  - id: distinguished_the_causes
+    weight: critical
+    asks: >-
+      Did they recognise these are three different problems needing three different
+      fixes?
+    good: Each finding has a fix that actually addresses it.
+    poor: >-
+      Clustering recommended for all three. It is the lesson's answer and it does
+      nothing for file count or projection.
+
+  - id: cardinality_reasoning
+    weight: high
+    asks: Did they explain why a near-unique column is a bad clustering key?
+    good: >-
+      Reasoning about file skipping - every file holds a distinct range, so nothing can
+      be pruned and the rewrite buys nothing.
+    poor: >-
+      Asserting it is bad without the mechanism, which does not transfer to the next
+      table.
+
+  - id: projection_vs_filter
+    weight: high
+    asks: Is the distinction between choosing rows and choosing columns clear?
+    good: Identifies that a good filter does not reduce bytes read on a wide SELECT *.
+    poor: Conflates the two, or proposes clustering to fix a projection problem.
+
+  - id: left_the_evidence
+    weight: medium
+    asks: Did they diagnose, or optimise?
+    good: The table is untouched; recommendations are recommendations.
+    poor: >-
+      Ran OPTIMIZE or applied clustering, which destroys the evidence and makes the
+      diagnosis unverifiable.
+
+  - id: gaming
+    weight: critical
+    asks: Were the metrics derived or transcribed?
+    good: Computed from DESCRIBE DETAIL and the table itself.
+    poor: Hardcoded numbers matching the fixtures.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues: [{severity: high | medium | low, location: string, note: string}]
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail.
+  - Judge the approach, not formatting or naming.

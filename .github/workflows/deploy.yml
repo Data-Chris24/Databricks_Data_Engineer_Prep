@@ -1,0 +1,101 @@
+name: Deploy to Databricks
+
+# Runs only after a merge to main. The PR gate is what decides whether code gets
+# here; this job's only job is to ship what is already on main.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never let two deploys race for the same bundle path.
+concurrency:
+  group: deploy-free
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy bundle (Free Edition)
+    runs-on: ubuntu-latest
+    environment: databricks-free
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      # Re-verify on main. The PR gate should have caught anything, but a merge
+      # can combine two individually-valid PRs into a broken main.
+      - name: Install tooling
+        run: pip install -r tools/requirements.txt -r tools/requirements-dev.txt
+      - name: No workspace URLs, IDs, emails or tokens in tracked files
+        run: python tools/check_sensitive.py
+      - name: Validate content
+        run: python tools/validate_content.py
+      # The JSON is not in git; build it here so `bundle deploy` uploads it
+      # (bundle/databricks.yml re-includes the gitignored files in sync).
+      - name: Build app content
+        run: python tools/build_app_content.py
+      - name: Run tests
+        run: python -m pytest tools/tests -q
+
+      - uses: databricks/setup-cli@main
+
+      # Not --strict: the learner targets exclude ../solutions/** from sync, and
+      # the CLI's "pattern matches no files" check evaluates that pattern against
+      # the bundle folder instead of the sync root, so it warns although the
+      # exclusion works (verified with `bundle sync --dry-run --full`). Errors
+      # still fail this step.
+      - name: Validate bundle
+        working-directory: bundle
+        run: databricks bundle validate -t free
+
+      # Free Edition disables the Lakebase endpoint after a few idle days
+      # (measured 2026-09-14, see docs/free-edition-constraints.md). A disabled
+      # endpoint fails the deploy at the step that grants the app access to the
+      # database, and an app started against it cannot migrate. The CI principal
+      # holds CAN_MANAGE on the project, so re-enable it here. Non-fatal: if this
+      # cannot run, the deploy still tries and its own error says why.
+      - name: Wake the Lakebase endpoint
+        env:
+          ENDPOINT: projects/de-prep/branches/production/endpoints/primary
+        run: |
+          state=$(databricks postgres get-endpoint "$ENDPOINT" -o json | jq -r '.status.disabled') || {
+            echo "::warning::could not read the Lakebase endpoint state; continuing"; exit 0; }
+          if [ "$state" = "true" ]; then
+            echo "Lakebase endpoint is disabled; enabling it"
+            databricks postgres update-endpoint "$ENDPOINT" spec.disabled --json '{"spec":{"disabled":false}}' -o json \
+              | jq '{disabled: .status.disabled, state: .status.current_state}' \
+              || echo "::warning::could not enable the Lakebase endpoint; the deploy will show whether that matters"
+          else
+            echo "Lakebase endpoint is enabled (disabled=$state)"
+          fi
+
+      - name: Deploy bundle
+        working-directory: bundle
+        run: databricks bundle deploy -t free
+
+      # `bundle deploy` uploads the app's source and creates the app resource,
+      # but with no compute - it stays STOPPED with no deployment (confirmed on
+      # the first deploy after PR #21). `bundle run` on an app resource deploys
+      # the uploaded source and starts it; on a running app it redeploys.
+      - name: Deploy and start the study app
+        working-directory: bundle
+        run: databricks bundle run study_app -t free
+
+      - name: Summarise what was deployed
+        working-directory: bundle
+        run: |
+          databricks bundle summary -t free >> "$GITHUB_STEP_SUMMARY" 2>&1 || \
+            echo "No resources in the bundle yet." >> "$GITHUB_STEP_SUMMARY"
+
+    env:
+      # OAuth machine-to-machine as a service principal. No PAT, no user identity.
+      # Set these as repository secrets - see docs/ci-cd.md.
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}

@@ -1,0 +1,831 @@
+# ASSOC-S2 — Data Ingestion and Loading (21%)
+# Several of these mirror failures the S2 lessons cause on purpose; see
+# content/lessons/associate/S2/errors-worth-meeting.md.
+meta:
+  source: Original, written for this repository.
+  note: Covers ASSOC-S2-O1 through O7.
+
+questions:
+  - id: ASSOC-S2-Q002
+    objective_ids: [ASSOC-S2-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [copy-into, idempotency, incremental]
+    stem: >-
+      A COPY INTO statement loading a directory of CSV files is run twice in a row, with
+      no new files added between runs. What does the second run do?
+    options:
+      A: Nothing - it skips files already recorded as loaded, so the row count is unchanged.
+      B: It loads every file again, doubling the row count.
+      C: It fails, because the target table already contains those records.
+      D: It reloads only files whose modification time changed.
+    correct: A
+    explanation: >-
+      COPY INTO tracks which files it has ingested in the table's metadata, so re-running
+      it is a no-op. That idempotence is what makes it safe to schedule and safe to retry
+      after a failure - the property the exam keeps probing, because it is what separates
+      an incremental load from a bulk insert.
+    distractor_rationale:
+      B: That would be an INSERT INTO with a file read - COPY INTO exists to avoid it.
+      C: Re-running is expected and supported, not an error.
+      D: >-
+        Tracking is by file identity, not modification time. A modified file that was
+        already loaded is not reloaded by default.
+    near_misses:
+      - text: >-
+          Nothing - it skips any file whose rows already exist in the target table, so the row
+          count is unchanged.
+        why: >-
+          COPY INTO never compares rows with the table. Deleting every row and re-running
+          still loads nothing: the skip comes from the table's record of loaded files.
+      - text: >-
+          It reloads every file but skips rows already in the target table, so the row count
+          is unchanged.
+        why: >-
+          A file is skipped or loaded whole; rows are never matched against the target.
+          Forcing a reload (force = true) duplicates them.
+      - text: >-
+          Nothing - it skips files whose content is already recorded, so a file rewritten in
+          place is loaded again next run.
+        why: >-
+          Tracking is by file, not content. A loaded file overwritten at the same path with
+          new rows is not reloaded.
+
+  - id: ASSOC-S2-Q003
+    objective_ids: [ASSOC-S2-O2]
+    difficulty: application
+    provenance: original
+    tags: [copy-into, schema, csv, types]
+    stem: >-
+      An engineer creates a target table with unit_price DOUBLE, then runs COPY INTO
+      from CSV files. The load fails with DELTA_FAILED_TO_MERGE_FIELDS. Why?
+    options:
+      A: >-
+        CSV delivers every field as text and COPY INTO will not silently coerce it into
+        the declared numeric type.
+      B: The CSV files contain a header row that conflicts with the schema.
+      C: DOUBLE is not a supported column type for COPY INTO.
+      D: The table must be empty before COPY INTO can run.
+    correct: A
+    explanation: >-
+      CSV has no type information - every field is a string until something interprets
+      it. Rather than coerce silently, which is where numbers quietly change, COPY INTO
+      refuses. The usual fix is also better medallion practice: make bronze all STRING,
+      faithful to the source, and cast on the way to silver where a bad value becomes a
+      countable null instead of a failed load.
+    distractor_rationale:
+      B: A header is handled by FORMAT_OPTIONS ('header' = 'true') and causes a different error.
+      C: DOUBLE is perfectly supported as a target type.
+      D: COPY INTO appends to a table that already has data; that is its purpose.
+    near_misses:
+      - text: >-
+          CSV delivers every field as text and COPY INTO will not coerce it unless mergeSchema
+          is set in COPY_OPTIONS.
+        why: >-
+          mergeSchema adds new columns; it does not change types. With it set, the load fails
+          with the same DELTA_FAILED_TO_MERGE_FIELDS.
+      - text: >-
+          COPY INTO reads the header row as data and will not coerce it unless mergeSchema is
+          set in COPY_OPTIONS.
+        why: >-
+          A missing header option fails differently (the columns arrive as _c0 and _c1), and
+          mergeSchema never converts types.
+      - text: >-
+          COPY INTO reads the header row as data and will not silently coerce the text
+          'unit_price' into the declared numeric type.
+        why: >-
+          A missing header option is a different failure: the columns arrive as _c0 and _c1
+          and nothing resolves by name. The cause here is that CSV is untyped.
+
+  - id: ASSOC-S2-Q004
+    objective_ids: [ASSOC-S2-O3]
+    difficulty: analysis
+    provenance: original
+    tags: [auto-loader, checkpoint, schema-location]
+    stem: >-
+      An Auto Loader stream uses both a checkpointLocation and a
+      cloudFiles.schemaLocation. An engineer deletes the checkpoint directory and
+      restarts the stream. What happens?
+    options:
+      A: Every file in the source is processed again, because the record of what was consumed is gone.
+      B: Only the schema is re-inferred; file tracking is unaffected.
+      C: The stream fails to start until the checkpoint is restored.
+      D: Nothing changes - the schema location also tracks processed files.
+    correct: A
+    explanation: >-
+      The two locations do different jobs and confusing them is a classic trap. The
+      checkpoint records which files have been consumed - delete it and the stream has no
+      memory, so it reprocesses everything and duplicates data unless the sink can absorb
+      it. The schema location holds the inferred schema and its versions, which is what
+      makes evolution possible.
+    distractor_rationale:
+      B: Reversed - the schema location holds the schema; the checkpoint holds progress.
+      C: The stream starts happily. It simply believes it has never seen any of the files.
+      D: They are separate. Neither substitutes for the other.
+    near_misses:
+      - text: >-
+          Every file in the source is processed again, because the schema location is reset
+          along with the checkpoint.
+        why: >-
+          Deleting the checkpoint leaves the schema location alone. Files are reprocessed
+          because the record of what was consumed lived in the checkpoint.
+      - text: >-
+          Only files that arrive after the restart are processed, because the schema location
+          is reset along with the checkpoint.
+        why: >-
+          Deleting the checkpoint reprocessed every file (3 rows became 6), and the schema
+          location is not touched by it.
+      - text: >-
+          Only files that arrive after the restart are processed, because the record of what
+          was consumed is gone.
+        why: >-
+          With no record of what was consumed, nothing counts as already seen: every existing
+          file was processed again (3 rows became 6).
+
+  - id: ASSOC-S2-Q005
+    objective_ids: [ASSOC-S2-O3]
+    difficulty: analysis
+    provenance: original
+    tags: [schema-evolution, addnewcolumns, retry]
+    stem: >-
+      An Auto Loader stream with schemaEvolutionMode = addNewColumns fails when a new
+      column appears, reporting "which can be fixed by an automatic retry: true". What
+      is the correct response?
+    options:
+      A: >-
+        Restart the stream - the new schema has been recorded and the next run succeeds.
+        Configure job retries so this is handled automatically.
+      B: Change schemaEvolutionMode to none so the stream stops failing.
+      C: Delete the schema location so the schema is re-inferred from scratch.
+      D: Manually ALTER TABLE to add the column, then restart.
+    correct: A
+    explanation: >-
+      The failure is the mechanism, not a fault. Auto Loader records the wider schema,
+      stops so a human learns the source changed, and succeeds on restart. In production
+      a retry policy absorbs this and evolution looks seamless; with retries disabled,
+      the pipeline simply stops the first time upstream adds a field. Remember the writer
+      also needs mergeSchema, or the restart fails again with DELTA_METADATA_MISMATCH.
+    distractor_rationale:
+      B: >-
+        That silences the signal and drops the new data into _rescued_data or discards
+        it - fixing the alarm rather than the fire.
+      C: >-
+        Destroys the recorded schema and any version history, and does not address the
+        restart that was needed anyway.
+      D: >-
+        Unnecessary - the whole point of evolution is that Auto Loader handles the schema
+        change for you.
+    near_misses:
+      - text: >-
+          Restart the stream after deleting the checkpoint - the new schema has been recorded
+          and the next run succeeds. Configure job retries so this is handled automatically.
+        why: >-
+          Deleting the checkpoint throws away consumption progress, so every file is processed
+          again and the target fills with duplicates.
+      - text: >-
+          Restart the stream after deleting the checkpoint - the new column was written to
+          _rescued_data and the next run succeeds. Configure job retries so this is handled
+          automatically.
+        why: >-
+          Deleting the checkpoint replays every file into the target; and in addNewColumns
+          mode a new field becomes a real column, not rescued data.
+      - text: >-
+          Restart the stream - the new column was written to _rescued_data and the next run
+          succeeds. Configure job retries so this is handled automatically.
+        why: >-
+          In addNewColumns mode the new field becomes a real column: after the restart the
+          table had a channel column holding the value.
+
+  - id: ASSOC-S2-Q006
+    objective_ids: [ASSOC-S2-O3, ASSOC-S2-O7]
+    difficulty: recall
+    provenance: original
+    tags: [rescued-data, malformed, auto-loader]
+    stem: >-
+      What is the purpose of the _rescued_data column in Auto Loader?
+    options:
+      A: >-
+        It captures values that could not be parsed into the expected schema, so
+        malformed input costs you a column to inspect rather than lost records.
+      B: It stores rows rejected by table constraints for later reprocessing.
+      C: It holds a copy of the raw file path each record came from.
+      D: It records rows that failed to write due to transient storage errors.
+    correct: A
+    explanation: >-
+      Anything Auto Loader cannot fit into the schema - a type mismatch, an unexpected
+      field - lands in _rescued_data instead of being dropped. That turns silent data
+      loss into a visible column you can query, which is why it is worth enabling as a
+      matter of routine rather than only when something goes wrong.
+    distractor_rationale:
+      B: Constraint violations are a Delta write concern, unrelated to this column.
+      C: >-
+        That is _metadata.file_path, a different and also useful column. A rescued value
+        does carry a _file_path key, but only on rows where something was rescued; it is
+        not a per-record provenance column.
+      D: Write failures raise errors; they are not captured in a data column.
+    near_misses:
+      - text: >-
+          It captures values that could not be parsed into the expected schema, so malformed
+          records are moved out of the table into a separate rescue file.
+        why: >-
+          The record stays in the table. Only the failing field is null, and its original
+          value sits in _rescued_data as JSON in the same row.
+      - text: >-
+          It captures the whole raw record when any field fails to parse, so the row is kept
+          but every column in it is null.
+        why: >-
+          Only the failing field is nulled and rescued; the other columns keep their values
+          (id stayed 2 while amount went to null).
+      - text: >-
+          It captures values that could not be parsed, but only in schemaEvolutionMode rescue;
+          in the default mode they fail the stream.
+        why: >-
+          Rescue happens in the default mode too. A type mismatch under addNewColumns was
+          rescued, not failed; only new columns stop the stream.
+
+  - id: ASSOC-S2-Q007
+    objective_ids: [ASSOC-S2-O6]
+    difficulty: analysis
+    provenance: original
+    tags: [auto-loader, copy-into, choosing]
+    stem: >-
+      Which situation most clearly calls for Auto Loader rather than COPY INTO?
+    options:
+      A: >-
+        Millions of files arriving continuously into cloud storage, with a schema that
+        occasionally gains columns.
+      B: A single well-known CSV dropped once a day into a fixed location.
+      C: A one-off backfill of a directory that will never receive new files.
+      D: Loading a table from another Unity Catalog table.
+    correct: A
+    explanation: >-
+      Auto Loader is built for scale and for change: it tracks files efficiently at very
+      high volume and can evolve the schema as sources drift. COPY INTO is simpler and
+      entirely appropriate for predictable, bounded loads into a known schema. Choose by
+      volume and volatility rather than by which is newer.
+    distractor_rationale:
+      B: A predictable daily file into a known schema is exactly COPY INTO's case.
+      C: A one-off load needs neither incremental tracking nor evolution.
+      D: >-
+        Table-to-table work is a plain INSERT or CTAS. Neither ingestion tool is
+        involved.
+    near_misses:
+      - text: >-
+          Millions of records arriving continuously into a message bus, with a schema that
+          never changes.
+        why: >-
+          A message bus such as Kafka is read with Structured Streaming's Kafka source; Auto
+          Loader discovers files in storage.
+      - text: >-
+          Thousands of files arriving once into cloud storage, with a schema that never
+          changes.
+        why: >-
+          A one-off load of thousands of files is COPY INTO's home ground: idempotent, simple,
+          no stream to run.
+      - text: >-
+          Millions of records arriving continuously into a message bus, with a schema that
+          occasionally gains columns.
+        why: >-
+          Records on a message bus are read with the Kafka source of Structured Streaming, not
+          with Auto Loader, whatever the schema does.
+
+  - id: ASSOC-S2-Q008
+    objective_ids: [ASSOC-S2-O1]
+    difficulty: recall
+    provenance: original
+    tags: [ingestion-patterns, batch, streaming, incremental]
+    stem: >-
+      What distinguishes incremental ingestion from a full batch reload?
+    options:
+      A: >-
+        Incremental ingestion processes only data not yet consumed, tracking progress so
+        reruns do not reprocess everything.
+      B: Incremental ingestion always runs continuously, while batch runs on a schedule.
+      C: Incremental ingestion writes only to streaming tables.
+      D: Incremental ingestion requires the source to be a message bus.
+    correct: A
+    explanation: >-
+      The defining property is bookkeeping - a record of what has already been consumed,
+      whether that is COPY INTO's file list or a streaming checkpoint. Note that
+      incremental is not the same as continuous: Auto Loader with trigger availableNow is
+      incremental and batch at the same time, processing what is there and stopping.
+    distractor_rationale:
+      B: >-
+        Conflates incremental with continuous. Scheduled incremental loads are extremely
+        common.
+      C: Incremental ingestion writes to ordinary tables perfectly well.
+      D: Cloud storage is the most common incremental source of all.
+    near_misses:
+      - text: >-
+          Incremental ingestion processes only data not yet consumed, comparing each row with
+          the target so reruns do not reprocess everything.
+        why: >-
+          Progress is tracked per file or offset (a checkpoint, COPY INTO's load history),
+          never by comparing rows with the target.
+      - text: >-
+          Incremental ingestion processes only files modified since the last run, comparing
+          timestamps so reruns do not reprocess everything.
+        why: >-
+          Tracking is by file identity, not modification time: a loaded file rewritten in
+          place is not picked up again.
+      - text: >-
+          Incremental ingestion processes all data on each run, comparing each row with the
+          target so only changed rows are written.
+        why: >-
+          That is a full reprocess with an upsert at the end. Incremental means not reading
+          what was already consumed.
+
+  - id: ASSOC-S2-Q009
+    objective_ids: [ASSOC-S2-O7]
+    difficulty: application
+    provenance: original
+    tags: [json, nested, schema]
+    stem: >-
+      JSON files are ingested where one field is an array of nested objects. The target
+      table must have one row per nested object. Where should that reshaping happen?
+    options:
+      A: >-
+        Downstream of ingestion - land the nested structure in bronze, then explode it on
+        the way to silver.
+      B: During ingestion, by configuring Auto Loader to flatten arrays automatically.
+      C: In the source system, before the files are written.
+      D: It cannot be done; nested data must be queried in place.
+    correct: A
+    explanation: >-
+      Bronze should stay faithful to what arrived, nesting included, so you can always
+      reprocess from the original if a transformation turns out to be wrong. Changing
+      grain is a transformation concern, and explode() on the way to silver is where it
+      belongs.
+    distractor_rationale:
+      B: >-
+        Auto Loader preserves the structure it reads; it has no automatic array
+        flattening.
+      C: >-
+        Rarely available, and it discards the original shape - you cannot recover what the
+        source never sent.
+      D: >-
+        Nested data is entirely queryable, and explode() is the standard way to change its
+        grain.
+    near_misses:
+      - text: >-
+          Downstream of ingestion - land the nested structure in bronze, then flatten it on
+          the way to silver.
+        why: >-
+          flatten merges an array of arrays into one array; on an array of structs it fails
+          with a type mismatch. explode is what makes rows.
+      - text: >-
+          Downstream of ingestion - land the nested structure in silver, then flatten it on
+          the way to gold.
+        why: >-
+          Raw data lands in bronze, and flatten cannot turn an array of structs into rows (it
+          fails with a type mismatch).
+      - text: >-
+          Downstream of ingestion - land the nested structure in silver, then explode it on
+          the way to gold.
+        why: >-
+          Raw data lands in bronze. One row per object is cleansing and conforming, which
+          produces silver; gold holds business-level aggregates.
+
+  - id: ASSOC-S2-Q010
+    objective_ids: [ASSOC-S2-O5]
+    difficulty: application
+    provenance: original
+    tags: [jdbc, secrets, credentials]
+    stem: >-
+      A notebook reads from an external database over JDBC. How should the password be
+      supplied?
+    options:
+      A: >-
+        From a secret scope via dbutils.secrets.get(), which Databricks redacts from
+        notebook output.
+      B: As a plain string variable at the top of the notebook, for easy rotation.
+      C: In the JDBC URL, which is not displayed in query results.
+      D: As a job parameter, which is stored encrypted at rest.
+    correct: A
+    explanation: >-
+      Secrets keep the credential out of the notebook source, out of version control, and
+      out of any output - printing one shows "REDACTED". That redaction matters more than
+      it first appears: it protects against the credential leaking into exported HTML,
+      logs and screen-shares, which is how these usually escape.
+    distractor_rationale:
+      B: >-
+        A plaintext credential in a notebook is a credential in your git history the
+        moment it is committed.
+      C: >-
+        Connection strings appear in logs, error messages and query plans. This is not
+        concealment.
+      D: >-
+        Job parameters are visible in the run configuration and run history to anyone who
+        can see the job.
+    near_misses:
+      - text: >-
+          From a secret scope via dbutils.secret.get(), which Databricks encrypts in notebook
+          output.
+        why: >-
+          The module is dbutils.secrets (plural); dbutils.secret does not exist. And the value
+          is redacted in output, not encrypted.
+      - text: >-
+          From a secret scope via dbutils.secret.get(), which Databricks redacts from notebook
+          output.
+        why: >-
+          dbutils.secret raises AttributeError: the module is dbutils.secrets, plural.
+      - text: >-
+          From a secret scope via dbutils.secrets.get(), which Databricks encrypts in notebook
+          output.
+        why: >-
+          Output shows [REDACTED], it is not encrypted; and redaction hides a printed value,
+          it does not stop anyone with READ on the scope from using it.
+
+  - id: ASSOC-S2-Q011
+    objective_ids: [ASSOC-S2-O4, ASSOC-S2-O6]
+    difficulty: recall
+    provenance: original
+    tags: [lakeflow-connect, connectors, managed, standard]
+    stem: >-
+      Lakeflow Connect offers standard and managed connectors. What distinguishes them?
+    options:
+      A: >-
+        Standard connectors read from sources you can reach directly, such as cloud
+        storage or a message bus; managed connectors are fully governed pipelines for
+        enterprise applications and databases, with Databricks handling extraction and
+        scheduling.
+      B: Standard connectors are open source; managed connectors are proprietary.
+      C: Standard connectors write to Delta; managed connectors write to Parquet.
+      D: Standard connectors are batch only; managed connectors are streaming only.
+    correct: A
+    explanation: >-
+      Standard connectors cover sources your workspace can read from itself - object
+      storage via Auto Loader, Kafka, Kinesis. Managed connectors handle systems like
+      Salesforce, Workday or SQL Server, where Databricks manages the connection,
+      incremental extraction and scheduling for you. Choose by what the source is and how
+      much of the pipeline you want to own.
+    distractor_rationale:
+      B: Licensing is not the distinction.
+      C: Both land data in Unity Catalog-governed Delta tables.
+      D: >-
+        Both support incremental ingestion; the split is about the source and who
+        operates the pipeline.
+    near_misses:
+      - text: >-
+          Standard connectors are fully governed pipelines for enterprise applications and
+          databases, with Databricks handling extraction and scheduling; managed connectors
+          read from sources you can reach directly, such as cloud storage or a message bus.
+        why: >-
+          The two are swapped: managed connectors are the governed pipelines for SaaS
+          applications and databases; standard ones read storage and message buses.
+      - text: >-
+          Standard connectors read from sources you can reach directly, such as cloud storage
+          or a message bus; managed connectors are pipelines for enterprise applications and
+          databases that you schedule and extract yourself.
+        why: >-
+          What makes a connector managed is that Databricks handles the extraction and
+          scheduling for you.
+      - text: >-
+          Standard connectors are pipelines for enterprise applications and databases that you
+          schedule and extract yourself; managed connectors read from sources you can reach
+          directly, such as cloud storage or a message bus.
+        why: >-
+          Both halves are off: applications and databases are the managed connectors, and with
+          those Databricks does the extraction and scheduling.
+
+  - id: ASSOC-S2-Q012
+    objective_ids: [ASSOC-S2-O4]
+    difficulty: application
+    provenance: original
+    tags: [lakeflow-connect, ingestion-gateway, cdc]
+    stem: >-
+      A managed connector ingesting change data from an operational database uses an
+      ingestion gateway. What is the gateway's role?
+    options:
+      A: >-
+        It connects to the source database and captures changes, staging them for the
+        ingestion pipeline to load into Unity Catalog.
+      B: It authenticates users querying the resulting tables.
+      C: It converts the source schema into Delta format on the client side.
+      D: It rate-limits queries against the source to protect it from load.
+    correct: A
+    explanation: >-
+      Change-data-capture ingestion is two components: a gateway that talks to the source
+      and captures its change stream into a staging area, and a pipeline that applies
+      those changes to Unity Catalog tables. Splitting them means the source connection
+      runs continuously while the loading pipeline can be scheduled and scaled
+      independently.
+    distractor_rationale:
+      B: Query authorisation is Unity Catalog's job, not the gateway's.
+      C: Conversion happens in the ingestion pipeline, not on the source side.
+      D: >-
+        Reducing source load is a benefit of CDC generally, but it is not what the
+        gateway component *is*.
+    near_misses:
+      - text: >-
+          It connects to the source database and captures changes, loading them directly into
+          Unity Catalog tables without a separate pipeline.
+        why: >-
+          The gateway only extracts and stages. A separate ingestion pipeline applies the
+          staged changes to the Unity Catalog tables.
+      - text: >-
+          It connects to the source database and takes a full snapshot on every run, loading
+          it directly into Unity Catalog tables without a separate pipeline.
+        why: >-
+          After the initial snapshot the gateway captures changes rather than re-reading
+          everything, and a separate ingestion pipeline does the loading.
+      - text: >-
+          It connects to the source database and takes a full snapshot on every run, staging
+          it for the ingestion pipeline to load into Unity Catalog.
+        why: >-
+          After the initial snapshot the gateway captures changes (change data capture or
+          change tracking), not repeated full snapshots.
+
+  # Fill-in-the-blank code questions. Every option was run on Free Edition
+  # (serverless) or compiled by CPython on 2026-10-17; the comments in each
+  # rationale say what actually happened.
+  - id: ASSOC-S2-Q015
+    objective_ids: [ASSOC-S2-O3]
+    difficulty: application
+    provenance: original
+    tags: [auto-loader, schema-location, code]
+    stem: >-
+      No schema is supplied: Auto Loader must infer it, and add columns as they appear.
+      Which line completes the reader?
+    code_language: python
+    option_style: code
+    code: |-
+      (spark.readStream
+          .format("cloudFiles")
+          .option("cloudFiles.format", "json")
+          ________
+          .load("/Volumes/main/raw/orders")
+        .writeStream
+          .option("checkpointLocation", "/Volumes/main/raw/_checkpoints/orders")
+          .trigger(availableNow=True)
+          .toTable("main.bronze.orders"))
+    options:
+      A: |-
+        .option("cloudFiles.schemaLocation", "/Volumes/main/raw/_schemas/orders")
+      B: |-
+        .option("cloudFiles.schemaEvolutionMode", "addNewColumns")
+      C: |-
+        .option("checkpointLocation", "/Volumes/main/raw/_schemas/orders")
+      D: |-
+        .option("cloudFiles.inferColumnTypes", "true")
+    correct: A
+    explanation: >-
+      Inferring a schema and evolving it both need somewhere to keep the schema between
+      runs, and that is cloudFiles.schemaLocation. Without it the stream will not start:
+      CLOUDFILES_SCHEMA_LOCATION_REQUIRED. addNewColumns is already the default mode when
+      Auto Loader infers the schema, so naming it adds nothing.
+    distractor_rationale:
+      B: >-
+        Naming the evolution mode does not give it anywhere to store the schema; the stream
+        still fails with CLOUDFILES_SCHEMA_LOCATION_REQUIRED.
+      C: >-
+        checkpointLocation belongs to the writer. On the reader it is ignored, and the
+        stream fails asking for a schema location.
+      D: >-
+        inferColumnTypes changes how types are inferred, not where the schema is kept;
+        the stream still fails asking for a schema location.
+    near_misses:
+      - text: |-
+          .option("schemaLocation", "/Volumes/main/raw/_schemas/orders")
+        why: >-
+          Without the cloudFiles. prefix the option is not Auto Loader's: the stream fails
+          with CLOUDFILES_SCHEMA_LOCATION_REQUIRED.
+      - text: |-
+          .option("cloudFiles.schemaPath", "/Volumes/main/raw/_schemas/orders")
+        why: >-
+          There is no cloudFiles.schemaPath. The unknown option is silently ignored and the
+          stream fails asking for cloudFiles.schemaLocation.
+      - text: |-
+          .option("schemaLocation" = "/Volumes/main/raw/_schemas/orders")
+        why: >-
+          A key and value are two arguments, not an assignment: this is a Python
+          SyntaxError before Spark sees it.
+
+  - id: ASSOC-S2-Q016
+    objective_ids: [ASSOC-S2-O3]
+    difficulty: application
+    provenance: original
+    tags: [auto-loader, options, python, code]
+    stem: >-
+      The files are JSON, and the schema is kept in /Volumes/main/raw/_schemas/events.
+      Which line completes the reader?
+    code_language: python
+    option_style: code
+    code: |-
+      events = (spark.readStream
+                  .format("cloudFiles")
+                  ________
+                  .load("/Volumes/main/raw/events"))
+    options:
+      A: |-
+        .options(**{"cloudFiles.format": "json", "cloudFiles.schemaLocation": "/Volumes/main/raw/_schemas/events"})
+      B: |-
+        .options({"cloudFiles.format": "json", "cloudFiles.schemaLocation": "/Volumes/main/raw/_schemas/events"})
+      C: |-
+        .options(cloudFiles.format="json", cloudFiles.schemaLocation="/Volumes/main/raw/_schemas/events")
+      D: |-
+        .option("cloudFiles.format", "json", "cloudFiles.schemaLocation", "/Volumes/main/raw/_schemas/events")
+    correct: A
+    explanation: >-
+      options() takes keyword arguments, and Auto Loader's keys contain a dot, which a
+      Python keyword cannot. Unpacking a dict with ** is how you pass dotted keys to
+      options(); the alternative is one .option(key, value) call per setting. The exam
+      likes this because every wrong form looks almost right.
+    distractor_rationale:
+      B: >-
+        A dict passed positionally is one argument too many: TypeError,
+        options() takes 1 positional argument but 2 were given.
+      C: >-
+        A keyword argument cannot contain a dot: Python rejects it as a SyntaxError
+        before anything runs.
+      D: >-
+        option() takes exactly one key and one value: TypeError, option() takes 3
+        positional arguments but 5 were given.
+    near_misses:
+      - text: |-
+          .options(**{"format": "json", "schemaLocation": "/Volumes/main/raw/_schemas/events"})
+        why: >-
+          Without the cloudFiles. prefix Auto Loader finds no format of its own:
+          CF_FILE_FORMAT_REQUIRED, could not find required option cloudFiles.format.
+      - text: |-
+          .options(*{"format": "json", "schemaLocation": "/Volumes/main/raw/_schemas/events"})
+        why: >-
+          One star unpacks only the keys, as positional arguments (TypeError, options()
+          takes 1 positional argument); the keys also lack the cloudFiles. prefix.
+      - text: |-
+          .options(*{"cloudFiles.format": "json", "cloudFiles.schemaLocation": "/Volumes/main/raw/_schemas/events"})
+        why: >-
+          One star unpacks the dict's keys as positional arguments: TypeError, options()
+          takes 1 positional argument but 3 were given. It takes two stars.
+
+  - id: ASSOC-S2-Q017
+    objective_ids: [ASSOC-S2-O2]
+    difficulty: application
+    provenance: original
+    tags: [copy-into, csv, header, sql, code]
+    stem: >-
+      The CSV files start with a header row naming the columns. Which clause completes
+      the statement?
+    code_language: sql
+    option_style: code
+    code: |-
+      COPY INTO main.bronze.orders
+      FROM (
+        SELECT order_id, CAST(unit_price AS DOUBLE) AS unit_price
+        FROM '/Volumes/main/raw/orders'
+      )
+      FILEFORMAT = CSV
+      ________
+    options:
+      A: |-
+        FORMAT_OPTIONS ('header' = 'true')
+      B: |-
+        OPTIONS ('header' = 'true')
+      C: |-
+        FORMAT_OPTIONS (header = true)
+      D: |-
+        FORMAT_OPTIONS ('inferSchema' = 'true')
+    correct: A
+    explanation: >-
+      header describes how to read the file, so it is a format option. COPY INTO keeps
+      reader settings (FORMAT_OPTIONS) apart from settings about the load itself
+      (COPY_OPTIONS, such as mergeSchema or force). Without the header option the CSV
+      columns arrive as _c0 and _c1 and the SELECT cannot find order_id.
+    distractor_rationale:
+      B: >-
+        COPY INTO has no OPTIONS clause: PARSE_SYNTAX_ERROR at OPTIONS.
+      C: >-
+        Keys and values must be quoted strings: PARSE_SYNTAX_ERROR at header.
+      D: >-
+        Inferring types does not name the columns; without a header they are still _c0 and
+        _c1, so order_id cannot be resolved.
+    near_misses:
+      - text: |-
+          FORMAT_OPTIONS ('header': 'true')
+        why: >-
+          Options are written 'key' = 'value'. A colon is PARSE_SYNTAX_ERROR, missing EQ.
+      - text: |-
+          COPY_OPTIONS ('header': 'true')
+        why: >-
+          The colon is a PARSE_SYNTAX_ERROR (missing EQ), and header belongs in FORMAT_OPTIONS
+          anyway.
+      - text: |-
+          COPY_OPTIONS ('header' = 'true')
+        why: >-
+          COPY_OPTIONS does not read files, and it does not complain about a key it does not
+          use: header is silently ignored and the SELECT fails with UNRESOLVED_COLUMN (did
+          you mean _c0, _c1?).
+
+  - id: ASSOC-S2-Q018
+    objective_ids: [ASSOC-S2-O5]
+    difficulty: application
+    provenance: original
+    tags: [jdbc, secrets, python, code]
+    stem: >-
+      The database password is stored under the key etl_reader_password in the secret
+      scope erp. Which expression completes the first line?
+    code_language: python
+    option_style: code
+    code: |-
+      password = ________
+
+      orders = (spark.read.format("jdbc")
+                  .option("url", "jdbc:postgresql://erp.internal:5432/sales")
+                  .option("dbtable", "public.orders")
+                  .option("user", "etl_reader")
+                  .option("password", password)
+                  .load())
+    options:
+      A: |-
+        dbutils.secrets.get(scope="erp", key="etl_reader_password")
+      B: |-
+        dbutils.secrets.get(scope="erp", name="etl_reader_password")
+      C: |-
+        dbutils.secrets.get("erp/etl_reader_password")
+      D: |-
+        dbutils.secrets.getBytes(scope="erp")
+    correct: A
+    explanation: >-
+      dbutils.secrets.get takes a scope and a key and returns the value as a string,
+      which Databricks shows as [REDACTED] if it is printed. The positional form
+      dbutils.secrets.get("erp", "etl_reader_password") works too.
+    distractor_rationale:
+      B: >-
+        The parameter is key, not name: TypeError, get() got an unexpected keyword
+        argument 'name'.
+      C: >-
+        A secret is not addressed by a path: TypeError, get() missing 1 required
+        positional argument: 'key'.
+      D: >-
+        getBytes also needs a key, and it returns bytes rather than the string the JDBC
+        password option expects.
+    near_misses:
+      - text: |-
+          dbutils.secret.get(scope="erp", key="etl_reader_password")
+        why: >-
+          The module is dbutils.secrets, plural: dbutils.secret raises AttributeError.
+      - text: |-
+          dbutils.secrets.get(scope="etl_reader_password", key="erp")
+        why: >-
+          Scope and key are swapped, so it looks for a key erp in a scope named
+          etl_reader_password, which does not exist.
+      - text: |-
+          dbutils.secret.get(scope="etl_reader_password", key="erp")
+        why: >-
+          Two mistakes: dbutils.secret does not exist (AttributeError), and the scope and
+          key are swapped.
+
+  - id: ASSOC-S2-Q019
+    objective_ids: [ASSOC-S2-O7]
+    difficulty: application
+    provenance: original
+    tags: [semi-structured, explode, sql, code]
+    stem: >-
+      items is an ARRAY<STRUCT<sku: STRING, qty: INT>>. The result must have one row
+      per item, with the whole struct in item. Which expression fills the blank?
+    code_language: sql
+    option_style: code
+    code: |-
+      SELECT order_id, ________ AS item
+      FROM main.bronze.orders;
+    options:
+      A: |-
+        explode(items)
+      B: |-
+        flatten(items)
+      C: |-
+        inline(items)
+      D: |-
+        explode(items.sku)
+    correct: A
+    explanation: >-
+      explode turns each element of an array into its own row, and with one alias the
+      element - here the whole struct - lands in that column. Order 1 with two items
+      becomes two rows. (explode_outer would also work here; it differs only in keeping
+      orders whose array is empty or null.)
+    distractor_rationale:
+      B: >-
+        flatten merges an array of arrays into one array. On an array of structs it is a
+        type error: the first parameter requires ARRAY of ARRAY.
+      C: >-
+        inline also makes one row per element, but spreads the struct into its fields
+        (sku, qty), so one alias is wrong: UDTF_ALIAS_NUMBER_MISMATCH, expected 2 aliases.
+      D: >-
+        This runs, but items.sku is an array of the sku strings only: each row holds 'a',
+        not the struct, so qty is lost.
+    near_misses:
+      - text: |-
+          posexplode(items)
+        why: >-
+          posexplode returns two columns, the position and the element, so one alias fails:
+          UDTF_ALIAS_NUMBER_MISMATCH, expected 2 aliases.
+      - text: |-
+          posexplode(items[0])
+        why: >-
+          items[0] is a single struct, not an array, so there is nothing to explode; and
+          posexplode would need two aliases anyway.
+      - text: |-
+          explode(items[0])
+        why: >-
+          items[0] is a single struct, not an array, so there is nothing to explode: a data
+          type mismatch.

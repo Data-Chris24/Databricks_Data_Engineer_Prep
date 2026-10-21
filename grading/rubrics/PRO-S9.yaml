@@ -1,0 +1,58 @@
+# Advisory AI review for PRO-S9. Never overturns the unit tests.
+assignment: PRO-S9
+objective_ids: [PRO-S9-O1, PRO-S9-O2, PRO-S9-O3]
+
+context: >-
+  A pipeline reported SUCCESS every day while producing incomplete output for six of
+  them. The learner had to diagnose it with no exception, no error class, and no
+  failed operation anywhere in the table history.
+
+criteria:
+  - id: compared_runs
+    weight: critical
+    asks: Did they compare runs against each other, or inspect one in isolation?
+    good: >-
+      A per-day trend with the change between days as the signal - lag, or an explicit
+      before-and-after comparison.
+    poor: >-
+      Aggregate statistics over the whole table, which average the healthy and degraded
+      periods together and hide the regression completely.
+
+  - id: dated_the_regression
+    weight: high
+    asks: Did they find when it started, or only that it is broken?
+    good: The first degraded day, identified as the point the source count drops and stays down.
+    poor: >-
+      "Some data is missing" with no date, which tells an on-call engineer nothing about
+      what changed or when.
+
+  - id: quantified
+    weight: high
+    asks: Is the impact estimated, or just described?
+    good: Healthy daily average against degraded, times the affected days, with the method visible.
+    poor: A number with no derivation, or none at all.
+
+  - id: resisted_the_green_run
+    weight: medium
+    asks: >-
+      Is it clear they understand a successful run is not evidence of correctness?
+    good: Reasoning that treats run state and data correctness as separate questions.
+    poor: >-
+      Surprise that a green run could be wrong, or a search for an error message that
+      does not exist.
+
+  - id: gaming
+    weight: critical
+    asks: Was the report derived from the data?
+    good: Every number computed.
+    poor: Hardcoded values matching the fixtures.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues: [{severity: high | medium | low, location: string, note: string}]
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail.
+  - Judge the approach, not formatting or naming.

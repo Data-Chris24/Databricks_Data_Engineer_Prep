@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unity Catalog privilege inheritance</title>
+<style>
+  :root {
+    --fg: #1f2328;
+    --muted: #59636e;
+    --line: #d0d7de;
+    --panel: rgba(127, 127, 127, 0.06);
+    --accent: #0b6bcb;
+    --accent-fg: #ffffff;
+    --ok: #1a7f37;
+    --ok-bg: rgba(26, 127, 55, 0.12);
+    --bad: #b42318;
+    --bad-bg: rgba(180, 35, 24, 0.10);
+    --warn: #8a5a00;
+    --code-bg: rgba(127, 127, 127, 0.12);
+    --focus: #0b6bcb;
+    --new: rgba(11, 107, 203, 0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #e6edf3;
+      --muted: #9da7b3;
+      --line: #3d444d;
+      --panel: rgba(255, 255, 255, 0.04);
+      --accent: #4c9eea;
+      --accent-fg: #0d1117;
+      --ok: #56d364;
+      --ok-bg: rgba(86, 211, 100, 0.14);
+      --bad: #ff7b72;
+      --bad-bg: rgba(255, 123, 114, 0.13);
+      --warn: #e3b341;
+      --code-bg: rgba(255, 255, 255, 0.08);
+      --focus: #79c0ff;
+      --new: rgba(76, 158, 234, 0.16);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: transparent;
+    color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { padding: 4px 2px 8px; max-width: 760px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 16px 0 6px; }
+  p { margin: 4px 0; }
+  code, .sql { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  code { background: var(--code-bg); padding: 0 4px; border-radius: 4px; }
+  button {
+    font: inherit; color: inherit; cursor: pointer;
+    border: 1px solid var(--line); background: transparent; border-radius: 6px;
+    padding: 4px 10px; min-height: 32px;
+  }
+  button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .label { color: var(--muted); font-size: 13px; margin-right: 2px; }
+
+  /* tree */
+  .tree { list-style: none; margin: 8px 0 0; padding: 0; }
+  .node { border-left: 2px solid var(--line); padding: 6px 0 6px 10px; }
+  .node.d0 { border-left: 0; padding-left: 0; }
+  .node.d1 { margin-left: 4px; }
+  .node.d2 { margin-left: 22px; }
+  .node.d3 { margin-left: 40px; }
+  .node.isnew { background: var(--new); border-radius: 0 6px 6px 0; }
+  .nodehead { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+  .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); min-width: 52px; }
+  .name { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 600; font-size: 13px; }
+  .tag { font-size: 12px; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .chip { padding: 3px 8px; min-height: 30px; font-size: 12.5px; display: inline-flex; gap: 6px; align-items: center; }
+  .chip .st { font-size: 11.5px; }
+  .chip.direct { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .chip.inherited { border-style: dashed; border-color: var(--accent); color: var(--accent); }
+  .chip.none { color: var(--muted); }
+  @media (max-width: 420px) { .node.d2 { margin-left: 12px; } .node.d3 { margin-left: 22px; } }
+
+  .actions { margin-top: 10px; }
+  .stmt { margin-top: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+  .stmt .sql { display: block; white-space: pre-wrap; word-break: break-word; }
+  .msg { margin-top: 4px; }
+  .msg.bad { color: var(--bad); }
+  .msg.warn { color: var(--warn); }
+
+  /* matrix */
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; color: var(--muted); font-size: 12px; }
+  td.yes { color: var(--ok); background: var(--ok-bg); }
+  td.no { color: var(--bad); background: var(--bad-bg); }
+  td .why { display: block; font-size: 11.5px; }
+  .grants td, .grants th { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+
+  /* query preview */
+  .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+  @media (max-width: 560px) { .cards { grid-template-columns: 1fr; } }
+  .card { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: var(--panel); min-width: 0; }
+  .card h3 { margin: 0 0 4px; font-size: 13px; }
+  .card table { font-size: 12px; }
+  .card td, .card th { padding: 2px 4px; }
+  .err { color: var(--bad); font-size: 12px; word-break: break-word; }
+  .note { color: var(--muted); font-size: 12.5px; }
+  pre.fn { margin: 6px 0 0; padding: 6px 8px; background: var(--code-bg); border-radius: 6px; white-space: pre-wrap; word-break: break-word; font-size: 12px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row" role="group" aria-label="Principal whose grants you edit">
+    <span class="label">Grants for</span>
+    <span id="principals" class="row"></span>
+  </div>
+  <p class="note">Each chip shows one privilege on one object for this principal: filled = granted on that object, dashed = inherited from above, plain = not held. Activate a chip to run the <code>GRANT</code> or <code>REVOKE</code> it names.</p>
+
+  <ul class="tree" id="tree" aria-label="Securable hierarchy"></ul>
+
+  <div class="row actions">
+    <button id="addTable" type="button"></button>
+    <button id="deny" type="button">Try <code>DENY</code></button>
+    <button id="reset" type="button">Reset</button>
+  </div>
+
+  <div class="stmt">
+    <span class="sql" id="sql">-- activate a chip to run a statement</span>
+    <div class="msg" id="msg" aria-live="polite"></div>
+  </div>
+
+  <h2 id="h-matrix">Who can read what</h2>
+  <table aria-labelledby="h-matrix" id="matrix"></table>
+
+  <h2 id="h-grants">SHOW GRANTS ON TABLE</h2>
+  <div class="row" role="group" aria-label="Table for SHOW GRANTS" id="grantTabs"></div>
+  <table class="grants" id="grants" aria-labelledby="h-grants" style="margin-top:6px"></table>
+  <p class="note">Inherited grants appear with the object they live on. <code>USE CATALOG</code> and <code>USE SCHEMA</code> never appear here, so this listing cannot show the traversal trap.</p>
+
+  <h2 id="h-rls">Row filter and column mask</h2>
+  <div class="row" role="group" aria-label="Fine-grained controls">
+    <button id="tFilter" type="button" aria-pressed="false">Row filter on <code>orders</code></button>
+    <button id="tMask" type="button" aria-pressed="false">Column mask on <code>customers.email</code></button>
+  </div>
+  <pre class="fn" id="fnText"></pre>
+  <div class="row" role="group" aria-label="Query to run as each principal" style="margin-top:8px">
+    <span class="label">Run as each principal</span>
+    <span id="queryTabs" class="row"></span>
+  </div>
+  <div class="cards" id="cards" aria-live="polite"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var PRINCIPALS = ["analysts", "engineers", "support"];
+  var CAT = "main", SCH = "main.sales";
+  var BASE_OBJECTS = [
+    { id: "orders", kind: "table", tag: "row filter can attach" },
+    { id: "customers", kind: "table", tag: "column mask can attach" },
+    { id: "v_us_sales", kind: "view", tag: "reads with its owner's rights on orders" }
+  ];
+  var LATER = { id: "refunds", kind: "table", tag: "created after the grants" };
+
+  var ORDERS = [
+    { id: 1, region: "US", amount: 120 },
+    { id: 2, region: "EU", amount: 80 },
+    { id: 3, region: "US", amount: 45 },
+    { id: 4, region: "APAC", amount: 300 }
+  ];
+  var CUSTOMERS = [
+    { id: 1, name: "Ada", email: "ada@example.com" },
+    { id: 2, name: "Lin", email: "lin@example.com" }
+  ];
+
+  var state;
+  function initialState() {
+    return {
+      who: "analysts",
+      laterExists: false,
+      filter: false,
+      mask: false,
+      grantsTable: "orders",
+      query: "orders",
+      // key: principal|securable|privilege, securable is "catalog", "schema" or an object id
+      grants: new Set([
+        "analysts|catalog|USE CATALOG",
+        "analysts|schema|USE SCHEMA",
+        "analysts|schema|SELECT",
+        "engineers|orders|SELECT",
+        "support|catalog|USE CATALOG",
+        "support|schema|USE SCHEMA",
+        "support|customers|SELECT"
+      ])
+    };
+  }
+  state = initialState();
+
+  function objects() { return state.laterExists ? BASE_OBJECTS.concat([LATER]) : BASE_OBJECTS; }
+  function objById(id) { return objects().filter(function (o) { return o.id === id; })[0]; }
+  function has(p, s, priv) { return state.grants.has(p + "|" + s + "|" + priv); }
+
+  function fqn(s) { return s === "catalog" ? CAT : s === "schema" ? SCH : SCH + "." + s; }
+  function secType(s) {
+    if (s === "catalog") return "CATALOG";
+    if (s === "schema") return "SCHEMA";
+    return objById(s) && objById(s).kind === "view" ? "VIEW" : "TABLE";
+  }
+  // Securables above s, nearest first.
+  function parents(s) {
+    if (s === "catalog") return [];
+    if (s === "schema") return ["catalog"];
+    return ["schema", "catalog"];
+  }
+  // Where a privilege that applies to s comes from: s itself, then its parents.
+  function sources(p, s, priv) {
+    return [s].concat(parents(s)).filter(function (x) { return has(p, x, priv); });
+  }
+
+  function access(p, objId) {
+    if (!has(p, "catalog", "USE CATALOG"))
+      return { ok: false, why: "no USE CATALOG", err: "User does not have USE CATALOG on Catalog '" + CAT + "'." };
+    if (!sources(p, "schema", "USE SCHEMA").length)
+      return { ok: false, why: "no USE SCHEMA", err: "User does not have USE SCHEMA on Schema '" + SCH + "'." };
+    if (!sources(p, objId, "SELECT").length)
+      return { ok: false, why: "no SELECT", err: "User does not have SELECT on " + (secType(objId) === "VIEW" ? "View" : "Table") + " '" + fqn(objId) + "'." };
+    return { ok: true };
+  }
+
+  // Which privileges each level can hold in this diagram.
+  function privsFor(s) {
+    if (s === "catalog") return ["USE CATALOG", "USE SCHEMA", "SELECT"];
+    if (s === "schema") return ["USE SCHEMA", "SELECT"];
+    return ["SELECT"];
+  }
+
+  var el = function (id) { return document.getElementById(id); };
+  function h(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === "text") n.textContent = attrs[k];
+      else if (k === "html") n.innerHTML = attrs[k];
+      else if (k === "class") n.className = attrs[k];
+      else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), attrs[k]);
+      else n.setAttribute(k, attrs[k]);
+    });
+    (kids || []).forEach(function (c) { if (c != null) n.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return n;
+  }
+
+  function say(sql, text, tone) {
+    el("sql").textContent = sql;
+    var m = el("msg");
+    m.className = "msg" + (tone ? " " + tone : "");
+    m.textContent = text;
+  }
+
+  function lower(s) { return s === "catalog" ? "catalog" : s === "schema" ? "schema" : secType(s).toLowerCase(); }
+
+  function readSummary(p) {
+    var r = objects().filter(function (o) { return access(p, o.id).ok; }).map(function (o) { return o.id; });
+    return p + " can now read " + (r.length ? r.join(", ") : "nothing") + ".";
+  }
+
+  function activateChip(s, priv) {
+    var p = state.who, key = p + "|" + s + "|" + priv;
+    var on = "ON " + secType(s) + " " + fqn(s);
+    var above = parents(s).filter(function (x) { return has(p, x, priv); });
+    if (state.grants.has(key)) {
+      state.grants.delete(key);
+      var tail = above.length
+        ? " It is still inherited from " + lower(above[0]) + " " + fqn(above[0]) + ", so access is unchanged. "
+        : " ";
+      say("REVOKE " + priv + " " + on + " FROM `" + p + "`;", "Revoked." + tail + readSummary(p));
+    } else if (above.length) {
+      say("REVOKE " + priv + " " + on + " FROM `" + p + "`;",
+        "Succeeded, and nothing changed. There is no " + priv + " grant on this " + lower(s) +
+        ": it lives on " + lower(above[0]) + " " + fqn(above[0]) +
+        ". Unity Catalog has no DENY to block an inherited privilege, so revoke it where it was granted.", "warn");
+    } else {
+      state.grants.add(key);
+      var reach = s === "catalog" && priv === "SELECT" ? " It applies to every table and view in " + CAT + ", now and later. "
+        : s === "catalog" && priv === "USE SCHEMA" ? " It applies to every schema in " + CAT + ", now and later. "
+        : s === "catalog" ? " "
+        : s === "schema" ? (priv === "SELECT" ? " It applies to every table and view in " + SCH + ", now and later. " : " ")
+        : " ";
+      say("GRANT " + priv + " " + on + " TO `" + p + "`;", "Granted." + reach + readSummary(p));
+    }
+    render("chip:" + s + ":" + priv);
+  }
+
+  function chip(s, priv) {
+    var p = state.who;
+    var src = sources(p, s, priv);
+    var cls, st, label;
+    if (has(p, s, priv)) {
+      cls = "direct"; st = "granted";
+      label = priv + " on " + fqn(s) + ": granted here. Activate to revoke.";
+      if (src.length > 1) { st = "granted, also via " + lower(src[1]); label = priv + " on " + fqn(s) + ": granted here and inherited from " + lower(src[1]) + ". Activate to revoke the grant here."; }
+    } else if (src.length) {
+      cls = "inherited"; st = "via " + lower(src[0]);
+      label = priv + " on " + fqn(s) + ": inherited from " + lower(src[0]) + " " + fqn(src[0]) + ". Activate to try REVOKE on this " + lower(s) + ".";
+    } else {
+      cls = "none"; st = "";
+      label = priv + " on " + fqn(s) + ": not held. Activate to grant.";
+    }
+    return h("button", {
+      type: "button", class: "chip " + cls, "data-focus": "chip:" + s + ":" + priv, "aria-label": label,
+      onclick: function () { activateChip(s, priv); }
+    }, [h("span", { text: priv }), st ? h("span", { class: "st", text: st }) : null]);
+  }
+
+  function nodeLi(depth, kind, name, s, tag, isNew) {
+    return h("li", { class: "node d" + depth + (isNew ? " isnew" : "") }, [
+      h("div", { class: "nodehead" }, [
+        h("span", { class: "kind", text: kind }),
+        h("span", { class: "name", text: name }),
+        tag ? h("span", { class: "tag", text: tag }) : null
+      ]),
+      s ? h("div", { class: "chips" }, privsFor(s).map(function (pv) { return chip(s, pv); })) : null
+    ]);
+  }
+
+  function renderPrincipals() {
+    var box = el("principals"); box.innerHTML = "";
+    PRINCIPALS.forEach(function (p) {
+      box.appendChild(h("button", {
+        type: "button", "aria-pressed": String(state.who === p), "data-focus": "who:" + p,
+        onclick: function () { state.who = p; say(el("sql").textContent, "Editing grants for " + p + ". " + readSummary(p)); render("who:" + p); }
+      }, [p]));
+    });
+  }
+
+  function renderTree() {
+    var t = el("tree"); t.innerHTML = "";
+    t.appendChild(nodeLi(0, "metastore", "metastore", null, "holds catalogs; SELECT and USE are not granted here"));
+    t.appendChild(nodeLi(1, "catalog", CAT, "catalog"));
+    t.appendChild(nodeLi(2, "schema", "sales", "schema"));
+    objects().forEach(function (o) { t.appendChild(nodeLi(3, o.kind, o.id, o.id, o.tag, o === LATER)); });
+    el("addTable").innerHTML = state.laterExists ? "Drop <code>refunds</code>" : "Create table <code>refunds</code> now";
+  }
+
+  function renderMatrix() {
+    var m = el("matrix"); m.innerHTML = "";
+    m.appendChild(h("thead", null, [h("tr", null, [h("th", { scope: "col", text: "object" })].concat(
+      PRINCIPALS.map(function (p) { return h("th", { scope: "col", text: p }); })))]));
+    var body = h("tbody");
+    objects().forEach(function (o) {
+      body.appendChild(h("tr", null, [h("th", { scope: "row", class: "name", text: o.id })].concat(PRINCIPALS.map(function (p) {
+        var a = access(p, o.id);
+        return a.ok ? h("td", { class: "yes" }, ["reads"]) : h("td", { class: "no" }, ["fails", h("span", { class: "why", text: a.why })]);
+      }))));
+    });
+    m.appendChild(body);
+  }
+
+  function renderGrants() {
+    var tabs = el("grantTabs"); tabs.innerHTML = "";
+    if (!objById(state.grantsTable)) state.grantsTable = "orders";
+    objects().forEach(function (o) {
+      tabs.appendChild(h("button", {
+        type: "button", "aria-pressed": String(state.grantsTable === o.id), "data-focus": "gt:" + o.id,
+        onclick: function () { state.grantsTable = o.id; render("gt:" + o.id); }
+      }, [o.id]));
+    });
+    var g = el("grants"); g.innerHTML = "";
+    g.appendChild(h("thead", null, [h("tr", null, ["Principal", "ActionType", "ObjectType", "ObjectKey"].map(function (c) { return h("th", { scope: "col", text: c }); }))]));
+    var body = h("tbody"), rows = 0, s = state.grantsTable;
+    PRINCIPALS.forEach(function (p) {
+      [s, "schema", "catalog"].forEach(function (lvl) {
+        if (has(p, lvl, "SELECT")) {
+          rows++;
+          body.appendChild(h("tr", null, [p, "SELECT", secType(lvl), fqn(lvl)].map(function (c) { return h("td", { text: c }); })));
+        }
+      });
+    });
+    if (!rows) body.appendChild(h("tr", null, [h("td", { colspan: "4", text: "(no rows)" })]));
+    g.appendChild(body);
+  }
+
+  var FN_FILTER = "CREATE FUNCTION main.sec.us_only(region STRING)\n  RETURN is_account_group_member('engineers') OR region = 'US';\nALTER TABLE main.sales.orders SET ROW FILTER main.sec.us_only ON (region);";
+  var FN_MASK = "CREATE FUNCTION main.sec.mask_email(email STRING)\n  RETURN CASE WHEN is_account_group_member('support') THEN email ELSE '***' END;\nALTER TABLE main.sales.customers ALTER COLUMN email SET MASK main.sec.mask_email;";
+
+  function renderQuery() {
+    var parts = [];
+    if (state.filter) parts.push(FN_FILTER);
+    if (state.mask) parts.push(FN_MASK);
+    el("fnText").textContent = parts.length ? parts.join("\n\n") : "-- no row filter or column mask: every reader who can query a table sees all of it";
+    el("tFilter").setAttribute("aria-pressed", String(state.filter));
+    el("tMask").setAttribute("aria-pressed", String(state.mask));
+
+    var qt = el("queryTabs"); qt.innerHTML = "";
+    ["orders", "customers"].forEach(function (t) {
+      qt.appendChild(h("button", {
+        type: "button", "aria-pressed": String(state.query === t), "data-focus": "q:" + t,
+        onclick: function () { state.query = t; render("q:" + t); }
+      }, [h("code", { text: "SELECT * FROM " + t })]));
+    });
+
+    var cards = el("cards"); cards.innerHTML = "";
+    PRINCIPALS.forEach(function (p) {
+      var a = access(p, state.query), kids = [h("h3", { text: p })];
+      if (!a.ok) {
+        kids.push(h("div", { class: "err", text: "[INSUFFICIENT_PERMISSIONS] " + a.err }));
+      } else if (state.query === "orders") {
+        var rows = ORDERS.filter(function (r) { return !state.filter || p === "engineers" || r.region === "US"; });
+        kids.push(h("div", { class: "note", text: rows.length + " of " + ORDERS.length + " rows" }));
+        kids.push(miniTable(["id", "region", "amount"], rows.map(function (r) { return [r.id, r.region, r.amount]; })));
+      } else {
+        var masked = state.mask && p !== "support";
+        kids.push(h("div", { class: "note", text: masked ? "email masked" : "email in full" }));
+        kids.push(miniTable(["id", "name", "email"], CUSTOMERS.map(function (r) { return [r.id, r.name, masked ? "***" : r.email]; })));
+      }
+      cards.appendChild(h("div", { class: "card" }, kids));
+    });
+  }
+
+  function miniTable(cols, rows) {
+    return h("table", null, [
+      h("thead", null, [h("tr", null, cols.map(function (c) { return h("th", { scope: "col", text: c }); }))]),
+      h("tbody", null, rows.map(function (r) { return h("tr", null, r.map(function (v) { return h("td", { text: String(v) }); })); }))
+    ]);
+  }
+
+  function render(focusKey) {
+    renderPrincipals(); renderTree(); renderMatrix(); renderGrants(); renderQuery();
+    if (focusKey) {
+      var f = document.querySelector('[data-focus="' + focusKey + '"]');
+      if (f) f.focus();
+    }
+  }
+
+  el("addTable").addEventListener("click", function () {
+    state.laterExists = !state.laterExists;
+    if (state.laterExists) {
+      var who = PRINCIPALS.filter(function (p) { return access(p, "refunds").ok; });
+      say("CREATE TABLE main.sales.refunds (id INT, amount DECIMAL(10,2));",
+        "Created. Nobody granted anything on refunds, yet " + (who.length ? who.join(" and ") + " can read it already: SELECT on the schema or catalog covers tables created later." : "no one can read it: nobody holds SELECT on the schema or catalog, which is what would cover a new table."));
+    } else {
+      PRINCIPALS.forEach(function (p) { state.grants.delete(p + "|refunds|SELECT"); });
+      say("DROP TABLE main.sales.refunds;", "Dropped, along with any grants made on it.");
+    }
+    render("addTable");
+  });
+  el("deny").addEventListener("click", function () {
+    say("DENY SELECT ON TABLE main.sales.orders TO `" + state.who + "`;",
+      "[UC_COMMAND_NOT_SUPPORTED.WITHOUT_RECOMMENDATION] The command(s): DENY are not supported in Unity Catalog. Narrow access by revoking where the grant lives, or with a row filter or column mask.", "bad");
+  });
+  el("reset").addEventListener("click", function () {
+    state = initialState();
+    say("-- activate a chip to run a statement", "Reset to the starting grants.");
+    render();
+  });
+  el("tFilter").addEventListener("click", function () {
+    state.filter = !state.filter;
+    say(state.filter ? "ALTER TABLE main.sales.orders SET ROW FILTER main.sec.us_only ON (region);" : "ALTER TABLE main.sales.orders DROP ROW FILTER;",
+      state.filter ? "Row filter on. Same table, same query: engineers see every row, other readers only US rows. No grant changed." : "Row filter off: every reader of orders sees every row.");
+    render("tFilter");
+  });
+  el("tMask").addEventListener("click", function () {
+    state.mask = !state.mask;
+    say(state.mask ? "ALTER TABLE main.sales.customers ALTER COLUMN email SET MASK main.sec.mask_email;" : "ALTER TABLE main.sales.customers ALTER COLUMN email DROP MASK;",
+      state.mask ? "Column mask on. support sees email in full, every other reader sees ***. No grant changed." : "Column mask off: every reader of customers sees email in full.");
+    render("tMask");
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

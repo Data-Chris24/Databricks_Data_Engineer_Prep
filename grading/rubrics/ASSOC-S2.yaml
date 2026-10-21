@@ -1,0 +1,79 @@
+# Rubric for the optional AI reviewer. Advisory only - it can never overturn the
+# unit tests, which are authoritative. See docs/grading.md.
+#
+# The point of this tier is the thing tests cannot see: whether the learner used
+# the technique the objective is about, or arrived at the right numbers by a
+# route that will not generalise.
+assignment: ASSOC-S2
+objective_ids: [ASSOC-S2-O1, ASSOC-S2-O3, ASSOC-S2-O6, ASSOC-S2-O7]
+
+context: >-
+  The learner had to turn nested sensor-telemetry JSON into a flat, deduplicated
+  silver table. The source has an array of readings per document, epoch-millisecond
+  timestamps, replayed event ids, and a column that appears only in the third batch.
+
+criteria:
+  - id: schema_merge
+    weight: high
+    asks: >-
+      Did they handle the batch whose schema differs, rather than hardcoding the
+      column list or reading only the file that happens to contain battery_pct?
+    good: Reads all files with schema merging, or uses Auto Loader with evolution.
+    poor: Reads one file, or unions hardcoded per-file schemas.
+
+  - id: explode
+    weight: high
+    asks: Did they explode the array, or work around the nesting?
+    good: A single explode producing the required grain.
+    poor: >-
+      Indexing fixed positions (readings[0], readings[1], ...), which silently
+      drops readings beyond the assumed maximum.
+
+  - id: timestamp_units
+    weight: high
+    asks: Did they convert epoch milliseconds correctly and demonstrably?
+    good: Divides by 1000 before casting; ideally checks the resulting range.
+    poor: >-
+      Casts directly and gets year-58000 dates, or hardcodes a date to satisfy the
+      range assertion.
+
+  - id: dedup_reasoning
+    weight: medium
+    asks: >-
+      Did they deduplicate on the business key with a defensible rule, or just
+      reach for whatever made the count match?
+    good: >-
+      Deduplicates on event_id, and says why keeping any one of identical replays
+      is safe here while a real pipeline would order by ingestion time.
+    poor: A blanket distinct() across all columns, or a LIMIT to hit the number.
+
+  - id: honest_nulls
+    weight: medium
+    asks: Is battery_pct null where devices did not report it?
+    good: Left null, with the reasoning that absent is not zero.
+    poor: Filled with 0 or a default, inventing data.
+
+  - id: gaming
+    weight: critical
+    asks: >-
+      Did they solve the problem, or engineer the table to satisfy the assertions?
+    good: A general transformation that would work on more data of the same shape.
+    poor: >-
+      Hardcoded values for the probed event_ids, filters producing exactly 137
+      rows, or literals matching the fixtures.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues:
+    - severity: high | medium | low
+      location: string
+      note: string
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail. Where you disagree with them, say so and
+    explain, but the tests stand.
+  - Judge the approach, not the style. Do not comment on formatting or naming.
+  - If the learner solved it a different but sound way, say so plainly rather than
+    marking it down for differing from the reference.

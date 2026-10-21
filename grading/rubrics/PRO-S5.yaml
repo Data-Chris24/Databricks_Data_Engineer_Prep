@@ -1,0 +1,60 @@
+# Advisory AI review for PRO-S5. Never overturns the unit tests.
+assignment: PRO-S5
+objective_ids: [PRO-S5-O1, PRO-S5-O2, PRO-S5-O5, PRO-S5-O6]
+
+context: >-
+  The learner designed an alert for a metric with a weekly cycle, containing a
+  gradual degradation that hides inside normal range and one benign campaign spike
+  that must not fire.
+
+criteria:
+  - id: seasonal_baseline
+    weight: critical
+    asks: Does the baseline compare like with like?
+    good: >-
+      Same day of week, so the weekly cycle cancels and both day types sit near 100% of
+      baseline.
+    poor: >-
+      A rolling average across all days, which makes every Monday look like a spike and
+      every Saturday like an incident.
+
+  - id: no_false_positives
+    weight: critical
+    asks: Does it stay quiet while the pipeline is healthy?
+    good: Silent through the healthy period, with the threshold justified rather than tuned.
+    poor: >-
+      Any alert before the degradation. An alert that cries wolf is worse than none,
+      because it costs attention and buys false confidence.
+
+  - id: direction
+    weight: high
+    asks: Does it alert on deviation, or on the deviation that matters?
+    good: Fires on drops only; the campaign spike passes without comment.
+    poor: >-
+      abs(deviation) > threshold, which treats a doubling and a halving as the same
+      event.
+
+  - id: persistence
+    weight: medium
+    asks: Is a single noisy day enough to fire?
+    good: >-
+      Requires several consecutive breaches, with the latency trade-off acknowledged.
+    poor: Fires on any single day, producing scattered alerts nobody will read.
+
+  - id: justified_the_design
+    weight: medium
+    asks: >-
+      Did they show why a fixed threshold cannot work here, or just assert that it
+      cannot?
+    good: Demonstrated the overlap between weekend range and degraded range.
+    poor: Jumped to a rolling baseline without establishing the problem.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues: [{severity: high | medium | low, location: string, note: string}]
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail.
+  - Judge the approach, not formatting or naming.

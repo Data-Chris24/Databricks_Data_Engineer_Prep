@@ -1,0 +1,751 @@
+# PRO-S2 Data Ingestion & Acquisition (7%), PRO-S3 Data Transformation, Cleansing
+# and Quality (10%), PRO-S4 Data Sharing and Federation (5%). Original questions.
+meta:
+  source: Original, written for this repository.
+  note: Covers PRO-S2-O1..O2, PRO-S3-O1..O2, PRO-S4-O1..O3.
+
+questions:
+  # ---------------------------------------------------------------- PRO-S2
+  - id: PRO-S2-Q001
+    objective_ids: [PRO-S2-O1]
+    difficulty: analysis
+    provenance: original
+    tags: [json, schema-inference, two-passes, cost]
+    stem: >-
+      A nightly job reads 2 TB of JSON files with spark.read.json(path) and no
+      schema, then writes Delta. The read phase takes twice as long as the team
+      expects. What is the most likely cause and fix?
+    options:
+      A: >-
+        Without a schema, Spark scans the files once to infer types and again to load them; supplying .schema() removes the inference pass.
+      B: >-
+        JSON is row-oriented, so it cannot be read in parallel; convert the source to Parquet first.
+      C: >-
+        The files are compressed, and decompression dominates; store them uncompressed.
+      D: >-
+        The write to Delta is what is slow; the read is fine.
+    correct: A
+    explanation: >-
+      JSON tells Spark the field names but not the types. Inference is a full pass
+      over the data before the real read. An explicit schema is one pass instead of
+      two, and it fails loudly when the source changes shape instead of quietly
+      changing your types.
+    distractor_rationale:
+      B: >-
+        JSON files are read in parallel; the extra time is the inference pass, not the format's parallelism.
+      C: >-
+        Decompression costs the same on both passes; removing one pass is the fix.
+      D: >-
+        The question describes the read phase as slow, and inference explains a doubling exactly.
+    near_misses:
+      - text: >-
+          Without a schema, Spark scans the files once to infer types and again to load them;
+          setting the inferSchema option to false removes the inference pass.
+        why: >-
+          inferSchema is a CSV option, and the JSON reader ignores it: with it set to false the
+          schema still came back with id as bigint. Only an explicit .schema() skips inference.
+      - text: >-
+          Without a schema, Spark reads a sample of the files to infer types and again to load
+          them; supplying .schema() removes the sampling pass.
+        why: >-
+          JSON inference reads every record by default (samplingRatio is 1.0). A value of "n/a"
+          in the second file turned amt into a string for the whole read, which a sample of the
+          first file would have missed.
+      - text: >-
+          Without a schema, Spark reads a sample of the files to infer types and again to load
+          them; setting the inferSchema option to false removes the sampling pass.
+        why: >-
+          Inference reads every record, not a sample, and inferSchema means nothing to the JSON
+          reader: types were still inferred with it set to false.
+
+  - id: PRO-S2-Q002
+    objective_ids: [PRO-S2-O1]
+    difficulty: application
+    provenance: original
+    tags: [union, unionByName, column-order, types]
+    stem: >-
+      Two sources deliver the same nine columns, one as CSV and one as Parquet,
+      but in different column orders. A pipeline combines them with df_csv.union(df_parquet)
+      and no error occurs. What is in the result?
+    options:
+      A: >-
+        Values placed by position, so columns are silently mixed; unionByName aligns them, and types should then be pinned explicitly.
+      B: >-
+        The rows aligned by column name, because Spark matches names when they agree.
+      C: >-
+        An error at write time, because the schemas differ.
+      D: >-
+        Only the CSV rows, because union drops rows whose schema differs.
+    correct: A
+    explanation: >-
+      union is positional: it pairs the nth column with the nth column whatever the
+      names say, and when both are strings nothing complains. unionByName lines
+      sources up by name, and casting to declared types afterwards stops a union
+      from widening a column because one source inferred it differently.
+    distractor_rationale:
+      B: >-
+        Name matching is what unionByName does; union does not look at names.
+      C: >-
+        Same width and compatible types is all union checks; the mix-up is silent.
+      D: >-
+        No rows are dropped; they are all there, in the wrong columns.
+    near_misses:
+      - text: >-
+          Values placed by position, so columns are silently mixed; unionAll aligns them, and
+          types should then be pinned explicitly.
+        why: >-
+          unionAll is another name for union. It placed the Parquet frame's name under id
+          exactly as union did; only unionByName matches columns by name.
+      - text: >-
+          Values placed by position, so columns are silently mixed; unionByName aligns them, and
+          each column then keeps the type it has in df_csv.
+        why: >-
+          A union resolves each column to a type common to both inputs. An int united with a
+          string came out as bigint, and a value like 'two' then failed with CAST_INVALID_INPUT.
+      - text: >-
+          Values placed by position, so columns are silently mixed; unionAll aligns them, and
+          each column then keeps the type it has in df_csv.
+        why: >-
+          unionAll is positional, like union, and the result's types are a common type of both
+          inputs (int and string gave bigint), not the first frame's.
+
+  - id: PRO-S2-Q003
+    objective_ids: [PRO-S2-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [append-only, streaming-source, ignore-changes]
+    stem: >-
+      A bronze Delta table is read as a stream by a silver pipeline. A batch job
+      runs an UPDATE on bronze to fix a typo. On its next trigger the silver stream
+      fails with DELTA_SOURCE_TABLE_IGNORE_CHANGES. Why, and what is the right
+      long-term design?
+    options:
+      A: >-
+        A stream can read a Delta table only while its history is append-only; an update produces a version the reader cannot express as new rows. Keep bronze append-only and apply corrections in silver.
+      B: >-
+        The stream's checkpoint was corrupted by the batch job; delete it and restart.
+      C: >-
+        Bronze must be a streaming table for silver to read it; convert it.
+      D: >-
+        The batch job and the stream cannot both write to bronze; give the batch job its own table.
+    correct: A
+    explanation: >-
+      Append-only is what lets batch and streaming writers share a table and what
+      lets it be read as a stream downstream. skipChangeCommits and ignoreChanges
+      are escape hatches with real costs (a missed update, or re-emitted rows).
+      The durable answer is to never update bronze.
+    distractor_rationale:
+      B: >-
+        The checkpoint is intact; the source's history changed shape.
+      C: >-
+        Any Delta table can be streamed from while it is append-only.
+      D: >-
+        Concurrent appends from batch and stream are fine; the update is the problem.
+    near_misses:
+      - text: >-
+          A stream can read a Delta table only while its history is append-only; an update
+          produces a version the reader cannot express as new rows. Keep updating bronze and set
+          ignoreDeletes on the silver reader.
+        why: >-
+          ignoreDeletes covers deletes only. After the UPDATE the stream with ignoreDeletes
+          failed with the same DELTA_SOURCE_TABLE_IGNORE_CHANGES.
+      - text: >-
+          A stream can read a Delta table only while every writer to it is a stream; an update
+          produces a version the reader cannot express as new rows. Keep bronze append-only and
+          apply corrections in silver.
+        why: >-
+          A batch INSERT into bronze was read by the stream as one more row. Appends are fine
+          from any writer; it is the rewrite of existing rows that breaks the stream.
+      - text: >-
+          A stream can read a Delta table only while every writer to it is a stream; an update
+          produces a version the reader cannot express as new rows. Keep updating bronze and set
+          ignoreDeletes on the silver reader.
+        why: >-
+          Batch appends stream through without trouble, and ignoreDeletes does not cover
+          updates: the stream with it set failed with DELTA_SOURCE_TABLE_IGNORE_CHANGES.
+
+  - id: PRO-S2-Q004
+    objective_ids: [PRO-S2-O2]
+    difficulty: application
+    provenance: original
+    tags: [auto-loader, checkpoint, trigger-availablenow, idempotence]
+    stem: >-
+      An Auto Loader stream with trigger(availableNow=True) and outputMode("append")
+      appends to bronze once an hour from a job. An engineer worries the job will
+      double-load if it runs twice in one hour. What is true?
+    options:
+      A: >-
+        Nothing is double-loaded: the checkpoint records consumed files, so a second run appends only files that arrived since. Losing the checkpoint is the way to double-load.
+      B: >-
+        It will double-load, because availableNow reads everything present each run.
+      C: >-
+        It will double-load unless the job is set to a single concurrent run.
+      D: >-
+        It will fail, because two runs cannot share a checkpoint.
+    correct: A
+    explanation: >-
+      The checkpoint is the stream's memory. availableNow processes what is new
+      since the checkpoint and stops, which is what makes an append-only ingestion
+      safe to re-run. A fresh checkpoint has no memory, and that is the one way to
+      load the same data twice with no error.
+    distractor_rationale:
+      B: >-
+        availableNow processes what is available and unconsumed, not everything in the folder.
+      C: >-
+        Concurrency limits avoid overlapping runs; they are not what prevents reprocessing.
+      D: >-
+        Sequential runs share the checkpoint by design; that is how progress persists.
+    near_misses:
+      - text: >-
+          Nothing is double-loaded: the bronze table's log records consumed files, so a second
+          run appends only files that arrived since. Losing the checkpoint is the way to
+          double-load.
+        why: >-
+          Auto Loader keeps that record in the checkpoint, not in the target. With the checkpoint
+          deleted, the same bronze table took every file again (3 rows became 7).
+      - text: >-
+          Nothing is double-loaded: the checkpoint records consumed files, so a second run
+          appends only files that arrived since. Overwriting a file in place is the way to
+          double-load.
+        why: >-
+          cloudFiles.allowOverwrites is false by default, so a file rewritten at the same path is
+          not picked up again: the row count stayed at 3 after a.csv was overwritten.
+      - text: >-
+          Nothing is double-loaded: the bronze table's log records consumed files, so a second
+          run appends only files that arrived since. Overwriting a file in place is the way to
+          double-load.
+        why: >-
+          The record of consumed files is the checkpoint's, and an overwritten file is ignored
+          by default. Deleting the checkpoint is what reloaded everything.
+
+  # ---------------------------------------------------------------- PRO-S3
+  - id: PRO-S3-Q001
+    objective_ids: [PRO-S3-O1]
+    difficulty: analysis
+    provenance: original
+    tags: [window, rowsBetween, rangeBetween, time-series]
+    stem: >-
+      A 7-day moving average of daily revenue is computed with a window ordered by
+      date and ROWS BETWEEN 6 PRECEDING AND CURRENT ROW. The table has no row for
+      days with zero sales. What is wrong with the result on a week containing two
+      such days?
+    options:
+      A: >-
+        The frame counts rows, so it reaches back nine calendar days; RANGE BETWEEN INTERVAL 6 DAYS PRECEDING AND CURRENT ROW (or filling the gaps) gives a true 7-day window.
+      B: >-
+        Nothing; missing days contribute zero to the average automatically.
+      C: >-
+        The window fails, because ROWS frames require contiguous dates.
+      D: >-
+        The average is too low, because missing days are counted as NULL.
+    correct: A
+    explanation: >-
+      rowsBetween counts rows; rangeBetween counts values of the ordering column.
+      On an irregular series they differ: six rows back is not six days back. The
+      wrong choice produces a plausible number and no error. The range frame fixes
+      the window, but avg() still divides by the days that have a row; for revenue
+      averaged over seven calendar days, fill the gaps with zero or use sum() / 7.
+    distractor_rationale:
+      B: >-
+        Missing rows are absent, not zero; the row frame simply reaches further back.
+      C: >-
+        Row frames never fail on gaps; that is why the error is silent.
+      D: >-
+        Absent rows are not NULL rows; nothing is counted for them.
+    near_misses:
+      - text: >-
+          The frame counts rows, so it reaches back nine calendar days; RANGE BETWEEN INTERVAL 7
+          DAYS PRECEDING AND CURRENT ROW (or filling the gaps) gives a true 7-day window.
+        why: >-
+          A range of 7 days preceding plus the current day is eight calendar days: on a full
+          series that frame held 8 rows. Six days preceding gives seven.
+      - text: >-
+          The frame counts rows, so it reaches back only five calendar days; RANGE BETWEEN
+          INTERVAL 6 DAYS PRECEDING AND CURRENT ROW (or filling the gaps) gives a true 7-day
+          window.
+        why: >-
+          Missing rows make a row frame reach further back, not less: seven rows ending on the
+          10th started on the 2nd, nine calendar days.
+      - text: >-
+          The frame counts rows, so it reaches back only five calendar days; RANGE BETWEEN
+          INTERVAL 7 DAYS PRECEDING AND CURRENT ROW (or filling the gaps) gives a true 7-day
+          window.
+        why: >-
+          The row frame covered nine calendar days, not five, and 7 days preceding makes an
+          eight-day range. INTERVAL 6 DAYS PRECEDING is the seven-day frame.
+
+  - id: PRO-S3-Q002
+    objective_ids: [PRO-S3-O1]
+    difficulty: application
+    provenance: original
+    tags: [window, row_number, latest-per-key, dropDuplicates]
+    stem: >-
+      A table holds several versions of each order, each with a revision number.
+      An engineer keeps the latest version with dropDuplicates(["order_id"]) and
+      the tests report that some rows hold an old revision. Why, and what is correct?
+    options:
+      A: >-
+        dropDuplicates keeps an arbitrary row per key; use row_number() over the key ordered by revision descending and keep the first.
+      B: >-
+        dropDuplicates keeps the last row it sees, so the input must be sorted by revision first.
+      C: >-
+        The revision column has nulls, which dropDuplicates treats as newest.
+      D: >-
+        dropDuplicates must be given both columns to keep the latest revision.
+    correct: A
+    explanation: >-
+      Which duplicate survives dropDuplicates is not defined. "Latest per key" is a
+      window question: partition by the key, order by what says newer, keep rn = 1.
+    distractor_rationale:
+      B: >-
+        Sorting before dropDuplicates is not guaranteed to be honoured after a shuffle.
+      C: >-
+        Nulls are not treated as newest; the function has no notion of newest at all.
+      D: >-
+        Two columns make each (order, revision) pair unique, which keeps every version.
+    near_misses:
+      - text: >-
+          dropDuplicates keeps an arbitrary row per key; use row_number() over the key ordered by
+          revision ascending and keep the first.
+        why: >-
+          Ascending numbers the oldest revision 1, so keeping rn = 1 returned revision 1 for
+          every order.
+      - text: >-
+          dropDuplicates keeps an arbitrary row per key; use row_number() over the whole table
+          ordered by revision descending and keep the first.
+        why: >-
+          Without PARTITION BY the numbering runs once over the table, and rn = 1 kept a single
+          row in total rather than one per order.
+      - text: >-
+          dropDuplicates keeps an arbitrary row per key; use row_number() over the whole table
+          ordered by revision ascending and keep the first.
+        why: >-
+          With no partition and ascending order, rn = 1 kept one row for the whole table, and
+          it was the oldest revision.
+
+  - id: PRO-S3-Q003
+    objective_ids: [PRO-S3-O2]
+    difficulty: application
+    provenance: original
+    tags: [quarantine, expectations, on-violation, pipelines]
+    stem: >-
+      A declarative pipeline must publish only rows with a positive amount, keep
+      the rejected rows for investigation, and never stop because of them. Which
+      design meets all three?
+    options:
+      A: >-
+        A clean table with CONSTRAINT positive EXPECT (amount > 0) ON VIOLATION DROP ROW, and a quarantine table selecting the rows where the condition is not true, both from the same source.
+      B: >-
+        A single table with EXPECT (amount > 0) ON VIOLATION FAIL UPDATE, so bad data is noticed immediately.
+      C: >-
+        A single table with a filter WHERE amount > 0 in its definition.
+      D: >-
+        A single table with EXPECT (amount > 0) and no action, so violations are counted.
+    correct: A
+    explanation: >-
+      Filtering loses the evidence and FAIL UPDATE stops the pipeline. The
+      quarantine pattern is two tables from one source: the clean one with a drop
+      expectation, the other selecting the rows that fail it so bad rows are kept
+      where a human can look. "Not true" rather than "false": a NULL amount fails
+      the expectation and is dropped, but NOT (amount > 0) is NULL for it too, so a
+      quarantine written as the plain negation loses that row from both tables.
+      WHERE (amount > 0) IS NOT TRUE keeps it.
+    distractor_rationale:
+      B: >-
+        FAIL UPDATE halts the pipeline on the first bad row, which the requirement forbids.
+      C: >-
+        A filter drops the rows silently; nothing is kept for investigation.
+      D: >-
+        A bare EXPECT keeps the bad rows in the published table and only counts them.
+    near_misses:
+      - text: >-
+          A clean table with CONSTRAINT positive EXPECT (amount > 0) ON VIOLATION DROP ROW, and a
+          quarantine table selecting the rows where the condition is false, both from the same
+          source.
+        why: >-
+          A NULL amount fails the expectation and is dropped, but NOT (amount > 0) is NULL for it
+          too, so the quarantine skips it: the NULL row ended up in neither table.
+      - text: >-
+          A clean table with CONSTRAINT positive EXPECT (amount > 0) ON VIOLATION DROP ROW, and a
+          quarantine table selecting the rows where the condition is not true, read from the
+          clean table.
+        why: >-
+          The clean table has already dropped every row that fails, so a quarantine read from it
+          came back empty. It has to read the source the clean table reads.
+      - text: >-
+          A clean table with CONSTRAINT positive EXPECT (amount > 0) ON VIOLATION DROP ROW, and a
+          quarantine table selecting the rows where the condition is false, read from the clean
+          table.
+        why: >-
+          Read from the clean table the quarantine was empty, since the bad rows were already
+          gone; and the plain negation would miss NULL amounts even from the source.
+
+  - id: PRO-S3-Q004
+    objective_ids: [PRO-S3-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [quarantine, raw-values, try_cast, evidence]
+    stem: >-
+      A quarantine table is built by casting every column, then writing rows where
+      any cast produced NULL. Investigators complain the quarantine is useless. Why?
+    options:
+      A: >-
+        The quarantined rows hold the coerced values (NULLs), not the original strings; quarantine must keep the raw values and ideally the reason and source file.
+      B: >-
+        Quarantine tables must be streaming tables, and this one is a materialized view.
+      C: >-
+        Casting is not allowed in a quarantine pipeline; use expectations instead.
+      D: >-
+        The rows should have been dropped rather than kept, since they are invalid.
+    correct: A
+    explanation: >-
+      A quarantine row that has already been through the transformation you are
+      debugging is not evidence. try_cast decides good from bad, but the original
+      values ride along into quarantine so someone can see what "12 units" looked
+      like.
+    distractor_rationale:
+      B: >-
+        The object type is irrelevant; the content is what is wrong.
+      C: >-
+        Casting with try_cast is exactly how good and bad are separated in a classic job.
+      D: >-
+        Keeping the rows is the point of quarantine; keeping them intact is the missing part.
+    near_misses:
+      - text: >-
+          The quarantined rows hold the coerced values (NULLs), not the original strings;
+          quarantine must cast with cast() rather than try_cast() so the original value is kept.
+        why: >-
+          Under ANSI mode, the default on serverless, cast('12 units' AS INT) fails the query
+          with CAST_INVALID_INPUT, so nothing reaches quarantine at all.
+      - text: >-
+          The quarantined rows are NULL in every column, because a failed cast nulls the whole
+          row; quarantine must keep the raw values and ideally the reason and source file.
+        why: >-
+          try_cast nulls only the value it could not convert. The row with '12 units' kept its
+          sku and its date; only qty was NULL.
+      - text: >-
+          The quarantined rows are NULL in every column, because a failed cast nulls the whole
+          row; quarantine must cast with cast() rather than try_cast() so the original value is
+          kept.
+        why: >-
+          try_cast nulls just the failed column, and cast() does not keep the original either:
+          on '12 units' it stops the query with CAST_INVALID_INPUT.
+
+  # ---------------------------------------------------------------- PRO-S4
+  - id: PRO-S4-Q001
+    objective_ids: [PRO-S4-O1]
+    difficulty: application
+    provenance: original
+    tags: [delta-sharing, d2d, d2o, recipient]
+    stem: >-
+      A partner runs Databricks in another cloud region. Another partner uses only
+      pandas on their own servers. What kind of recipient does each need?
+    options:
+      A: >-
+        Databricks-to-Databricks for the first, identified by their sharing identifier; open-protocol (token-based) for the second, who receives a credential file.
+      B: >-
+        Open protocol for both, since it works for any client.
+      C: >-
+        Databricks-to-Databricks for both, since pandas can mount a share as a catalog.
+      D: >-
+        Neither; cross-region sharing requires copying the data.
+    correct: A
+    explanation: >-
+      D2D recipients are other metastores, identified by cloud:region:metastore-id,
+      and mount the share as a catalog. Open-protocol recipients are anyone with a
+      Delta Sharing client and authenticate with a token in a credential file. The
+      metastore must have open sharing enabled for the second.
+    distractor_rationale:
+      B: >-
+        Open protocol works for the Databricks partner too but loses the catalog integration D2D gives them.
+      C: >-
+        pandas has no metastore to mount a catalog into; it uses the open protocol client.
+      D: >-
+        Not copying is the whole point of Delta Sharing; region does not matter.
+    near_misses:
+      - text: >-
+          Databricks-to-Databricks for the first, identified by their workspace URL;
+          open-protocol (token-based) for the second, who receives a credential file.
+        why: >-
+          A D2D recipient is a metastore, named by its sharing identifier
+          (cloud:region:metastore-uuid). CREATE RECIPIENT ... USING ID with a workspace URL was
+          refused as an invalid metastore id.
+      - text: >-
+          Databricks-to-Databricks for the first, identified by their sharing identifier;
+          open-protocol (token-based) for the second, who receives a personal access token for
+          the provider's workspace.
+        why: >-
+          An open recipient never gets an identity in the provider's workspace. They follow an
+          activation link and download a credential file for a Delta Sharing client.
+      - text: >-
+          Databricks-to-Databricks for the first, identified by their workspace URL;
+          open-protocol (token-based) for the second, who receives a personal access token for
+          the provider's workspace.
+        why: >-
+          D2D recipients are named by a metastore sharing identifier (a workspace URL is
+          refused), and open recipients get a credential file, not a login to the provider.
+
+  - id: PRO-S4-Q002
+    objective_ids: [PRO-S4-O1]
+    difficulty: analysis
+    provenance: original
+    tags: [delta-sharing, history, without-history, deletion-vectors]
+    stem: >-
+      Legal requires a partner to see only the current state of a table, never
+      earlier versions. The engineer runs ALTER SHARE s ADD TABLE c.s.t. What has been
+      shared, and what would be correct?
+    options:
+      A: >-
+        Full history, because that is the default; ADD TABLE ... WITHOUT HISTORY is required, which in turn needs deletion vectors disabled and purged on the table.
+      B: >-
+        Current state only; history is never shared unless WITH HISTORY is specified.
+      C: >-
+        Nothing yet; a table is shared only after GRANT SELECT ON SHARE, at which point history is chosen.
+      D: >-
+        Current state only, because the share was created without a history option.
+    correct: A
+    explanation: >-
+      The shortest statement shares history silently, letting the recipient
+      time-travel your table (the default on SQL warehouses and Databricks Runtime
+      16.2 and above; older runtimes defaulted to WITHOUT HISTORY). WITHOUT HISTORY shares the current state, and it
+      refuses on a table with deletion vectors until they are disabled and purged
+      with REORG ... APPLY (PURGE).
+    distractor_rationale:
+      B: >-
+        The default is the other way round: history is enabled unless you say WITHOUT HISTORY.
+      C: >-
+        The grant makes the share reachable; what is shared was decided at ADD TABLE.
+      D: >-
+        History is a per-object setting made when the object is added.
+    near_misses:
+      - text: >-
+          Full history, because that is the default; ADD TABLE ... WITHOUT HISTORY is required,
+          which in turn needs change data feed disabled on the table.
+        why: >-
+          Change data feed does not block it: a CDF table was added WITHOUT HISTORY (the feed is
+          simply not shared). Deletion vectors are what refuse, with
+          DS_UNSUPPORTED_DELTA_TABLE_FEATURES.
+      - text: >-
+          Full history, because that is the default; CREATE SHARE ... WITHOUT HISTORY is
+          required, which in turn needs deletion vectors disabled and purged on the table.
+        why: >-
+          History is set per table when it is added; CREATE SHARE has no history clause and
+          fails with PARSE_SYNTAX_ERROR at WITHOUT.
+      - text: >-
+          Full history, because that is the default; CREATE SHARE ... WITHOUT HISTORY is
+          required, which in turn needs change data feed disabled on the table.
+        why: >-
+          CREATE SHARE takes no history clause (PARSE_SYNTAX_ERROR), and CDF does not block
+          sharing without history; deletion vectors do.
+
+  - id: PRO-S4-Q003
+    objective_ids: [PRO-S4-O2]
+    difficulty: analysis
+    provenance: original
+    tags: [federation, lazy-ddl, connection, foreign-catalog]
+    stem: >-
+      A CREATE CONNECTION statement with a wrong hostname and a CREATE FOREIGN
+      CATALOG over it both succeed in a deployment pipeline, which reports green.
+      The first query against the catalog fails with FAILED_JDBC.CONNECTION. What
+      does this show?
+    options:
+      A: >-
+        Federation DDL is lazy: a connection and foreign catalog are metadata until something uses them, so only a query proves a federation works.
+      B: >-
+        The pipeline's service principal lacks USE CONNECTION, which is checked at query time.
+      C: >-
+        Foreign catalogs must be refreshed after creation before they can be queried.
+      D: >-
+        The hostname is validated but DNS was temporarily unavailable during deployment.
+    correct: A
+    explanation: >-
+      Nothing is checked when the objects are created. A green deployment tells
+      you nothing about whether the source is reachable or the credentials are
+      right; the first thing to touch the source is the first to fail, and the
+      error redacts the credential.
+    distractor_rationale:
+      B: >-
+        A privilege problem is a PERMISSION_DENIED, not a JDBC connection failure.
+      C: >-
+        Foreign schemas and tables are discovered on demand; there is no refresh step.
+      D: >-
+        The hostname is not validated at creation; that is the point.
+    near_misses:
+      - text: >-
+          Federation DDL is lazy: a connection and foreign catalog are metadata until something
+          uses them, so a DESCRIBE CONNECTION after deployment proves a federation works.
+        why: >-
+          DESCRIBE CONNECTION reads what Unity Catalog stored. It succeeded on the unreachable
+          host and showed it back; only reading from the source failed.
+      - text: >-
+          Federation DDL is checked in the background: a connection and foreign catalog are
+          tested after creation, so only a query proves a federation works.
+        why: >-
+          Nothing tests them later either: the connection with an unresolvable host still
+          reported provisioning state ACTIVE, and the first error came from the first read.
+      - text: >-
+          Federation DDL is checked in the background: a connection and foreign catalog are
+          tested after creation, so a DESCRIBE CONNECTION after deployment proves a federation
+          works.
+        why: >-
+          There is no background test (the bad connection stayed ACTIVE), and DESCRIBE
+          CONNECTION only echoes stored metadata, so it succeeded on the bad host.
+
+  - id: PRO-S4-Q004
+    objective_ids: [PRO-S4-O2]
+    difficulty: application
+    provenance: original
+    tags: [federation, governance, use-connection, grants]
+    stem: >-
+      A platform team creates a connection to a PostgreSQL system. Analysts should
+      be able to query the foreign catalog built on it but must not be able to
+      create new foreign catalogs over the connection. Which grants achieve this?
+    options:
+      A: >-
+        USE CATALOG, USE SCHEMA and SELECT on the foreign catalog for the analysts; nothing on the connection.
+      B: >-
+        USE CONNECTION on the connection, which implies read access to any catalog built on it.
+      C: >-
+        SELECT on the connection, which grants query access.
+      D: >-
+        Ownership of the foreign catalog, since owners can query it.
+    correct: A
+    explanation: >-
+      Building a foreign catalog over a connection takes CREATE FOREIGN CATALOG on
+      the connection (or owning it) plus CREATE CATALOG on the metastore, so
+      analysts with nothing on the connection cannot build one. Reading goes through
+      grants on the foreign catalog: USE CATALOG, USE SCHEMA and SELECT, which
+      inherit to every foreign table under it. The credential stays inside Unity
+      Catalog and is never seen by the analysts.
+    distractor_rationale:
+      B: >-
+        USE CONNECTION grants nothing on the catalog built over it; it lets the holder view the connection and run remote_query, raw SQL against the source outside the catalog's grants.
+      C: >-
+        SELECT is not a privilege on a connection; granting it fails with PRIVILEGE_NOT_APPLICABLE_TO_ENTITY.
+      D: >-
+        Ownership is far more than read access and lets them grant to others.
+    near_misses:
+      - text: >-
+          USE CATALOG, USE SCHEMA and SELECT on the foreign catalog for the analysts; USE
+          CONNECTION on the connection, which their reads pass through.
+        why: >-
+          Reads through a foreign catalog are governed by the catalog's grants alone. USE
+          CONNECTION adds remote_query, raw SQL against the source that bypasses those grants.
+      - text: >-
+          USE CATALOG and SELECT on the foreign catalog for the analysts; nothing on the
+          connection.
+        why: >-
+          Reading a table also needs USE SCHEMA on its schema. Without it every query in the
+          catalog is refused, however much SELECT has been granted.
+      - text: >-
+          USE CATALOG and SELECT on the foreign catalog for the analysts; USE CONNECTION on the
+          connection, which their reads pass through.
+        why: >-
+          The analysts still lack USE SCHEMA, so nothing reads, and USE CONNECTION is not on
+          the read path; it lets them run remote_query against the source.
+
+  - id: PRO-S4-Q005
+    objective_ids: [PRO-S4-O3]
+    difficulty: application
+    provenance: original
+    tags: [delta-sharing, live-data, cdf, alias]
+    stem: >-
+      A partner wants to read only what changed in a shared table each day rather
+      than re-reading it. The provider tries ALTER SHARE s ADD TABLE t WITH CHANGE
+      DATA FEED and the clause is refused. What actually controls whether the
+      recipient gets the change feed?
+    options:
+      A: >-
+        The table's own delta.enableChangeDataFeed property; enable it on the table and share normally, and the share exposes the feed.
+      B: >-
+        The recipient's authentication type; only open-protocol recipients can read change feeds.
+      C: >-
+        A share-level property set with ALTER SHARE ... SET CDF = true.
+      D: >-
+        Nothing; Delta Sharing cannot expose change data.
+    correct: A
+    explanation: >-
+      The share is a view of properties the table already has more than a place to
+      configure them. CDF on the table is what the recipient sees; the explicit
+      clause is refused on tables encrypted with Databricks-managed keys.
+    distractor_rationale:
+      B: >-
+        Both recipient kinds can read a shared change feed.
+      C: >-
+        No such share-level property exists.
+      D: >-
+        Sharing the change feed is a documented feature; the mechanism is the table property.
+    near_misses:
+      - text: >-
+          The table's own delta.enableChangeDataFeed property; enable it on the table and share
+          it WITHOUT HISTORY, and the share exposes the feed.
+        why: >-
+          The feed is read through the table's history. A CDF table added WITHOUT HISTORY showed
+          cdf_shared false in SHOW ALL IN SHARE; shared with history it showed true.
+      - text: >-
+          The recipient's own delta.enableChangeDataFeed property; enable it on the recipient and
+          share normally, and the share exposes the feed.
+        why: >-
+          There is no such recipient property; recipient properties feed partition filters such
+          as CURRENT_RECIPIENT(), not table features. cdf_shared followed the table property.
+      - text: >-
+          The recipient's own delta.enableChangeDataFeed property; enable it on the recipient and
+          share it WITHOUT HISTORY, and the share exposes the feed.
+        why: >-
+          A recipient property has no effect on the share, and a table added WITHOUT HISTORY
+          showed cdf_shared false even with CDF enabled on it.
+
+  - id: PRO-S4-Q006
+    objective_ids: [PRO-S4-O3]
+    difficulty: analysis
+    provenance: original
+    tags: [delta-sharing, audit, show-grants, dependency]
+    stem: >-
+      During a sharing review, an engineer runs SHOW ALL IN SHARE partner_share and
+      concludes the review is complete. A month later a table is found to be
+      readable by a recipient nobody expected, and a DROP TABLE on another shared
+      table fails. What did the review miss, and why did the drop fail?
+    options:
+      A: >-
+        The review needed SHOW GRANTS ON SHARE too, since "who can read" is the recipients granted the share; the drop failed because an object in a share is a dependency and cannot be dropped.
+      B: >-
+        The review needed DESCRIBE HISTORY; the drop failed because the table had history sharing enabled.
+      C: >-
+        The review was complete; the extra recipient was added later, and the drop failed because of a lock.
+      D: >-
+        The review needed SHOW RECIPIENTS; the drop failed because the recipient was still connected.
+    correct: A
+    explanation: >-
+      A sharing review has two halves: what is in the share, and who has been
+      granted the share. Unity Catalog refuses to drop an object that a share
+      contains (DELTA_SHARING_SECURABLE_DELETE_BLOCKED.BY_SHARES) because it would
+      break a recipient you may not be in contact with.
+    distractor_rationale:
+      B: >-
+        History sharing affects what versions a recipient sees, not whether the object can be dropped.
+      C: >-
+        Grants are part of the configuration and belong in the review; there is no lock.
+      D: >-
+        Recipient connections are not tracked that way; membership in a share is what blocks the drop.
+    near_misses:
+      - text: >-
+          The review needed SHOW GRANTS ON TABLE for each shared table too, since "who can read"
+          is the recipients granted the table; the drop failed because an object in a share is a
+          dependency and cannot be dropped.
+        why: >-
+          Recipients are granted the share, not its tables: with a recipient granted the share,
+          SHOW GRANTS ON TABLE returned nothing. SHOW GRANTS ON SHARE listed it.
+      - text: >-
+          The review needed SHOW GRANTS ON SHARE too, since "who can read" is the recipients
+          granted the share; the drop failed because the table was shared with history, which
+          pins it until the history is unshared.
+        why: >-
+          History does not matter: a table added WITHOUT HISTORY was refused just the same, with
+          DELTA_SHARING_SECURABLE_DELETE_BLOCKED.BY_SHARES. Being in a share is what blocks it.
+      - text: >-
+          The review needed SHOW GRANTS ON TABLE for each shared table too, since "who can read"
+          is the recipients granted the table; the drop failed because the table was shared with
+          history, which pins it until the history is unshared.
+        why: >-
+          Table grants never show recipients (SHOW GRANTS ON TABLE was empty), and the drop was
+          blocked for a table shared without history too: membership in the share blocks it.

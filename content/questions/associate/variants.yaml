@@ -1,0 +1,620 @@
+# Concise, harder variants of existing Associate questions. Each carries
+# variant_of; the app draws one member per family in a timed test, so a variant
+# never sits next to its source.
+meta:
+  source: Original, written for this repository.
+  note: Two variants per section, all with variant_of.
+
+questions:
+  - id: ASSOC-S1-Q004
+    objective_ids: [ASSOC-S1-O1]
+    variant_of: ASSOC-S1-Q002
+    difficulty: analysis
+    provenance: original
+    tags: [delta, transaction-log, concurrency]
+    stem: >-
+      A reader queries a Delta table while a writer is halfway through committing 400
+      new files. What does the reader see, and what guarantees it?
+    options:
+      A: The table as of the last completed commit; readers resolve the transaction log, and files without a log entry are invisible.
+      B: A mix of old and new files, because object storage lists whatever exists.
+      C: An error, because Delta locks the table during a write.
+      D: The new files, because a writer's files become visible as they land.
+    correct: A
+    explanation: >-
+      The log, not the directory listing, defines the table. A commit is one atomic
+      entry; until it lands, none of the writer's files exist as far as readers are
+      concerned. That is the isolation plain Parquet cannot give.
+    distractor_rationale:
+      B: That is exactly what a Parquet directory without a log suffers from.
+      C: Delta uses optimistic concurrency, not locks; readers are never blocked.
+      D: Files are inert until the commit that references them is written.
+    near_misses:
+      - text: >-
+          The files committed so far; readers resolve the transaction log, and each of the
+          writer's files gets a log entry as it lands.
+        why: >-
+          A commit is one JSON entry in _delta_log that adds all 400 files at once. Until
+          it is written, readers see none of the new files, not some of them.
+      - text: >-
+          The table as of the last completed commit; the writer holds a lock on the table,
+          and readers skip the files it is writing.
+        why: >-
+          Delta takes no locks: writers commit optimistically and readers are never
+          blocked. The new files are invisible because no log entry references them yet.
+      - text: >-
+          The files committed so far; the writer holds a lock on each file until it lands,
+          and readers skip the locked files.
+        why: >-
+          There are no locks, and files are not committed one by one: the single commit
+          entry makes all 400 visible at once, and until then readers see the previous
+          version.
+
+  - id: ASSOC-S1-Q005
+    objective_ids: [ASSOC-S1-O2]
+    variant_of: ASSOC-S1-Q003
+    difficulty: application
+    provenance: original
+    tags: [compute, job-compute, all-purpose, cost]
+    stem: >-
+      A 12-minute nightly job runs on an all-purpose cluster that stays up all day for
+      analysts. Moving the job to job compute changes which of the following?
+    options:
+      A: The job's compute is created for the run and terminated after, so the job pays for 12 minutes rather than sharing a cluster billed all day.
+      B: Nothing; both compute types bill per DBU at the same rate.
+      C: The job runs faster, because job compute uses larger nodes.
+      D: The analysts lose their cluster, because job compute replaces it.
+    correct: A
+    explanation: >-
+      Job compute exists for the run. All-purpose compute is for interactive work and
+      is billed while it is up; running scheduled work on it means paying for idle
+      time and interfering with the people using it.
+    distractor_rationale:
+      B: The DBU rates differ by compute type, and the billed duration differs far more.
+      C: Node size is a configuration choice, not a property of job compute.
+      D: The analysts' cluster is untouched; the job simply stops using it.
+    near_misses:
+      - text: >-
+          The job's compute is created for the run and terminated after, so the job pays
+          for 12 minutes, billed at the all-purpose DBU rate.
+        why: >-
+          Job compute has its own, lower DBU rate than all-purpose compute, so both the
+          billed duration and the rate drop.
+      - text: >-
+          The job's compute is created when the job is saved and stays attached to it, so
+          the job pays for 12 minutes rather than sharing a cluster billed all day.
+        why: >-
+          Nothing exists between runs: job compute is created when a run starts and
+          terminated when it ends, so each run gets a new cluster.
+      - text: >-
+          The job's compute is created when the job is saved and stays attached to it, so
+          the job pays for 12 minutes, billed at the all-purpose DBU rate.
+        why: >-
+          Job compute is created per run, not when the job is saved, and it is billed at
+          the lower jobs DBU rate, not the all-purpose one.
+
+  - id: ASSOC-S2-Q013
+    objective_ids: [ASSOC-S2-O3]
+    variant_of: ASSOC-S2-Q004
+    difficulty: analysis
+    provenance: original
+    tags: [auto-loader, checkpoint, schema-location]
+    stem: >-
+      An Auto Loader stream's schemaLocation is deleted but its checkpointLocation is
+      kept, then the stream restarts. What happens?
+    options:
+      A: The schema is re-inferred from a sample of files, but no file is reprocessed, because consumption progress lives in the checkpoint.
+      B: Every file is reprocessed, because the schema location tracks consumed files.
+      C: The stream fails until the schema location is restored.
+      D: Nothing changes; both locations hold the same information.
+    correct: A
+    explanation: >-
+      The two locations do different jobs. The checkpoint remembers which files were
+      consumed; the schema location remembers the inferred schema and its evolution.
+      Losing the schema costs an inference pass, not a reload.
+    distractor_rationale:
+      B: Reprocessing happens when the checkpoint is lost, not the schema.
+      C: Auto Loader re-infers and continues.
+      D: They are separate for a reason; deleting one has a different effect from deleting the other.
+    near_misses:
+      - text: >-
+          The schema is re-inferred from a sample of files, and every file is reprocessed,
+          because consumption progress lives in the schema location.
+        why: >-
+          No file was reprocessed: the row count stayed the same after deleting the schema
+          location, because progress lives in the checkpoint.
+      - text: >-
+          The schema is re-inferred from every file in the source, and every file is
+          reprocessed, because the schema location tracked consumed files.
+        why: >-
+          Inference samples files (up to 1000 files or 50 GB by default), and the schema
+          location never tracked consumption.
+      - text: >-
+          The schema is re-inferred from every file in the source, but no file is reprocessed,
+          because consumption progress lives in the checkpoint.
+        why: >-
+          Inference reads a sample - by default up to 1000 files or 50 GB - not every file in
+          the source.
+
+  - id: ASSOC-S2-Q014
+    objective_ids: [ASSOC-S2-O2]
+    variant_of: ASSOC-S2-Q003
+    difficulty: application
+    provenance: original
+    tags: [copy-into, csv, types, mergeSchema]
+    stem: >-
+      COPY INTO from CSV into a table declared with numeric columns fails with
+      DELTA_FAILED_TO_MERGE_FIELDS. Which fix is correct?
+    options:
+      A: Cast in the SELECT of COPY INTO (or land as strings and cast in silver); CSV fields arrive as text and are not coerced silently.
+      B: Add mergeSchema, which converts the strings to the declared types.
+      C: Give each numeric column a DEFAULT, which converts the text on insert.
+      D: Re-create the table with all STRING columns; numeric types cannot be loaded from CSV.
+    correct: A
+    explanation: >-
+      The load refuses to merge a STRING field into a numeric column, which is the
+      safe behaviour. Casting explicitly in the COPY INTO SELECT, or landing bronze as
+      strings and typing in silver, records the decision instead of hoping. FORMAT_OPTIONS
+      ('inferSchema' = 'true') can also make the load succeed, but only while every
+      inferred type matches the declared one exactly - a column inferred as INT fails
+      against a STRING or BIGINT target - so it moves the problem rather than fixing it.
+    distractor_rationale:
+      B: mergeSchema adds columns; it does not change a type mismatch into a cast.
+      C: A DEFAULT fills a column that is omitted from the insert; it never converts a value that is supplied.
+      D: Numeric targets are fine once the values are cast; all-string tables push the problem downstream.
+    near_misses:
+      - text: >-
+          Add mergeSchema to COPY_OPTIONS (or land as strings and cast in silver); CSV fields
+          arrive as text and mergeSchema widens them to the declared types.
+        why: >-
+          mergeSchema adds columns, it does not convert types: with it set the load fails with
+          the same DELTA_FAILED_TO_MERGE_FIELDS.
+      - text: >-
+          Cast in the SELECT of COPY INTO (or land as strings and cast in silver); CSV fields
+          arrive as text unless 'header' = 'true' is set, which reads the types from the
+          header.
+        why: >-
+          A header row carries column names, never types: with the header option set the
+          fields still arrive as text.
+      - text: >-
+          Add 'header' = 'true' to COPY_OPTIONS (or land as strings and cast in silver); the
+          header then supplies the declared types.
+        why: >-
+          header is a FORMAT_OPTIONS option. In COPY_OPTIONS it is silently ignored, the
+          columns arrive as _c0 and _c1, and a header holds names, not types.
+
+  - id: ASSOC-S3-Q024
+    objective_ids: [ASSOC-S3-O2]
+    variant_of: ASSOC-S3-Q004
+    difficulty: analysis
+    provenance: original
+    tags: [join, fan-out, cardinality]
+    stem: >-
+      A join meant only to add a column returns 12% more rows than its left input.
+      Which single fact about the right side explains it?
+    options:
+      A: Some join keys appear more than once on the right side.
+      B: Some join keys are missing from the right side.
+      C: The right side has more columns than expected.
+      D: The join was an inner join instead of a left join.
+    correct: A
+    explanation: >-
+      A join returns one row per matching pair. Duplicate keys on the enriching side
+      multiply the left rows that hit them; missing keys reduce or null rows, never
+      add them.
+    distractor_rationale:
+      B: Missing keys lose rows in an inner join and null them in a left join; they cannot add rows.
+      C: Column width never changes row count.
+      D: An inner join can only return fewer rows than a left join, not more than the input.
+    near_misses:
+      - text: >-
+          Some non-key column values appear more than once on the right side.
+        why: >-
+          Only columns in the join condition decide matches. Repeated values in other
+          columns leave the row count equal to the left input.
+      - text: >-
+          Some join keys are null on the right side.
+        why: >-
+          NULL never equals anything, so right-side rows with a null key match nothing.
+          Adding two of them to a lookup left the join's row count equal to the left
+          input.
+      - text: >-
+          Some non-key column values are null on the right side.
+        why: >-
+          Nulls outside the join condition change what a row shows, not how many rows
+          match.
+
+  - id: ASSOC-S3-Q025
+    objective_ids: [ASSOC-S3-O4]
+    variant_of: ASSOC-S3-Q012
+    difficulty: application
+    provenance: original
+    tags: [dropDuplicates, business-key, window]
+    stem: >-
+      Redelivered events arrive with the same event_id and a newer received_at. Which
+      call keeps exactly one row per event, and which row does it keep?
+    options:
+      A: A window over event_id ordered by received_at descending, keeping row_number 1; it keeps the newest delivery.
+      B: dropDuplicates(["event_id"]); it keeps the newest delivery.
+      C: dropDuplicates(); it keeps one row per event because redeliveries are identical.
+      D: distinct(); it keeps the first delivery.
+    correct: A
+    explanation: >-
+      dropDuplicates on the key gives one row per event but does not say which; the
+      whole-row versions keep every distinct version. When "which one" matters,
+      order explicitly with a window.
+    distractor_rationale:
+      B: One row per event, but an arbitrary one; nothing orders by received_at.
+      C: The deliveries differ in received_at, so whole-row deduplication keeps both.
+      D: distinct is whole-row deduplication under another name.
+    near_misses:
+      - text: >-
+          A window over event_id ordered by received_at ascending, keeping row_number 1;
+          it keeps the newest delivery.
+        why: >-
+          Ascending puts the earliest received_at first, so row_number 1 is the original
+          delivery: one row per event, but the oldest.
+      - text: >-
+          A window over event_id and received_at ordered by received_at descending,
+          keeping row_number 1; it keeps the newest delivery.
+        why: >-
+          Partitioning by event_id and received_at puts each delivery in its own window,
+          so every row is row_number 1 and nothing is removed.
+      - text: >-
+          A window over event_id and received_at ordered by received_at ascending, keeping
+          row_number 1; it keeps the newest delivery.
+        why: >-
+          Each (event_id, received_at) pair is its own window, so every delivery is row 1
+          whatever the order, and nothing is removed.
+
+  - id: ASSOC-S4-Q010
+    objective_ids: [ASSOC-S4-O2]
+    variant_of: ASSOC-S4-Q004
+    difficulty: analysis
+    provenance: original
+    tags: [jobs, dependencies, run_if, skipped]
+    stem: >-
+      Task D depends on B and C. C fails. The team wants D to run anyway and record
+      the partial result. What must change?
+    options:
+      A: D's run_if condition, to ALL_DONE (or AT_LEAST_ONE_SUCCESS), since the default ALL_SUCCESS does not run D.
+      B: C's retries, so it eventually succeeds.
+      C: The dependency, removing C so D no longer waits for it.
+      D: Nothing; a dependant runs once its upstream tasks have finished in any state.
+    correct: A
+    explanation: >-
+      A dependant's run condition is explicit. The default requires every upstream
+      task to succeed, which is why D did not run (it is marked Upstream failed); ALL_DONE
+      runs it once B and C have finished, whatever their state.
+    distractor_rationale:
+      B: Retries reduce failures; the requirement is to run D even when C fails.
+      C: Removing the dependency lets D start before C finishes, which is a different behaviour.
+      D: The default is ALL_SUCCESS, which does not run D after any upstream failure.
+    near_misses:
+      - text: >-
+          D's run_if condition, to NONE_FAILED (or ALL_FAILED), since the default
+          ALL_SUCCESS does not run D.
+        why: >-
+          NONE_FAILED needs no upstream failure and ALL_FAILED needs every upstream to
+          fail. With B succeeded and C failed, D still does not run under either.
+      - text: >-
+          C's run_if condition, to ALL_DONE (or AT_LEAST_ONE_SUCCESS), since the default
+          ALL_SUCCESS does not run D.
+        why: >-
+          run_if decides whether the task carrying it runs, given that task's own
+          upstreams. C has none, and D keeps ALL_SUCCESS, so D still does not run.
+      - text: >-
+          C's run_if condition, to NONE_FAILED (or ALL_FAILED), since the default
+          ALL_SUCCESS does not run D.
+        why: >-
+          A run_if on C governs C, not D, and neither NONE_FAILED nor ALL_FAILED would run
+          D after one upstream succeeded and one failed.
+
+  - id: ASSOC-S4-Q011
+    objective_ids: [ASSOC-S4-O3]
+    variant_of: ASSOC-S4-Q009
+    difficulty: application
+    provenance: original
+    tags: [jobs, schedule, concurrency, queue]
+    stem: >-
+      An hourly job occasionally overruns. The team wants overrunning cases to run
+      as soon as the previous run finishes rather than be skipped. Which setting?
+    options:
+      A: Enable queueing (or raise max concurrent runs if overlapping is acceptable); with queueing off, a scheduled run is skipped while one is active.
+      B: Shorten the schedule to every 30 minutes so a skipped slot is caught sooner.
+      C: Add a retry, which re-runs the skipped slot.
+      D: Nothing; skipped runs are queued automatically.
+    correct: A
+    explanation: >-
+      With one allowed concurrent run and no queue, a schedule that fires during an
+      active run is skipped (SKIPPED, MAXIMUM_CONCURRENT_RUNS_REACHED). Queueing holds it
+      until the active run finishes. Queueing is on by default for jobs created since
+      April 2024, so a job that skips has had it turned off. A higher concurrency limit
+      lets runs overlap, which is only right when the job is safe to run concurrently.
+    distractor_rationale:
+      B: More frequent triggers produce more skips, not fewer.
+      C: Retries apply to failed runs; a skipped slot never ran.
+      D: A skipped run never runs later. Queueing is what holds a run instead, and it is evidently off on this job.
+    near_misses:
+      - text: >-
+          Enable schedule catch-up (or raise max concurrent runs if overlapping is
+          acceptable); with queueing off, a scheduled run is skipped while one is active.
+        why: >-
+          A Databricks job schedule has no catch-up setting (that is Airflow's catchup); a
+          skipped run is gone. Holding the run until the active one ends is the job's
+          queue setting.
+      - text: >-
+          Enable queueing (or add a retry policy so the skipped run is re-run); with
+          queueing off, a scheduled run is skipped while one is active.
+        why: >-
+          Retries re-run a task that failed. A skipped run never started - it ends SKIPPED
+          with MAXIMUM_CONCURRENT_RUNS_REACHED - so there is nothing to retry.
+      - text: >-
+          Enable schedule catch-up (or add a retry policy so the skipped run is re-run);
+          with queueing off, a scheduled run is skipped while one is active.
+        why: >-
+          Job schedules have no catch-up setting, and retries apply to failed tasks, not
+          to a run that was skipped and never started.
+
+  - id: ASSOC-S5-Q005
+    objective_ids: [ASSOC-S5-O2]
+    variant_of: ASSOC-S5-Q002
+    difficulty: analysis
+    provenance: original
+    tags: [dabs, variables, targets, notebook-parameters]
+    stem: >-
+      A notebook must write to a different schema per environment. The bundle has a
+      schema variable that each target overrides. How does the notebook learn the
+      value at run time?
+    options:
+      A: The job task passes ${var.schema} as a base parameter, which the notebook reads with dbutils.widgets.get('schema').
+      B: The notebook reads the bundle's databricks.yml from the workspace path.
+      C: The variable is exported as an environment variable on the job cluster.
+      D: The notebook checks its own workspace path for the target name and branches on it.
+    correct: A
+    explanation: >-
+      Variables resolve at deploy time into the job definition. The notebook stays
+      environment-agnostic and receives the value as a parameter; it should fail
+      loudly if the parameter is missing rather than default silently.
+    distractor_rationale:
+      B: The YAML is not a runtime artefact and the notebook should not parse it.
+      C: Bundle variables are not exported into the cluster environment.
+      D: Sniffing the path couples the notebook to a deployment layout and defeats the parameterisation.
+    near_misses:
+      - text: >-
+          The job task passes ${schema} as a base parameter, which the notebook reads with
+          dbutils.widgets.get('schema').
+        why: >-
+          Without the var. prefix nothing is interpolated: bundle validate reports OK, and
+          the notebook receives the literal text ${schema}.
+      - text: >-
+          The job task passes ${var.schema} as a base parameter, which the notebook reads
+          with os.environ['schema'].
+        why: >-
+          Base parameters become notebook widgets, not environment variables. os.environ
+          has no schema key, so the lookup raises KeyError.
+      - text: >-
+          The job task passes ${schema} as a base parameter, which the notebook reads with
+          os.environ['schema'].
+        why: >-
+          ${schema} is passed through as literal text because it lacks the var. prefix,
+          and a base parameter is read as a widget, not from os.environ.
+
+  - id: ASSOC-S5-Q006
+    objective_ids: [ASSOC-S5-O4]
+    variant_of: ASSOC-S5-Q003
+    difficulty: application
+    provenance: original
+    tags: [dabs, validate, ci, credentials]
+    stem: >-
+      A pull-request workflow on a public repository runs databricks bundle validate.
+      It fails for external contributors with an authentication error although the
+      YAML is valid. Why?
+    options:
+      A: validate resolves the current user over the workspace API, so it needs credentials that pull requests from forks do not receive; an offline schema check is the PR-time alternative.
+      B: validate always needs a running cluster to test the jobs.
+      C: External contributors' YAML is validated against a stricter schema.
+      D: validate deploys to a temporary target, which forks cannot do.
+    correct: A
+    explanation: >-
+      validate is a configuration check, but it still authenticates to resolve the
+      deploying identity. On a public repository, forks get no secrets, so the
+      authoritative validate belongs in the deploy workflow and the PR gate uses an
+      offline check against the CLI's schema.
+    distractor_rationale:
+      B: validate runs no code and starts no compute.
+      C: The schema is the same for everyone; the difference is credentials.
+      D: validate creates nothing; it resolves configuration.
+    near_misses:
+      - text: >-
+          validate starts serverless compute to dry-run the jobs, so it needs credentials
+          that pull requests from forks do not receive; an offline schema check is the
+          PR-time alternative.
+        why: >-
+          validate runs no code and starts no compute. It authenticates only to resolve
+          the current user and workspace paths; without credentials it stops at 'cannot
+          configure default credentials'.
+      - text: >-
+          validate resolves the current user over the workspace API, so it needs
+          credentials that no pull request receives, even from a branch of the same
+          repository; an offline schema check is the PR-time alternative.
+        why: >-
+          GitHub withholds secrets only from workflows run for pull requests from forks. A
+          branch in the same repository gets them, which is why only external contributors
+          see the failure.
+      - text: >-
+          validate starts serverless compute to dry-run the jobs, so it needs credentials
+          that no pull request receives, even from a branch of the same repository; an
+          offline schema check is the PR-time alternative.
+        why: >-
+          validate starts no compute, and same-repository pull requests do receive
+          secrets; only pull requests from forks run without them.
+
+  - id: ASSOC-S6-Q006
+    objective_ids: [ASSOC-S6-O3]
+    variant_of: ASSOC-S6-Q005
+    difficulty: analysis
+    provenance: original
+    tags: [spark-ui, spill, skew, partitions]
+    stem: >-
+      A stage spills to disk on every task evenly. A colleague proposes enabling
+      skew-join handling. Why will that not help, and what will?
+    options:
+      A: Even spill across tasks means partitions are uniformly too large, not skewed; more partitions or less data per task (or more memory) addresses it.
+      B: Skew handling only applies to broadcast joins.
+      C: Spill is always caused by skew, so the proposal is correct.
+      D: Spill is a driver-side problem; add driver memory.
+    correct: A
+    explanation: >-
+      Skew is one straggler with disproportionate data; uniform spill is a sizing
+      problem. Reading the distribution across tasks is what separates the two, and
+      the fixes differ.
+    distractor_rationale:
+      B: Skew handling applies to shuffle joins; the issue is that there is no skew here.
+      C: Spill means working sets exceeded memory, which uniform oversizing causes without any skew.
+      D: Executors spill; the driver is not involved in task working sets.
+    near_misses:
+      - text: >-
+          Even spill across tasks means partitions are uniformly too large, not skewed;
+          fewer, larger partitions (or more memory) address it.
+        why: >-
+          Fewer partitions put more data in each task, so every task spills more.
+          Uniformly oversized partitions need more of them, or less data in each.
+      - text: >-
+          Even spill across tasks means several keys are skewed at once, not one; more
+          partitions or less data per task (or more memory) addresses it.
+        why: >-
+          Skew means some partitions hold far more than the rest (AQE counts one as skewed
+          only past five times the median). Spill spread evenly is a sizing problem with
+          no skew in it.
+      - text: >-
+          Even spill across tasks means several keys are skewed at once, not one; fewer,
+          larger partitions (or more memory) address it.
+        why: >-
+          Even spill shows no skew, and fewer partitions would make every task's share
+          larger and the spill worse.
+
+  - id: ASSOC-S6-Q007
+    objective_ids: [ASSOC-S6-O1]
+    variant_of: ASSOC-S6-Q004
+    difficulty: application
+    provenance: original
+    tags: [run-history, monitoring, trend]
+    stem: >-
+      Which observation from the Jobs run history most directly localises a
+      regression in a multi-task job that still succeeds?
+    options:
+      A: One task's duration jumped while the others held steady across recent runs.
+      B: The total run duration increased.
+      C: The run's status is SUCCESS.
+      D: The job's schedule fired on time.
+    correct: A
+    explanation: >-
+      Comparing per-task durations against previous runs points at the task that
+      changed before any log is opened. Total duration says something happened;
+      task-level comparison says where.
+    distractor_rationale:
+      B: Confirms the regression without locating it.
+      C: Success is what makes the regression silent.
+      D: Scheduling is unrelated to execution time.
+    near_misses:
+      - text: >-
+          Every task's duration rose by the same share across recent runs.
+        why: >-
+          A rise shared by every task points at something they all have in common, such as
+          data volume or compute, and does not say which task changed.
+      - text: >-
+          One task's start time moved later while the others held steady across recent
+          runs.
+        why: >-
+          A later start comes from the upstream tasks taking longer. It points at the task
+          that waited, not the one that slowed.
+      - text: >-
+          Every task's start time moved later by the same amount across recent runs.
+        why: >-
+          Start times shifting together reflect when the run began, such as slower compute
+          start-up, not which task's work regressed.
+
+  - id: ASSOC-S7-Q010
+    objective_ids: [ASSOC-S7-O2]
+    variant_of: ASSOC-S7-Q004
+    difficulty: analysis
+    provenance: original
+    tags: [grants, traversal, use-schema]
+    stem: >-
+      A group holds SELECT on schema sales and USE CATALOG on its catalog, but
+      cannot query sales.orders. Which grant is missing?
+    options:
+      A: USE SCHEMA on sales.
+      B: SELECT on sales.orders, since schema grants do not inherit to tables.
+      C: USE CATALOG on the metastore.
+      D: Ownership of sales.orders.
+    correct: A
+    explanation: >-
+      SELECT on the schema inherits to every table in it, but exercising it needs
+      traversal at both levels. USE CATALOG is present; USE SCHEMA is not.
+    distractor_rationale:
+      B: Schema-level SELECT does inherit to the tables.
+      C: USE CATALOG is granted on a catalog, not the metastore, and is already held.
+      D: Ownership is not required to read.
+    near_misses:
+      - text: >-
+          USAGE on sales.
+        why: >-
+          USAGE is the legacy Hive metastore privilege. Unity Catalog rejects the grant
+          with PRIVILEGE_NOT_APPLICABLE_TO_ENTITY.
+      - text: >-
+          USE SCHEMA on sales.orders.
+        why: >-
+          USE SCHEMA is granted on a schema, or on a catalog to cover its schemas. On a
+          table the grant fails with PRIVILEGE_NOT_APPLICABLE_TO_ENTITY.
+      - text: >-
+          USAGE on sales.orders.
+        why: >-
+          USAGE does not exist in Unity Catalog and a table takes no traversal privilege;
+          the grant fails with PRIVILEGE_NOT_APPLICABLE_TO_ENTITY.
+
+  - id: ASSOC-S7-Q011
+    objective_ids: [ASSOC-S7-O3]
+    variant_of: ASSOC-S7-Q006
+    difficulty: application
+    provenance: original
+    tags: [column-mask, row-filter, views]
+    stem: >-
+      Support sees full emails, everyone else sees a redacted value, from the same
+      table name and without a second object. Which mechanism, and where is the
+      group check written?
+    options:
+      A: A column mask on the email column; the group check is inside the mask function, which returns the value for support and a redacted string otherwise.
+      B: A row filter on the table; the group check decides which rows contain emails.
+      C: Two views with different grants; the group check is the grant.
+      D: A CHECK constraint that redacts on write.
+    correct: A
+    explanation: >-
+      The requirement is per-column, per-viewer, on one object: that is a column
+      mask. The function carries the policy (is_account_group_member), the table
+      carries the function.
+    distractor_rationale:
+      B: Row filters choose rows, not what a column shows.
+      C: Two views is a second object, which the requirement excludes.
+      D: Constraints validate writes; they do not vary output by viewer.
+    near_misses:
+      - text: >-
+          A row filter on the email column; the group check is inside the filter function,
+          which returns the value for support and a redacted string otherwise.
+        why: >-
+          A row filter must return BOOLEAN to choose rows; a function returning STRING
+          fails with DATATYPE_MISMATCH.FILTER_NOT_BOOLEAN. The failed statement still
+          attaches the filter, and every read errors until it is dropped.
+      - text: >-
+          A column mask on the email column; the group check is a FOR clause on ALTER
+          TABLE ... SET MASK, which names the groups that see the redacted value.
+        why: >-
+          SET MASK takes no principal clause; FOR is a PARSE_SYNTAX_ERROR. The mask runs
+          for every reader, so the group check has to live inside the function.
+      - text: >-
+          A row filter on the email column; the group check is a FOR clause on ALTER TABLE
+          ... SET ROW FILTER, which names the groups that see the redacted value.
+        why: >-
+          Neither statement takes a principal clause (PARSE_SYNTAX_ERROR at FOR), and a
+          row filter returns BOOLEAN to choose rows, so it cannot redact a value.

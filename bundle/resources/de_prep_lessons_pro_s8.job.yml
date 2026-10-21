@@ -1,0 +1,15 @@
+resources:
+  jobs:
+    run_lessons_pro_s8:
+      name: "[DE prep] Run PRO-S8 lessons"
+      tasks:
+        - task_key: metadata
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/professional/S8/01_metadata.py
+        - task_key: inheritance
+          depends_on:
+            - task_key: metadata
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/professional/S8/02_inheritance.py
+      queue:
+        enabled: true

@@ -1,0 +1,22 @@
+# Re-enables the study app's Lakebase endpoint after Free Edition disables it
+# for being idle. The app runs this itself when a query fails with "The endpoint
+# has been disabled", so a learner coming back after a break only waits a
+# minute. Runs as the deployer, who can manage the Lakebase project; the app's
+# own principal cannot (ops/wake_database.py).
+resources:
+  jobs:
+    wake_database:
+      name: "[DE prep] Wake the study database"
+      description: >-
+        Turns the study app's Lakebase endpoint back on if Free Edition disabled
+        it. Started by the study app; safe to run by hand at any time.
+      parameters:
+        - name: endpoint
+          default: ${var.lakebase_branch}/endpoints/primary
+      tasks:
+        - task_key: wake
+          notebook_task:
+            notebook_path: ../../ops/wake_database.py
+      max_concurrent_runs: 1
+      queue:
+        enabled: true

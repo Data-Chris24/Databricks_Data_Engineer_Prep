@@ -1,0 +1,110 @@
+{
+  "_generated_by": "solutions/PRO-S2/solution.py, run on Free Edition serverless",
+  "bronze_rows": 660,
+  "silver_rows": 600,
+  "bronze_by_source": {
+    "parquet": 180,
+    "avro": 120,
+    "csv": 150,
+    "json": 150,
+    "xml": 60
+  },
+  "silver_by_source": {
+    "json": 150,
+    "csv": 150,
+    "parquet": 120,
+    "avro": 120,
+    "xml": 60
+  },
+  "silver_by_status": {
+    "delivered": 194,
+    "out_for_delivery": 128,
+    "received": 145,
+    "in_transit": 133
+  },
+  "silver_by_facility": {
+    "PORTO": 123,
+    "LYON": 125,
+    "LEEDS": 105,
+    "DUBLIN": 111,
+    "MALMO": 136
+  },
+  "silver_by_carrier": {
+    "brightline": 193,
+    "kestrel": 201,
+    "northwind": 206
+  },
+  "route_code_not_null": 120,
+  "silver_total_weight": 11863.76,
+  "bronze_total_weight": 13008.9,
+  "revision_2_rows": 60,
+  "scanned_at_nulls": 0,
+  "probe_scans": [
+    {
+      "scan_id": "S-00151",
+      "facility": "PORTO",
+      "carrier": "northwind",
+      "status": "delivered",
+      "revision": 2,
+      "source_format": "csv",
+      "scanned_at": "2026-02-07 15:58:00",
+      "weight_kg": 2.35,
+      "route_code": null
+    },
+    {
+      "scan_id": "S-00152",
+      "facility": "MALMO",
+      "carrier": "brightline",
+      "status": "received",
+      "revision": 2,
+      "source_format": "csv",
+      "scanned_at": "2026-02-03 19:35:00",
+      "weight_kg": 13.53,
+      "route_code": null
+    },
+    {
+      "scan_id": "S-00153",
+      "facility": "MALMO",
+      "carrier": "northwind",
+      "status": "delivered",
+      "revision": 2,
+      "source_format": "csv",
+      "scanned_at": "2026-02-19 08:39:00",
+      "weight_kg": 25.97,
+      "route_code": null
+    },
+    {
+      "scan_id": "S-00400",
+      "facility": "PORTO",
+      "carrier": "kestrel",
+      "status": "out_for_delivery",
+      "revision": 1,
+      "source_format": "avro",
+      "scanned_at": "2026-02-05 03:21:00",
+      "weight_kg": 30.17,
+      "route_code": "R59"
+    },
+    {
+      "scan_id": "S-00460",
+      "facility": "LYON",
+      "carrier": "kestrel",
+      "status": "in_transit",
+      "revision": 1,
+      "source_format": "csv",
+      "scanned_at": "2026-02-18 05:33:00",
+      "weight_kg": 6.13,
+      "route_code": null
+    },
+    {
+      "scan_id": "S-00545",
+      "facility": "LEEDS",
+      "carrier": "brightline",
+      "status": "delivered",
+      "revision": 1,
+      "source_format": "xml",
+      "scanned_at": "2026-02-02 20:48:00",
+      "weight_kg": 17.16,
+      "route_code": null
+    }
+  ]
+}

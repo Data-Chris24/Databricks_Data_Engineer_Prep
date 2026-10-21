@@ -1,0 +1,7 @@
+{
+  "_comment": "What the PRO-S10 assignment produces, per its README's output contract. A reset drops exactly these. Never list an assess input.",
+  "tables": [
+    "workspace.de_prep.pro_s10_dim_customer",
+    "workspace.de_prep.pro_s10_fact_orders"
+  ]
+}

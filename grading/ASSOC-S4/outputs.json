@@ -1,0 +1,7 @@
+{
+  "_comment": "What the ASSOC-S4 assignment produces, per its README's output contract. A reset drops exactly these. Never list an assess input.",
+  "tables": [
+    "workspace.de_prep.s4_gold_regional_orders",
+    "workspace.de_prep.s4_quarantine_orders"
+  ]
+}
