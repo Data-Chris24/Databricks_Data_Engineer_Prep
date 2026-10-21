@@ -829,3 +829,256 @@ questions:
         why: >-
           items[0] is a single struct, not an array, so there is nothing to explode: a data
           type mismatch.
+
+  # Added 2026-10-20 so every ASSOC-S2 objective has three questions. Q021 and Q022
+  # were run on Free Edition (GRANTs on a scratch connection; a serverless JDBC read);
+  # Q020, Q023 and Q021's Salesforce details were checked against the current docs.
+  - id: ASSOC-S2-Q020
+    objective_ids: [ASSOC-S2-O1]
+    difficulty: application
+    provenance: original
+    tags: [file-upload, local-files, managed-table, ingestion-patterns]
+    stem: >-
+      An analyst has a 40 MB CSV export on their laptop and needs it as a Unity Catalog
+      table for an afternoon of ad-hoc analysis. No more files will follow. What is the
+      simplest way to get it there?
+    options:
+      A: >-
+        Upload it in the workspace UI's create-table-from-file page, which writes a
+        one-time copy into a Unity Catalog managed table.
+      B: >-
+        Point an Auto Loader stream at the folder on the laptop, with trigger
+        availableNow so it stops after one pass.
+      C: >-
+        Run COPY INTO with the file's path on the laptop as the source.
+      D: >-
+        Configure a Lakeflow Connect managed connector for the file and run its
+        ingestion pipeline once.
+    correct: A
+    explanation: >-
+      A one-off local file is the simplest ingestion pattern there is: no incremental
+      bookkeeping is needed because nothing else will arrive. The upload UI (or an upload
+      into a volume followed by "Create table") copies the data into a Unity Catalog
+      managed table once; from then on the table is independent of the file. The
+      incremental tools earn their keep only when files keep arriving, and every one of
+      them reads from storage that Databricks compute can reach, which a laptop is not.
+    distractor_rationale:
+      B: >-
+        Auto Loader reads cloud storage or a volume. Serverless compute runs in
+        Databricks' cloud and has no route to a folder on a laptop, and a stream is
+        machinery a single file does not need.
+      C: >-
+        COPY INTO loads from cloud object storage or a volume, not from a client
+        machine's disk. The file would have to be uploaded first anyway.
+      D: >-
+        Managed connectors ingest from SaaS applications and databases such as
+        Salesforce or SQL Server; there is no managed connector for a local file.
+    near_misses:
+      - text: >-
+          Upload it in the workspace UI's create-table-from-file page, which creates an
+          external table that reads the uploaded file in place.
+        why: >-
+          The page creates a Unity Catalog managed table: the rows are copied into
+          table storage, not left in the uploaded file behind an external table.
+      - text: >-
+          Upload it in the workspace UI's create-table-from-file page, which writes it into
+          a Unity Catalog managed table that refreshes when the file on the laptop changes.
+        why: >-
+          The upload is a one-time copy. Databricks cannot see the laptop afterwards; a
+          changed file has to be uploaded again (the dialog offers to overwrite the table).
+      - text: >-
+          Upload it in the workspace UI's create-table-from-file page, which creates an
+          external table that refreshes when the file on the laptop changes.
+        why: >-
+          The page creates a managed table holding a one-time copy; nothing links it back
+          to the laptop, so it never refreshes by itself.
+
+  - id: ASSOC-S2-Q021
+    objective_ids: [ASSOC-S2-O4]
+    difficulty: application
+    provenance: original
+    tags: [lakeflow-connect, connection, use-connection, credentials]
+    stem: >-
+      An admin sets up the Salesforce credentials for a Lakeflow Connect managed
+      connector. A data engineer must then build ingestion pipelines on them without
+      ever seeing the password. How is this arranged?
+    options:
+      A: >-
+        The credentials live in a Unity Catalog connection; granting the engineer USE
+        CONNECTION on it lets them name it in a pipeline's ingestion definition.
+      B: >-
+        The admin shares the Salesforce password with the engineer, who pastes it into
+        the pipeline settings, where it is masked after saving.
+      C: >-
+        The credentials live in the pipeline's Spark configuration, and granting the
+        engineer CAN VIEW on the pipeline lets them reuse it.
+      D: >-
+        The engineer is made a workspace admin, so the pipeline can run under the admin's
+        identity.
+    correct: A
+    explanation: >-
+      Managed connectors keep source credentials in a Unity Catalog connection object,
+      so access to the source is governed like any other securable. Creating one needs
+      CREATE CONNECTION on the metastore; building a pipeline on an existing one needs
+      USE CONNECTION (or ALL PRIVILEGES) on it, and the pipeline refers to it by
+      connection_name in its ingestion definition. The secret never leaves the
+      connection: DESCRIBE CONNECTION shows the options, such as the host, but not the
+      user or password. Least privilege, and one place to rotate the credential.
+    distractor_rationale:
+      B: >-
+        Handing out the password is exactly what the connection object exists to avoid,
+        and it puts the credential in a person's hands and in the pipeline's history.
+      C: >-
+        A pipeline's configuration is not a credential store, and CAN VIEW on a pipeline
+        says nothing about access to the source system.
+      D: >-
+        Admin rights are far more than the task needs; least privilege is a grant on the
+        one connection.
+    near_misses:
+      - text: >-
+          The credentials live in a Unity Catalog connection; granting the engineer READ
+          on it lets them name it in a pipeline's ingestion definition.
+        why: >-
+          READ is not a connection privilege: the GRANT fails with
+          PRIVILEGE_NOT_APPLICABLE_TO_ENTITY. Using a connection takes USE CONNECTION.
+      - text: >-
+          The credentials live in a workspace secret scope; granting the engineer USE CONNECTION on
+          it lets them name it in a pipeline's ingestion definition.
+        why: >-
+          Secret scopes are not Unity Catalog securables and take ACLs (READ, WRITE,
+          MANAGE), not USE CONNECTION. A managed connector's ingestion definition names a
+          Unity Catalog connection.
+      - text: >-
+          The credentials live in a workspace secret scope; granting the engineer READ on it lets
+          them name it in a pipeline's ingestion definition.
+        why: >-
+          READ on a scope would let the engineer fetch the password itself, and the
+          ingestion definition takes a connection_name, not a scope.
+
+  - id: ASSOC-S2-Q022
+    objective_ids: [ASSOC-S2-O5]
+    difficulty: application
+    provenance: original
+    tags: [jdbc, partitioning, parallel-read, python, code]
+    stem: >-
+      This JDBC read of a 50-million-row table runs as a single task. It must instead
+      read eight ranges of the numeric order_id in parallel. Which line fills the blank?
+    code_language: python
+    option_style: code
+    code: |-
+      orders = (spark.read.format("jdbc")
+                  .option("url", "jdbc:postgresql://erp.internal:5432/sales")
+                  .option("dbtable", "public.orders")
+                  .option("user", "etl_reader")
+                  .option("password", dbutils.secrets.get("erp", "etl_reader_password"))
+                  ________
+                  .option("lowerBound", 1)
+                  .option("upperBound", 50000000)
+                  .option("numPartitions", 8)
+                  .load())
+    options:
+      A: |-
+        .option("partitionColumn", "order_id")
+      B: |-
+        .option("partitionBy", "order_id")
+      C: |-
+        .partitionBy("order_id")
+      D: |-
+        .option("partitionColumn", "order_id", "8")
+    correct: A
+    explanation: >-
+      A JDBC read is one query on one connection unless you tell Spark how to split it.
+      partitionColumn, lowerBound, upperBound and numPartitions go together: Spark cuts
+      the range into numPartitions strides and issues one query per stride, each with its
+      own WHERE clause. The bounds only decide the strides, they do not filter rows: values
+      outside them land in the first and last partitions. Run on Free Edition, the plan
+      showed JDBCRelation [numPartitions=8] with the option set, and [numPartitions=1]
+      without the four options.
+    distractor_rationale:
+      B: >-
+        partitionBy is not a JDBC option. With the bounds set but no partitionColumn the
+        read fails: IllegalArgumentException, users need to specify all or none of
+        partitionColumn, lowerBound, upperBound and numPartitions.
+      C: >-
+        partitionBy belongs to the writer, for laying out files on disk. The reader has
+        none: AttributeError, 'DataFrameReader' object has no attribute 'partitionBy'.
+      D: >-
+        option() takes one key and one value: TypeError, option() takes 3 positional
+        arguments but 4 were given. numPartitions is its own option, already set below.
+    near_misses:
+      - text: |-
+          .option("partitionColumn", order_id)
+        why: >-
+          Without quotes order_id is a Python variable that does not exist: NameError
+          before Spark sees the read.
+      - text: |-
+          .option("partitionColumns", "order_id")
+        why: >-
+          The key is singular. partitionColumns is not a JDBC option, so the read fails
+          asking for all or none of partitionColumn, lowerBound, upperBound and
+          numPartitions.
+      - text: |-
+          .option("partitionColumns", order_id)
+        why: >-
+          Unquoted order_id is an undefined Python name (NameError), and the key is
+          partitionColumn, singular.
+
+  - id: ASSOC-S2-Q023
+    objective_ids: [ASSOC-S2-O6]
+    difficulty: analysis
+    provenance: original
+    tags: [lakeflow-connect, managed-connector, partner-connect, choosing]
+    stem: >-
+      A team must bring Salesforce objects into Unity Catalog every hour, loading only
+      what changed. They want as little code to maintain as possible and no contract with
+      a third-party ingestion vendor. Which approach fits?
+    options:
+      A: >-
+        A Lakeflow Connect managed connector for Salesforce, which ingests incrementally
+        into streaming tables in the destination catalog and schema.
+      B: >-
+        A partner ingestion tool such as Fivetran, set up through Partner Connect.
+      C: >-
+        A scheduled notebook that calls the Salesforce REST API, tracks the last-modified
+        timestamp itself and merges the results into a table.
+      D: >-
+        A nightly export script that writes CSV files to a volume, picked up by Auto
+        Loader.
+    correct: A
+    explanation: >-
+      Prioritising ingestion methods comes down to the source and to who should own the
+      pipeline. Salesforce is a SaaS application with a managed connector: Databricks
+      handles authentication through a Unity Catalog connection, the incremental reads
+      (a cursor column after the first full load) and the scheduling, and the results
+      land as streaming tables governed by Unity Catalog. Partner tools are the right
+      call when no managed connector exists or the organisation already runs one; custom
+      API code or file exports are the fallback when nothing managed covers the source.
+    distractor_rationale:
+      B: >-
+        A partner tool works, but it is exactly the third-party vendor the team ruled
+        out.
+      C: >-
+        Pagination, rate limits, cursor bookkeeping and retries all become the team's
+        code to maintain - the opposite of the requirement.
+      D: >-
+        An export script is custom code too, a nightly export misses the hourly
+        requirement, and full exports reload everything rather than only changes.
+    near_misses:
+      - text: >-
+          A Lakeflow Connect standard connector for Salesforce, which ingests incrementally
+          into streaming tables in the destination catalog and schema.
+        why: >-
+          Standard connectors read sources you can reach directly, such as cloud storage
+          or Kafka. Salesforce is one of the managed (SaaS) connectors.
+      - text: >-
+          A Lakeflow Connect managed connector for Salesforce, which exports changed
+          records as files into a volume for an Auto Loader stream to load.
+        why: >-
+          The managed connector's own ingestion pipeline writes the destination streaming
+          tables; there is no volume of exported files or separate Auto Loader stream to run.
+      - text: >-
+          A Lakeflow Connect standard connector for Salesforce, which exports changed
+          records as files into a volume for an Auto Loader stream to load.
+        why: >-
+          Salesforce is a managed connector, not a standard one, and its pipeline writes
+          streaming tables directly rather than staging files for Auto Loader.
