@@ -19,7 +19,7 @@ import sys
 ENVIRONMENT = "databricks-free"
 DEFAULT_BRANCH = "main"
 REQUIRED_SECRETS = {"DATABRICKS_HOST", "DATABRICKS_CLIENT_ID", "DATABRICKS_CLIENT_SECRET"}
-REQUIRED_CHECKS = {"Content validation", "Tests", "Bundle validation", "Approved by a reviewer"}
+REQUIRED_CHECKS = {"Content validation", "Tests", "Bundle validation", "Study app", "Approved by a reviewer"}
 
 OK, WARN, FAIL = "PASS", "WARN", "FAIL"
 results: list[tuple[str, str, str, str]] = []  # status, area, finding, remedy
@@ -124,8 +124,9 @@ def check_environment(slug):
                    "'Prevent self-review' is ON",
                    "With a single maintainer this deadlocks deploys - untick it")
     else:
-        record(WARN, "environment", "no required reviewers - deploys run unattended",
-               "Tick 'Required reviewers' and add yourself")
+        # Deliberate: merges deploy hands-off, and the ruleset decides what reaches
+        # main. A required reviewer would pause every auto-merged deploy.
+        record(OK, "environment", "no required reviewers - merges to main deploy without a pause")
 
     # The API exposes admin bypass as can_admins_bypass.
     if env.get("can_admins_bypass") is True:
@@ -205,11 +206,14 @@ def check_ruleset(slug):
                    "Tick 'Require a pull request before merging'")
         else:
             n = pr.get("required_approving_review_count", 0)
-            if n >= 1:
-                record(OK, "ruleset", f"requires {n} approving review(s)")
+            if n == 0:
+                # Review is enforced by the 'Approved by a reviewer' check, which
+                # waives itself only while nobody else has write access.
+                record(OK, "ruleset", "0 required approvals - review is enforced by the 'Approved by a reviewer' check")
             else:
-                record(WARN, "ruleset", "requires 0 approving reviews",
-                       "Set 'Required approvals' to 1")
+                record(WARN, "ruleset", f"requires {n} approving review(s)",
+                       "GitHub never lets you approve your own PR, so this blocks auto-merge while you are "
+                       "the only maintainer; set it to 0 and let 'Approved by a reviewer' enforce review")
 
         checks = rules.get("required_status_checks")
         if checks is None:

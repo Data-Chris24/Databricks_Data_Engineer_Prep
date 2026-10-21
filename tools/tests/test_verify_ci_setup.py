@@ -208,7 +208,7 @@ def _ruleset(**overrides):
     base = {
         "id": 1, "name": "MainBranchRuleset", "enforcement": "active",
         "rules": [
-            {"type": "pull_request", "parameters": {"required_approving_review_count": 1}},
+            {"type": "pull_request", "parameters": {"required_approving_review_count": 0}},
             {"type": "required_status_checks", "parameters": {
                 "required_status_checks": [{"context": c} for c in v.REQUIRED_CHECKS]}},
             {"type": "non_fast_forward"},
@@ -263,3 +263,33 @@ def test_unrecognised_required_check_warns(monkeypatch):
     stub(monkeypatch, {f"repos/{SLUG}/rulesets": [rs], f"repos/{SLUG}/rulesets/1": rs})
     v.check_ruleset(SLUG)
     assert any(s == v.WARN and "unrecognised" in f for s, f in verdicts())
+
+
+def test_study_app_is_a_required_check():
+    """A red app build merged on 2026-09-15 because 'Study app' was not required."""
+    assert "Study app" in v.REQUIRED_CHECKS
+
+
+def test_zero_approvals_passes_and_one_warns(monkeypatch):
+    rs = _ruleset()
+    stub(monkeypatch, {f"repos/{SLUG}/rulesets": [rs], f"repos/{SLUG}/rulesets/1": rs})
+    v.check_ruleset(SLUG)
+    assert any(s == v.OK and "0 required approvals" in f for s, f in verdicts())
+
+    v.results.clear()
+    rules = [dict(r) for r in rs["rules"]]
+    rules[0] = {"type": "pull_request", "parameters": {"required_approving_review_count": 1}}
+    rs1 = _ruleset(rules=rules)
+    stub(monkeypatch, {f"repos/{SLUG}/rulesets": [rs1], f"repos/{SLUG}/rulesets/1": rs1})
+    v.check_ruleset(SLUG)
+    assert any(s == v.WARN and "requires 1 approving" in f for s, f in verdicts())
+
+
+def test_no_environment_reviewers_passes(monkeypatch):
+    stub(monkeypatch, {f"repos/{SLUG}/environments/{v.ENVIRONMENT}": {
+        "protection_rules": [{"type": "branch_policy"}], "can_admins_bypass": False,
+        "deployment_branch_policy": {"protected_branches": False, "custom_branch_policies": True}},
+        f"repos/{SLUG}/environments/{v.ENVIRONMENT}/deployment-branch-policies": {
+            "branch_policies": [{"name": "main", "type": "branch"}]}})
+    v.check_environment(SLUG)
+    assert v.WARN not in statuses() and v.FAIL not in statuses()
