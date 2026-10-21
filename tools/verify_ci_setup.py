@@ -227,7 +227,7 @@ def check_ruleset(slug):
                 record(FAIL, "ruleset", f"status checks not required: {sorted(missing)}",
                        "Add them under 'Require status checks to pass'")
             else:
-                record(OK, "ruleset", "all four PR checks are required")
+                record(OK, "ruleset", f"all {len(REQUIRED_CHECKS)} PR checks are required: {', '.join(sorted(REQUIRED_CHECKS))}")
             if extra:
                 record(WARN, "ruleset", f"unrecognised required checks: {sorted(extra)}",
                        "These will never report and will block every PR")
