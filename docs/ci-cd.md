@@ -47,10 +47,12 @@ This is honest about what a solo repo can enforce, instead of either pretending 
 have peer review or leaving a permanent red X that trains you to merge past
 failures.
 
-> **On the ruleset:** while you are the only contributor, put yourself in its
-> **Bypass list**. The ruleset requires an approval that cannot exist for your own
-> PRs; the bypass is what lets you merge them. A second account of your own would
-> technically satisfy the rule while buying nothing real.
+> **On the ruleset:** set its *Required approvals* to **0** and let this check
+> enforce review. GitHub's own approval count cannot tell a solo repo from a team
+> one: at 1 it blocks every PR you open (you cannot approve your own), and
+> auto-merge cannot use a bypass. This check makes the same demand only once
+> someone else has write access. A second account of your own would technically
+> satisfy GitHub's rule while buying nothing real.
 
 ---
 
@@ -59,7 +61,7 @@ failures.
 **Do these in order — there is a chicken-and-egg in the middle.**
 
 A branch ruleset requires status checks *by name*, and GitHub only offers names it
-has already seen. Until a pull request has actually run the workflows, the four
+has already seen. Until a pull request has actually run the workflows, the five
 checks do not exist as far as the ruleset UI is concerned, and you would be typing
 them from memory — where one typo produces a required check that never reports and
 blocks every PR forever.
@@ -72,7 +74,7 @@ So the ruleset comes *after* the first pull request, not before:
 | 2 | Databricks credentials | After the environment exists (the secrets live on it) |
 | 3 | Allow auto-merge | Any time — but it does nothing until step 6 |
 | 4 | Merge style | Before your first merge, or you will merge the wrong way |
-| — | **Open your first PR and let the checks run** | Registers the four check names |
+| — | **Open your first PR and let the checks run** | Registers the five check names |
 | 5 | Create the `no-tests-needed` label | Any time — before your first docs-only PR |
 | 6 | Branch ruleset for `main` | Now the checks are selectable |
 | — | Merge that first PR | |
@@ -80,7 +82,7 @@ So the ruleset comes *after* the first pull request, not before:
 Two consequences worth expecting rather than discovering:
 
 - **Your first PR merges without the full gate**, because the ruleset does not
-  exist yet. That is unavoidable — and harmless, since all four checks still run
+  exist yet. That is unavoidable — and harmless, since all five checks still run
   and you can read them. The gate protects everything after it.
 - **The second PR is the first real test of the gate.** Open one deliberately if
   you have nothing pending; it is how you find out whether the ruleset does what
@@ -91,21 +93,17 @@ Two consequences worth expecting rather than discovering:
 `Settings → Environments → New environment` → name it **`databricks-free`**,
 which is what `deploy.yml` references. Three settings on that page matter.
 
-**Required reviewers — tick it, add yourself.** Every deploy then pauses until you
-approve it in the Actions tab.
-
-> **This one works solo, unlike PR approval.** GitHub *does* let you approve a
-> deployment you triggered yourself. Ticking "Required reviewers" reveals a
-> **"Prevent self-review"** checkbox — leave it **unticked**. Turning it on would
-> recreate the same deadlock the PR approval gate has, and for the same reason.
+**Required reviewers — leave it off.** Merges to `main` deploy without a pause;
+the branch ruleset (step 6) already decides what reaches `main`, and a required
+reviewer would hold every auto-merged deploy until someone clicked approve. If you
+ever do add reviewers, leave **"Prevent self-review"** unticked: with one
+maintainer it deadlocks every deploy.
 
 **Allow administrators to bypass configured protection rules — untick it.** It
-defaults to ticked. Since you are already a required reviewer with self-review
-allowed, you can approve your own deploys in one click; bypass is a second route to
-something you can do anyway. That redundancy is the problem: the day you add a
-collaborator or tick "Prevent self-review", admin bypass would silently reopen the
-gate you just closed. Leave it ticked only if you specifically want a break-glass
-path — and on a personal project, no deploy is that urgent.
+defaults to ticked. With it on, an admin can deploy from a branch the next setting
+excludes; unticked, the rule holds even for you, so a manual dispatch of the deploy
+workflow on the wrong branch is refused instead of shipping that branch to your
+workspace. On a personal project no deploy is urgent enough to need a way round.
 
 **Deployment branches and tags — pick "Selected branches and tags" and add the
 pattern `main`.** This is the only setting on the page that closes a real path to
@@ -318,7 +316,7 @@ requirement *visible*, but a workflow cannot stop someone with write access from
 merging — a ruleset can.
 
 > **Do this after your first PR has run its checks** (see the ordering table
-> above), so the four check names appear in the picker instead of being typed.
+> above), so the five check names appear in the picker instead of being typed.
 
 `Settings → Rules → Rulesets → New branch ruleset`:
 
@@ -326,8 +324,10 @@ merging — a ruleset can.
 - ✅ Restrict deletions
 - ✅ Block force pushes
 - ✅ **Require a pull request before merging**
-  - Required approvals: **1**
-  - ✅ Dismiss stale approvals when new commits are pushed
+  - Required approvals: **0**. Review is enforced by the `Approved by a reviewer`
+    check below (see the top of this document); a GitHub count of 1 blocks your
+    own PRs and auto-merge while you are the only maintainer
+  - Allowed merge methods: **Squash** only
 - ✅ **Require status checks to pass**, and select:
   - `Content validation`
   - `Tests`
@@ -340,8 +340,12 @@ merging — a ruleset can.
   the deploy failed and the app was down until the next PR. A required check
   that is missing from this list is advisory only.
 
-While you're the only contributor, add yourself under **Bypass list** — see the
-section at the top for why.
+**Bypass list:** optional. Adding yourself gives you a way to merge past a broken
+check in an emergency; leaving it empty means nothing reaches `main` without all
+five checks passing. Nothing in the normal flow needs it.
+
+Check the result with `python3 tools/verify_ci_setup.py`: it compares the live
+GitHub settings with this document.
 
 ---
 
