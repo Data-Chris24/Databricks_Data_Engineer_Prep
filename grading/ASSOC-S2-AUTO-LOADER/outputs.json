@@ -1,0 +1,13 @@
+{
+  "_comment": "What the optional ASSOC-S2-AUTO-LOADER assignment produces, per its README's output contract. A reset drops exactly these, including the streams' checkpoints and schema locations: a table dropped without its checkpoint would load nothing on the next run. Never list an assess input.",
+  "tables": [
+    "workspace.de_prep.ferry_tickets",
+    "workspace.de_prep.ferry_vessels",
+    "workspace.de_prep.ferry_manifests",
+    "workspace.de_prep.ferry_crossings",
+    "workspace.de_prep.ferry_scans"
+  ],
+  "paths": [
+    "/Volumes/workspace/de_prep/raw/s2_al_work"
+  ]
+}

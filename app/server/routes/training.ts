@@ -2,7 +2,7 @@ import { applyCompletion } from '../../shared/completion';
 import type { Application } from 'express';
 import { z } from 'zod';
 
-import { examById, lessonPaths, notebooks, sectionById } from '../../shared/content';
+import { allLessonPaths, examById, notebooks, sectionById } from '../../shared/content';
 import type { ProgressRow, TrainingState } from '../../shared/types';
 import type { Db } from '../lib/appkit';
 import { currentUser, iso, num, param, parseBody, wrap } from '../lib/http';
@@ -11,7 +11,7 @@ const Visit = z.object({ path: z.string().min(1).max(300) });
 
 function examLessonPaths(examId: string): string[] {
   const exam = examById(examId);
-  return exam ? exam.sections.flatMap((s) => lessonPaths(s.id)) : [];
+  return exam ? exam.sections.flatMap((s) => allLessonPaths(s.id)) : [];
 }
 
 const Patch = z.object({

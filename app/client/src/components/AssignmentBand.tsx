@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { gateHint } from '../../../shared/gate';
-import type { AppConfig, AssignmentState, SectionNotebooks } from '../../../shared/types';
+import type { AppConfig, AssignmentState } from '../../../shared/types';
 import { workspaceUrl } from '../lib/links';
 import { ApiError, LessonsUnvisitedError, useStore } from '../lib/store';
 import { Icon } from './Icon';
@@ -10,16 +10,23 @@ import { Icon } from './Icon';
  * The assignment step at the end of a section. Locked until every hands-on
  * notebook has been opened from the app; then it sets up the learner's own
  * copy of the starter (or links to the task when a section has no starter yet),
- * and can reset that copy to the starter.
+ * and can reset that copy to the starter. An optional extra assignment uses
+ * the same band under its own id, with its own gate and title.
  */
 export function AssignmentBand({
   sectionId,
-  notebooks,
+  gate,
+  readme,
+  title = 'Then the assignment, on a dataset the lesson code will not survive',
   config,
   visited,
 }: {
+  /** A section's id, or an extra assignment's. */
   sectionId: string;
-  notebooks: SectionNotebooks;
+  /** Lesson paths that must have been opened first. */
+  gate: string[];
+  readme: string | null;
+  title?: string;
   config: AppConfig | null;
   visited: Set<string>;
 }) {
@@ -68,13 +75,13 @@ export function AssignmentBand({
     return () => window.clearInterval(id);
   }, [resetting, load]);
 
-  const lessons = notebooks.lessons.map((l) => l.path);
+  const lessons = gate;
   const done = lessons.filter((p) => visited.has(p)).length;
   const ready = state ? state.gate.ready : done === lessons.length;
   const hint = state ? gateHint(state.gate) : gateHint({ ready, done, total: lessons.length, missing: [] });
   const workspacePath = (p: string) => (p.startsWith('/Workspace') ? p : `/Workspace${p}`);
   const copyUrl = state?.notebook && config?.workspaceHost ? `${config.workspaceHost}/#workspace${workspacePath(state.notebook)}` : null;
-  const readmeUrl = notebooks.assignment.readme ? workspaceUrl(config, notebooks.assignment.readme) : null;
+  const readmeUrl = readme ? workspaceUrl(config, readme) : null;
 
   let action: React.ReactNode;
   if (!ready) {
@@ -120,7 +127,7 @@ export function AssignmentBand({
   return (
     <div className="assignment-band">
       <div>
-        <div className="title">Then the assignment, on a dataset the lesson code will not survive</div>
+        <div className="title">{title}</div>
         <div className="sub">
           {!ready
             ? hint

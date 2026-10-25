@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
-import { notebooks, notes, questionsFor, sectionById } from '../../../../shared/content';
+import { lessonPaths, notebooks, notes, questionsFor, sectionById } from '../../../../shared/content';
 import { completedIn, lessonDestination } from '../../../../shared/lessonFlow';
 import type { AppConfig, GradingRun, ProgressRow } from '../../../../shared/types';
 import { AssignmentBand } from '../../components/AssignmentBand';
@@ -314,7 +314,10 @@ export function SectionPage() {
                 const inner = (
                   <>
                     <span className="nb-num">{String(i + 1).padStart(2, '0')}</span>
-                    <span className="nb-title">{nb.title}</span>
+                    <span className="nb-title">
+                      {nb.title}
+                      {nb.optional ? <span className="nb-optional">Optional</span> : null}
+                    </span>
                     <span className="nb-open">
                       {url ? 'Open notebook' : nb.path} {url ? <Icon name="external" size={12} stroke={2} /> : null}
                     </span>
@@ -341,9 +344,35 @@ export function SectionPage() {
               </div>
             ) : null}
 
-            {nbs ? <AssignmentBand sectionId={section.id} notebooks={nbs} config={config} visited={visited} /> : null}
+            {nbs ? (
+              <AssignmentBand
+                sectionId={section.id}
+                gate={lessonPaths(section.id)}
+                readme={nbs.assignment.readme}
+                config={config}
+                visited={visited}
+              />
+            ) : null}
 
             {nbs?.assignment ? <GradingPanel sectionId={section.id} gradeJob={nbs.assignment.grade_job} onResult={onGraded} /> : null}
+
+            {/* Optional extras: graded the same way, never part of completing the section. */}
+            {(nbs?.extras ?? []).map((x) => (
+              <div key={x.id} className="extra-assignment">
+                <div className="rail-title">
+                  Optional assignment <span className="nb-optional">Optional</span>
+                </div>
+                <AssignmentBand
+                  sectionId={x.id}
+                  gate={x.gate}
+                  readme={x.readme}
+                  title={x.title}
+                  config={config}
+                  visited={visited}
+                />
+                <GradingPanel sectionId={x.id} gradeJob={x.grade_job} label="Grade the optional assignment" />
+              </div>
+            ))}
 
             <div className="end-actions">
               {progress?.completed && nextStep.kind === 'section' && nextStep.why === 'next' ? (

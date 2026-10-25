@@ -103,6 +103,23 @@ export interface SectionNote {
 export interface LessonNotebook {
   path: string;
   title: string;
+  /** Listed with an Optional badge; the section's assignment does not wait for it. */
+  optional?: boolean;
+}
+
+/**
+ * An optional assignment beside a section's own (e.g. ASSOC-S2-AUTO-LOADER).
+ * Graded, provisioned and reset like the section's, under its own id; it never
+ * counts toward completing the section.
+ */
+export interface ExtraAssignment {
+  id: string;
+  title: string;
+  readme: string;
+  notebook: string;
+  grade_job: string;
+  /** Lesson paths that must have been opened first: every lesson of the section. */
+  gate: string[];
 }
 
 export interface SectionNotebooks {
@@ -112,6 +129,7 @@ export interface SectionNotebooks {
     notebook: string | null;
     grade_job: string | null;
   };
+  extras: ExtraAssignment[];
   /** The bundle job that generates the section's teach and assess data. */
   datasets: { job: string | null };
 }

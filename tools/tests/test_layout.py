@@ -15,14 +15,23 @@ import pytest
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from build_app_content import extra_assignment_ids  # noqa: E402
 from objectives import load_all  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SECTIONS = [s.id for exam in load_all() for s in exam.sections]
+# Optional extra assignments (notebooks/assignments/<SECTION>-<SLUG>/) follow every
+# layout rule a section's assignment does.
+EXTRAS = extra_assignment_ids()
+ASSIGNMENT_IDS = SECTIONS + EXTRAS
 RESOURCES = REPO_ROOT / "bundle" / "resources"
 
 
-@pytest.mark.parametrize("sid", SECTIONS)
+def test_the_auto_loader_extra_is_found():
+    assert EXTRAS == ["ASSOC-S2-AUTO-LOADER"]
+
+
+@pytest.mark.parametrize("sid", ASSIGNMENT_IDS)
 def test_every_section_has_a_grader_with_tests_and_fixtures(sid):
     g = REPO_ROOT / "grading" / sid
     assert (g / "grade.py").exists(), f"{sid}: missing grading/{sid}/grade.py"
@@ -30,7 +39,7 @@ def test_every_section_has_a_grader_with_tests_and_fixtures(sid):
     assert (g / "expected.json").exists(), f"{sid}: missing grading/{sid}/expected.json"
 
 
-@pytest.mark.parametrize("sid", SECTIONS)
+@pytest.mark.parametrize("sid", ASSIGNMENT_IDS)
 def test_assignment_folder_holds_only_the_task_and_starter(sid):
     allowed = {"README.md", "assignment.py", "publish_summary.py"}
     present = {p.name for p in (REPO_ROOT / "notebooks" / "assignments" / sid).iterdir()}
@@ -38,7 +47,7 @@ def test_assignment_folder_holds_only_the_task_and_starter(sid):
     assert not stray, f"{sid}: {sorted(stray)} do not belong next to the assignment notebook"
 
 
-@pytest.mark.parametrize("sid", SECTIONS)
+@pytest.mark.parametrize("sid", ASSIGNMENT_IDS)
 def test_solutions_hold_no_fixtures(sid):
     assert not (REPO_ROOT / "solutions" / sid / "expected.json").exists()
 
@@ -76,7 +85,7 @@ def test_learner_targets_exclude_solutions_from_sync():
     assert not (doc["targets"]["verify"].get("sync") or {}).get("exclude")
 
 
-@pytest.mark.parametrize("sid", SECTIONS)
+@pytest.mark.parametrize("sid", ASSIGNMENT_IDS)
 def test_each_section_has_a_grade_job_and_a_transplant_check(sid):
     key = sid.lower().replace("-", "_")
     free = "\n".join(p.read_text() for p in RESOURCES.glob("*.yml"))
@@ -106,7 +115,7 @@ def test_app_may_run_every_job_it_uses():
     as an app resource: an app holds at most 20 resources, which Lakebase and 19
     jobs had filled. The app finds the jobs by name at startup (bootstrap.ts)."""
     grants = app_grants()
-    needed = [f"grade_{sid.lower().replace('-', '_')}" for sid in SECTIONS]
+    needed = [f"grade_{sid.lower().replace('-', '_')}" for sid in ASSIGNMENT_IDS]
     needed += ["reset_assignment", "generate_datasets", "wake_database"]
     defined = "\n".join(p.read_text() for p in RESOURCES.glob("*.job.yml"))
     for key in needed:
@@ -150,7 +159,7 @@ def test_every_starter_embeds_its_current_readme():
         assert synced(source, readme.read_text()) == source, f"{section.name}: starter is stale; run tools/sync_assignment_tasks.py"
         assert "Read `README.md`" not in source, f"{section.name}: still tells the learner to read a README that is not there"
         checked += 1
-    assert checked == 17
+    assert checked == len(ASSIGNMENT_IDS)
 
 
 def test_starters_carry_no_answers_even_commented_out():
@@ -208,4 +217,4 @@ def test_hints_get_one_cell_each():
             assert problem in first, f"{section.name}: hint cell does not open with {problem!r}"
         assert "<details>" not in source, f"{section.name}: a stripped-out tag survived into the notebook"
         checked += 1
-    assert checked == 13
+    assert checked == 14

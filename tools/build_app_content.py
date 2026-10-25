@@ -60,6 +60,14 @@ EXTERNAL_RE = re.compile(
 )
 VISUAL_MAX_BYTES = 200_000
 EXAM_DIR = {"associate": "ASSOC", "professional": "PRO"}
+# An optional extra assignment sits beside its section's: notebooks/assignments/
+# ASSOC-S2-AUTO-LOADER/ belongs to ASSOC-S2. It is graded like any other, never
+# counts toward the section's completion, and opens once every lesson of the
+# section, the optional ones included, has been opened.
+EXTRA_ASSIGNMENT_RE = re.compile(r"((?:ASSOC|PRO)-S\d+)-([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)")
+# A lesson whose file name says `optional` is listed with an Optional badge and
+# does not hold the section's assignment back.
+OPTIONAL_LESSON_RE = re.compile(r"(?:^|_)optional(?:_|$)")
 
 
 # ---------------------------------------------------------------------------
@@ -305,15 +313,34 @@ def notebook_title(path: Path) -> str:
     return path.stem
 
 
+def extra_assignment_ids(section_id: str | None = None) -> list[str]:
+    """Ids of the optional extra assignments, e.g. ASSOC-S2-AUTO-LOADER, sorted."""
+    root = NOTEBOOKS_DIR / "assignments"
+    out = []
+    for p in sorted(root.iterdir()) if root.exists() else []:
+        m = EXTRA_ASSIGNMENT_RE.fullmatch(p.name)
+        if p.is_dir() and m and (section_id is None or m.group(1) == section_id):
+            out.append(p.name)
+    return out
+
+
+def readme_title(readme: Path) -> str | None:
+    """"Assignment — `ASSOC-S2-AUTO-LOADER` Five sources…" -> "Five sources…"."""
+    for line in readme.read_text().splitlines():
+        if line.startswith("# "):
+            return re.sub(r"^Assignment\s+—\s+\S+\s+", "", heading_text(line[2:]))
+    return None
+
+
 def grade_jobs() -> dict[str, str]:
-    """Section id -> bundle job key that grades its assignment."""
+    """Assignment id (a section, or an extra) -> bundle job key that grades it."""
     jobs: dict[str, str] = {}
     for path in sorted(BUNDLE_RESOURCES.glob("*.yml")):
         doc = yaml.safe_load(path.read_text()) or {}
         for key, job in (doc.get("resources", {}).get("jobs", {}) or {}).items():
             for task in job.get("tasks", []) or []:
                 nb = (task.get("notebook_task") or {}).get("notebook_path", "")
-                m = re.search(r"grading/((?:ASSOC|PRO)-S\d+)/grade\.py$", nb)
+                m = re.search(r"grading/((?:ASSOC|PRO)-S\d+(?:-[A-Z0-9]+)*)/grade\.py$", nb)
                 if m and key.startswith("grade"):
                     jobs[m.group(1)] = key
     return jobs
@@ -348,6 +375,7 @@ def collect_notebooks(exams: list[dict]) -> dict[str, dict]:
                     lessons.append({
                         "path": str(nb.relative_to(REPO_ROOT).with_suffix("")),
                         "title": notebook_title(nb),
+                        "optional": bool(OPTIONAL_LESSON_RE.search(nb.stem)),
                     })
             assignment_dir = NOTEBOOKS_DIR / "assignments" / sid
             readme = assignment_dir / "README.md"
@@ -359,6 +387,7 @@ def collect_notebooks(exams: list[dict]) -> dict[str, dict]:
                     "notebook": str(starter.relative_to(REPO_ROOT).with_suffix("")) if starter.exists() else None,
                     "grade_job": grade.get(sid),
                 },
+                "extras": [extra_assignment(xid, lessons, grade) for xid in extra_assignment_ids(sid)],
                 # The app runs this job when a learner opens a section whose data
                 # has never been generated in the workspace.
                 "datasets": {"job": generate.get(sid)},
@@ -366,21 +395,42 @@ def collect_notebooks(exams: list[dict]) -> dict[str, dict]:
     return out
 
 
+def extra_assignment(xid: str, lessons: list[dict], grade: dict[str, str]) -> dict:
+    folder = NOTEBOOKS_DIR / "assignments" / xid
+    readme, starter = folder / "README.md", folder / "assignment.py"
+    if not readme.exists() or not starter.exists():
+        raise SystemExit(f"notebooks/assignments/{xid}: an extra assignment needs README.md and assignment.py")
+    if xid not in grade:
+        raise SystemExit(f"{xid}: no grade job runs grading/{xid}/grade.py")
+    return {
+        "id": xid,
+        "title": readme_title(readme) or xid,
+        "readme": str(readme.relative_to(REPO_ROOT)),
+        "notebook": str(starter.relative_to(REPO_ROOT).with_suffix("")),
+        "grade_job": grade[xid],
+        # Every lesson of the section, the optional ones too: an extra goes
+        # deeper than the section, so it waits for the deep dive.
+        "gate": [lesson["path"] for lesson in lessons],
+    }
+
+
 def collect_starters(exams: list[dict]) -> dict[str, list[dict]]:
     """Learner starter notebooks, embedded so the app can give each learner a copy.
 
     Every `.py` in an assignment folder is a starter (assignment.py, plus e.g.
     ASSOC-S5's publish_summary.py). The README is the task and stays a link.
+    Extra assignments are keyed by their own id, after their section's.
     """
     out: dict[str, list[dict]] = {}
     for exam in exams:
         for s in exam["sections"]:
-            folder = NOTEBOOKS_DIR / "assignments" / s["id"]
-            starters = []
-            if folder.exists():
-                for nb in sorted(folder.glob("*.py")):
-                    starters.append({"name": nb.stem, "source": nb.read_text()})
-            out[s["id"]] = starters
+            for aid in [s["id"], *extra_assignment_ids(s["id"])]:
+                folder = NOTEBOOKS_DIR / "assignments" / aid
+                starters = []
+                if folder.exists():
+                    for nb in sorted(folder.glob("*.py")):
+                        starters.append({"name": nb.stem, "source": nb.read_text()})
+                out[aid] = starters
     return out
 
 

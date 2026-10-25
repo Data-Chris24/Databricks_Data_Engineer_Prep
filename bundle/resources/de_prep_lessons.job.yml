@@ -29,5 +29,12 @@ resources:
           min_retry_interval_millis: 5000
           notebook_task:
             notebook_path: ../../notebooks/lessons/associate/S2/03_schema_evolution.py
+
+        # The optional deep dive. Independent of the other three: it reads its own
+        # sources (s2_al_teach) and works in its own scratch folder. Its failing
+        # streams run in a helper notebook it catches, so no retry is needed here.
+        - task_key: auto_loader_deep_dive
+          notebook_task:
+            notebook_path: ../../notebooks/lessons/associate/S2/04_optional_auto_loader_deep_dive.py
       queue:
         enabled: true

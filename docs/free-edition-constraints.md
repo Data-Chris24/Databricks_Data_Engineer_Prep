@@ -224,6 +224,34 @@ and raises immediately. So a file-backed read is what reproduces the pruning.
 cast is valid. Validate by materialising values, or with `try_cast` and an explicit
 null count.
 
+### Auto Loader on serverless: what fails, and where
+
+Measured 2026-10-24 for the optional deep dive
+(`notebooks/lessons/associate/S2/04_optional_auto_loader_deep_dive.py`), whose cells
+reproduce every row.
+
+- **All eight formats work** through `cloudFiles`: CSV, JSON, XML, Parquet, Avro, ORC,
+  text and binaryFile. ORC refuses the default evolution mode
+  (`CF_UNSUPPORTED_SCHEMA_EVOLUTION_MODE`) and needs `schemaEvolutionMode = none`.
+- **Triggers:** `availableNow` and `once` run; `processingTime` and the default
+  trigger fail with `INFINITE_STREAMING_TRIGGER_NOT_SUPPORTED`.
+- **A stream that fails while running fails the notebook even when caught.** The
+  cell ends "Some streams terminated before this command could finish!" and the
+  task "Workload failed". Errors raised before the stream starts (a missing schema
+  location, format or checkpoint, an unsupported trigger, `rowTag` missing) are
+  ordinary exceptions and can be caught. A failure inside a child notebook run
+  (`dbutils.notebook.run`) can be caught by the parent, which is how the lesson and
+  the ASSOC-S2-AUTO-LOADER reference solution show `addNewColumns` failing and
+  recovering inside one job run.
+- **`.toTable()` creates the table before it checks the checkpoint.** A stream with
+  `checkpointLocation` on the reader fails `STREAMING_CHECKPOINT_LOCATION_NOT_SPECIFIED`
+  and leaves an empty table; the next stream into that name then fails at runtime
+  with `DELTA_METADATA_MISMATCH`.
+- **Options on the wrong object are ignored, not rejected**, except the required ones
+  and misspelt `cloudFiles.*` keys (`CF_UNKNOWN_OPTION_KEYS_ERROR`, at runtime).
+- **A CSV header is read by default** by Auto Loader: no `header` option gave named
+  columns; `header = false` gave `_c0`, `_c1`, … .
+
 ### Partly hands-on
 
 | Objective | What's reachable | What isn't |

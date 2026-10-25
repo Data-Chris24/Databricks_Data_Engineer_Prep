@@ -139,6 +139,13 @@ def test_s2_supplementary_note_is_a_subpage(bundle):
     assert sub["toc"] and all(e["anchor"].startswith("errors-worth-meeting--") for e in sub["toc"])
 
 
+def test_s2_reader_vs_writer_reference_is_a_subpage(bundle):
+    subs = {p["slug"]: p for p in bundle["notes.json"]["ASSOC-S2"]["subpages"]}
+    sub = subs["auto-loader-reader-vs-writer"]
+    assert sub["objective_ids"] == ["ASSOC-S2-O3"]
+    assert any(e["text"].startswith("Which side") for e in sub["toc"])
+
+
 def test_toc_anchors_are_unique_within_a_page(bundle):
     for sid, note in bundle["notes.json"].items():
         anchors = [e["anchor"] for e in note["toc"]]
@@ -177,6 +184,38 @@ def test_assignment_starter_and_grade_job_are_detected(bundle):
         starter = bac.REPO_ROOT / "notebooks" / "assignments" / sid / "assignment.py"
         assert (entry["assignment"]["notebook"] is not None) == starter.exists(), sid
         assert entry["assignment"]["grade_job"], f"{sid} has no grade job in the bundle"
+
+
+def test_optional_lessons_are_marked_and_only_by_name(bundle):
+    lessons = {nb["path"]: nb for entry in bundle["notebooks.json"].values() for nb in entry["lessons"]}
+    optional = sorted(p for p, nb in lessons.items() if nb["optional"])
+    assert optional == ["notebooks/lessons/associate/S2/04_optional_auto_loader_deep_dive"]
+    # The deep dive's helper sits in a subfolder, so it is never listed as a lesson.
+    assert not any("_helpers" in p for p in lessons)
+
+
+def test_extra_assignment_is_detected_beside_its_section(bundle):
+    nbs = bundle["notebooks.json"]
+    (extra,) = nbs["ASSOC-S2"]["extras"]
+    assert extra == {
+        "id": "ASSOC-S2-AUTO-LOADER",
+        "title": "Five sources, five formats (optional)",
+        "readme": "notebooks/assignments/ASSOC-S2-AUTO-LOADER/README.md",
+        "notebook": "notebooks/assignments/ASSOC-S2-AUTO-LOADER/assignment",
+        "grade_job": "grade_assoc_s2_auto_loader",
+        "gate": [nb["path"] for nb in nbs["ASSOC-S2"]["lessons"]],
+    }
+    # An extra is not a section: no entry of its own, and no other section has one.
+    assert "ASSOC-S2-AUTO-LOADER" not in nbs
+    assert all(not e["extras"] for sid, e in nbs.items() if sid != "ASSOC-S2")
+    assert [x["name"] for x in bundle["starters.json"]["ASSOC-S2-AUTO-LOADER"]] == ["assignment"]
+
+
+def test_extra_assignment_id_pattern():
+    m = bac.EXTRA_ASSIGNMENT_RE.fullmatch
+    assert m("ASSOC-S2-AUTO-LOADER").groups() == ("ASSOC-S2", "AUTO-LOADER")
+    assert m("PRO-S10-X1").groups() == ("PRO-S10", "X1")
+    assert m("ASSOC-S2") is None and m("PRO-S10") is None and m("ASSOC-S2-") is None
 
 
 # --------------------------------------------------------------------------

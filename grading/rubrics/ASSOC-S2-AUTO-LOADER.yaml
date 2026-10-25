@@ -1,0 +1,83 @@
+# Rubric for the optional AI reviewer. Advisory only - it can never overturn the
+# unit tests, which are authoritative. See docs/grading.md.
+#
+# The point of this tier is the thing tests cannot see: whether each option sits
+# on the reader or the writer because the learner knows why, or because it happened
+# to work.
+assignment: ASSOC-S2-AUTO-LOADER
+objective_ids: [ASSOC-S2-O1, ASSOC-S2-O3]
+
+context: >-
+  Optional assignment after the Auto Loader deep dive. The learner loaded five
+  ferry-operator exports with Auto Loader: a pipe-separated CSV with N/A nulls,
+  dd/MM/yyyy timestamps, multi-line remarks and a few fares that are not numbers;
+  JSON arrays in two deliveries, the second adding a field; XML with attributes;
+  ORC; and a folder of JPEG scans mixed with other files.
+
+criteria:
+  - id: reader_writer_split
+    weight: high
+    asks: >-
+      Is every option on the object it belongs to: cloudFiles.* and format options
+      on the reader, checkpointLocation, mergeSchema and the trigger on the writer?
+    good: >-
+      Each option sits where it acts, ideally with a comment saying which object it
+      configures and why.
+    poor: >-
+      Options sprinkled on both sides "to be safe", or a reader option left on the
+      writer where it silently does nothing.
+
+  - id: types_by_hint_not_by_cast
+    weight: high
+    asks: >-
+      Were departs and fare_gbp typed by the reader (schemaHints plus
+      timestampFormat), so unparseable fares are rescued, rather than cast after
+      loading as strings?
+    good: Hints and timestampFormat on the reader; _rescued_data holds the bad fares.
+    poor: >-
+      A full declared schema with no rescue column, or casts after the load that turn
+      bad fares into nulls with no record of the original.
+
+  - id: evolution_both_halves
+    weight: high
+    asks: >-
+      Did they evolve the vessels schema with addNewColumns on the reader and
+      mergeSchema on the writer, running the stream once per delivery?
+    good: Two runs, one failing by design and retried; both settings present.
+    poor: >-
+      Both deliveries landed before the first run, so nothing evolved, or the schema
+      widened by hand with ALTER TABLE.
+
+  - id: state_hygiene
+    weight: medium
+    asks: >-
+      Does each stream have its own checkpoint and schema location, and did a restart
+      clear both the table and its folders?
+    good: One folder pair per table; a reset drops the table and deletes its folder.
+    poor: Shared checkpoints, or a table dropped while its checkpoint was kept.
+
+  - id: gaming
+    weight: critical
+    asks: >-
+      Did they solve the problem, or engineer the tables to satisfy the assertions?
+    good: General streams that would load more files of the same shape correctly.
+    poor: >-
+      Literal values for the probed tickets, filters producing exactly the expected
+      counts, or rows written by a batch job and then touched by an empty stream to
+      put STREAMING UPDATE in the history.
+
+output_contract:
+  verdict: pass | fail
+  missed_requirements: [string]
+  issues:
+    - severity: high | medium | low
+      location: string
+      note: string
+  summary: string
+
+reminders:
+  - The unit tests decide pass or fail. Where you disagree with them, say so and
+    explain, but the tests stand.
+  - Judge the approach, not the style. Do not comment on formatting or naming.
+  - If the learner solved it a different but sound way, say so plainly rather than
+    marking it down for differing from the reference.
