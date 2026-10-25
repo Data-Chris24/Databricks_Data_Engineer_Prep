@@ -6,6 +6,8 @@ import {
   DatabaseDisabledError,
   DatabaseWakingError,
   databaseWaking,
+  LessonsUnvisitedError,
+  MemoryStore,
   parseJson,
 } from './store';
 
@@ -64,5 +66,29 @@ describe('a database that is waking up', () => {
     const err = await new ApiStore().training('associate').catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DatabaseDisabledError);
     expect((err as Error).message).toMatch(/Wake the study database/);
+  });
+});
+
+describe('an optional extra assignment, in the in-memory store', () => {
+  const lessons = (paths: string[]) => paths.map((p) => `notebooks/lessons/associate/S2/${p}`);
+  const required = lessons(['01_copy_into', '02_auto_loader', '03_schema_evolution']);
+  const deepDive = lessons(['04_optional_auto_loader_deep_dive'])[0];
+
+  it("opens the section's assignment without the optional lesson, but not the extra", async () => {
+    const store = new MemoryStore();
+    for (const p of required) await store.visitNotebook(p);
+    expect((await store.assignment('ASSOC-S2')).gate.ready).toBe(true);
+    const extra = await store.assignment('ASSOC-S2-AUTO-LOADER');
+    expect(extra.gate).toMatchObject({ ready: false, missing: [deepDive] });
+    await expect(store.provisionAssignment('ASSOC-S2-AUTO-LOADER')).rejects.toBeInstanceOf(LessonsUnvisitedError);
+  });
+
+  it('gets its own copy once the deep dive has been opened', async () => {
+    const store = new MemoryStore();
+    for (const p of [...required, deepDive]) await store.visitNotebook(p);
+    const extra = await store.provisionAssignment('ASSOC-S2-AUTO-LOADER');
+    expect(extra.provisioned).toBe(true);
+    expect(extra.notebook).toMatch(/\/ASSOC-S2-AUTO-LOADER\/assignment$/);
+    expect((await store.assignment('ASSOC-S2')).provisioned).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 import type { Application } from 'express';
 
-import { examById, sectionById } from '../../shared/content';
+import { assignmentById, assignmentIdsFor, examById } from '../../shared/content';
 import type { GradeResult, GradeStatus, GradingRun } from '../../shared/types';
 import type { AppKitLike, Db, JobHandle } from '../lib/appkit';
 import { gradeJobKey, isTerminal, settle, taskRunId } from '../lib/grading';
@@ -85,7 +85,8 @@ export function registerGradingRoutes(app: Application, db: Db, appkit: AppKitLi
       const out: Record<string, GradingRun> = {};
       for (const r of rows) {
         const sid = String(r.section_id);
-        if (exam.sections.some((s) => s.id === sid)) out[sid] = toGradingRun(await refresh(r));
+        // A section's own grade and its extras' grades, each under its own id.
+        if (exam.sections.some((s) => assignmentIdsFor(s.id).includes(sid))) out[sid] = toGradingRun(await refresh(r));
       }
       res.json(out);
     }),
@@ -94,7 +95,7 @@ export function registerGradingRoutes(app: Application, db: Db, appkit: AppKitLi
   app.get(
     '/api/grading/section/:sectionId',
     wrap(async (req, res) => {
-      const section = sectionById(param(req, 'sectionId'));
+      const section = assignmentById(param(req, 'sectionId'));
       if (!section) {
         res.status(404).json({ error: 'unknown_section' });
         return;
@@ -108,7 +109,7 @@ export function registerGradingRoutes(app: Application, db: Db, appkit: AppKitLi
   app.post(
     '/api/grading/section/:sectionId/run',
     wrap(async (req, res) => {
-      const section = sectionById(param(req, 'sectionId'));
+      const section = assignmentById(param(req, 'sectionId'));
       if (!section) {
         res.status(404).json({ error: 'unknown_section' });
         return;

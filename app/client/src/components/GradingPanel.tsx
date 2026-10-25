@@ -19,7 +19,18 @@ export function checkTitle(test: string): string {
  * "Grade my assignment": triggers the section's grading job on the learner's
  * behalf and shows the result inline. The learner never opens the job.
  */
-export function GradingPanel({ sectionId, gradeJob, onResult }: { sectionId: string; gradeJob: string | null; onResult?: (run: GradingRun) => void }) {
+export function GradingPanel({
+  sectionId,
+  gradeJob,
+  onResult,
+  label = 'Grade my assignment',
+}: {
+  /** A section's id, or an extra assignment's. */
+  sectionId: string;
+  gradeJob: string | null;
+  onResult?: (run: GradingRun) => void;
+  label?: string;
+}) {
   const store = useStore();
   const [run, setRun] = useState<GradingRun | null>(null);
   const [configured, setConfigured] = useState(true);
@@ -77,7 +88,7 @@ export function GradingPanel({ sectionId, gradeJob, onResult }: { sectionId: str
     <div className="grading">
       <div className="row-between">
         <div>
-          <div className="rail-title">Grade my assignment</div>
+          <div className="rail-title">{label}</div>
           <div className="muted">Runs the checks for this section against the tables you produced. Takes a few minutes on serverless.</div>
         </div>
         <button type="button" className="btn primary" onClick={start} disabled={busy || inFlight || !configured}>

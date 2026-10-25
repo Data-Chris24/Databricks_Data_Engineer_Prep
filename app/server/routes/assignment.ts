@@ -1,6 +1,6 @@
 import type { Application } from 'express';
 
-import { examById, lessonPaths, sectionById, starters } from '../../shared/content';
+import { assignmentById, assignmentIdsFor, examById, starters } from '../../shared/content';
 import { assignmentGate } from '../../shared/gate';
 import type { AssignmentState, ResetAllResult } from '../../shared/types';
 import type { AppKitLike, Db, JobHandle } from '../lib/appkit';
@@ -33,8 +33,10 @@ export function registerAssignmentRoutes(app: Application, db: Db, learners: Lea
     return run.ok ? !isTerminal(run.data) : false;
   }
 
+  // `sectionId` here is an assignment id: a section's own, or an extra such as
+  // ASSOC-S2-AUTO-LOADER, which keeps its own copy, grades and reset count.
   async function state(userId: string, sectionId: string): Promise<AssignmentState> {
-    const lessons = lessonPaths(sectionId);
+    const lessons = assignmentById(sectionId)?.gate ?? [];
     const gate = assignmentGate(lessons, await visitedPaths(db, userId, lessons));
     const { rows } = await db.query(
       'SELECT folder, notebook, reset_count, reset_run_id FROM study.assignment_copies WHERE user_id = $1 AND section_id = $2',
@@ -57,7 +59,7 @@ export function registerAssignmentRoutes(app: Application, db: Db, learners: Lea
   app.get(
     '/api/assignment/:sectionId',
     wrap(async (req, res) => {
-      const section = sectionById(param(req, 'sectionId'));
+      const section = assignmentById(param(req, 'sectionId'));
       if (!section) {
         res.status(404).json({ error: 'unknown_section' });
         return;
@@ -130,7 +132,7 @@ export function registerAssignmentRoutes(app: Application, db: Db, learners: Lea
         res.status(503).json({ error: 'reset_job_not_configured' });
         return;
       }
-      const sectionIds = exam.sections.map((s) => s.id);
+      const sectionIds = exam.sections.flatMap((s) => assignmentIdsFor(s.id));
       for (const sid of sectionIds) {
         const s = await state(user.userId, sid);
         if (s.provisioned && s.hasStarters && learners.root()) {
@@ -153,7 +155,8 @@ export function registerAssignmentRoutes(app: Application, db: Db, learners: Lea
           [user.userId, sid, started.data.run_id],
         );
       }
-      const body: ResetAllResult = { exam: exam.id, sections: sectionIds, runId: started.data.run_id };
+      // Report sections, not assignment ids: the notice counts sections.
+      const body: ResetAllResult = { exam: exam.id, sections: exam.sections.map((s) => s.id), runId: started.data.run_id };
       res.json(body);
     }),
   );
@@ -161,7 +164,7 @@ export function registerAssignmentRoutes(app: Application, db: Db, learners: Lea
   app.post(
     '/api/assignment/:sectionId/provision',
     wrap(async (req, res) => {
-      const section = sectionById(param(req, 'sectionId'));
+      const section = assignmentById(param(req, 'sectionId'));
       if (!section) {
         res.status(404).json({ error: 'unknown_section' });
         return;
@@ -174,7 +177,7 @@ export function registerAssignmentRoutes(app: Application, db: Db, learners: Lea
   app.post(
     '/api/assignment/:sectionId/reset',
     wrap(async (req, res) => {
-      const section = sectionById(param(req, 'sectionId'));
+      const section = assignmentById(param(req, 'sectionId'));
       if (!section) {
         res.status(404).json({ error: 'unknown_section' });
         return;

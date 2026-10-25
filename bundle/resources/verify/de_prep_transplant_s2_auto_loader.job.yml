@@ -1,0 +1,19 @@
+# Maintainer-only. These jobs run the reference solution or prove the
+# anti-transplant property, so they exist only in the `verify` target:
+#     databricks bundle deploy -t verify --profile FREE
+#     databricks bundle run <job_key> -t verify --profile FREE
+# The learner-facing `free` target never deploys solutions/ at all.
+targets:
+  verify:
+    resources:
+      jobs:
+        transplant_check_assoc_s2_auto_loader:
+          name: '[DE prep] Anti-transplant check ASSOC-S2-AUTO-LOADER'
+          description: Applies the deep-dive lesson's own streams to the assessment data and asserts the
+            graded suite FAILS. Guards the property the assignment design depends on.
+          tasks:
+          - task_key: check
+            notebook_task:
+              notebook_path: ../../../solutions/ASSOC-S2-AUTO-LOADER/transplant_check.py
+          queue:
+            enabled: true

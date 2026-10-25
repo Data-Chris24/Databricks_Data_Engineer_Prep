@@ -266,6 +266,26 @@ A learner who wants to peek can still open `grading/<SECTION>/tests/` in their
 workspace and read what is checked and the expected numbers. That is friction,
 not secrecy, and it is the honest limit of a public repo.
 
+### Optional lessons and extra assignments
+
+Some material goes deeper than the exam needs. It is marked by name, and the app
+keeps it off the learner's required path:
+
+- **An optional lesson** has `optional` in its file name
+  (`notebooks/lessons/associate/S2/04_optional_auto_loader_deep_dive.py`). The app
+  lists it with an Optional badge, and the section's assignment does not wait for it
+  to be opened. Helper notebooks a lesson runs go in a subfolder (`S2/_helpers/`),
+  which the app never lists.
+- **An extra assignment** lives in `notebooks/assignments/<SECTION>-<SLUG>/`
+  (`ASSOC-S2-AUTO-LOADER`) and ships everything a section's assignment does:
+  `grading/<ID>/` with `grade.py`, tests, `expected.json` and `outputs.json`, a
+  rubric, `solutions/<ID>/` with a solution and a transplant check, a grade job named
+  `[DE prep] Grade <ID>` and its grant to the app. The app shows it after the
+  section's assignment, gated on every lesson of the section, optional ones included;
+  it is provisioned, graded and reset under its own id, and never counts toward the
+  section's completion. `tools/tests/test_layout.py` holds it to the same layout
+  rules.
+
 ### A starter is a blank, not a redacted answer
 
 A starter holds constants, the task text, one empty code cell per requirement

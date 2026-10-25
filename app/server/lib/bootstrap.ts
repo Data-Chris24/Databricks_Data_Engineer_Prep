@@ -25,8 +25,9 @@ export function jobEnvName(jobName: string): string | null {
   const i = jobName.indexOf(MARKER);
   if (i < 0) return null;
   const rest = jobName.slice(i + MARKER.length).trim();
-  const grade = /^Grade ((?:ASSOC|PRO)-S\d+)$/i.exec(rest);
-  if (grade) return `DATABRICKS_JOB_GRADE_${grade[1].toUpperCase().replace('-', '_')}`;
+  // A section's grader, or an extra assignment's: "Grade ASSOC-S2-AUTO-LOADER".
+  const grade = /^Grade ((?:ASSOC|PRO)-S\d+(?:-[A-Z0-9]+)*)$/i.exec(rest);
+  if (grade) return `DATABRICKS_JOB_GRADE_${grade[1].toUpperCase().replace(/-/g, '_')}`;
   if (/^Generate a section's datasets/i.test(rest)) return 'DATABRICKS_JOB_GENERATE_DATASETS';
   if (/^Reset an assignment/i.test(rest)) return 'DATABRICKS_JOB_RESET_ASSIGNMENT';
   if (/^Wake the study database/i.test(rest)) return 'DATABRICKS_JOB_WAKE_DATABASE';

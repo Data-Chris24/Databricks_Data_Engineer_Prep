@@ -22,6 +22,9 @@ describe('jobEnvName', () => {
     expect(jobEnvName("[DE prep] Reset an assignment's outputs")).toBe('DATABRICKS_JOB_RESET_ASSIGNMENT');
     expect(jobEnvName("[dev x] [DE prep] Generate a section's datasets")).toBe('DATABRICKS_JOB_GENERATE_DATASETS');
     expect(jobEnvName('[dev x] [DE prep] Wake the study database')).toBe('DATABRICKS_JOB_WAKE_DATABASE');
+    // An optional extra assignment's grader: every hyphen becomes an underscore, so the
+    // jobs plugin's key is grade_assoc_s2_auto_loader, as gradeJobKey derives it.
+    expect(jobEnvName('[dev x] [DE prep] Grade ASSOC-S2-AUTO-LOADER')).toBe('DATABRICKS_JOB_GRADE_ASSOC_S2_AUTO_LOADER');
     // The per-section generate jobs exist for the terminal; the app binds only the dispatcher.
     expect(jobEnvName('[dev x] [DE prep] Generate ASSOC-S1 datasets')).toBeNull();
   });

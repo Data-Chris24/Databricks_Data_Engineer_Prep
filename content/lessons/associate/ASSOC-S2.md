@@ -199,6 +199,10 @@ The options the exam uses, with their defaults:
     .toTable("main.bronze.orders"))
 ```
 
+Which of these go on the reader and which on the writer, and what each does on the
+wrong side, is the subject of the reference below this note and of the optional
+deep-dive lesson `04_optional_auto_loader_deep_dive`.
+
 **Schema evolution takes two settings, one on each side:**
 
 - `cloudFiles.schemaEvolutionMode` on the **reader** — lets Auto Loader notice a new column

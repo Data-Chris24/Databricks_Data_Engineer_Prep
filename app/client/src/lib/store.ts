@@ -6,7 +6,7 @@
 
 import { createContext, useContext } from 'react';
 
-import { examById, lessonPaths, questionById, questions, starters } from '../../../shared/content';
+import { allLessonPaths, assignmentById, assignmentIdsFor, examById, questionById, questions, starters } from '../../../shared/content';
 import { applyCompletion } from '../../../shared/completion';
 import { grade } from '../../../shared/grading';
 import { sampleTest, BankTooSmallError as SamplerBankTooSmall } from '../../../shared/sampler';
@@ -392,7 +392,7 @@ export class MemoryStore implements StudyStore {
       if (settled.status === 'passed' && settled.finishedAt) passedAt[sid] = settled.finishedAt;
     }
     const completion = applyCompletion(sections, passedAt, ex.sections.map((s) => s.id));
-    const paths = new Set(ex.sections.flatMap((s) => lessonPaths(s.id)));
+    const paths = new Set(ex.sections.flatMap((s) => allLessonPaths(s.id)));
     return {
       sections: completion.sections,
       resume: rows[0] ? { sectionId: rows[0].sectionId, anchor: rows[0].lastAnchor } : null,
@@ -420,7 +420,7 @@ export class MemoryStore implements StudyStore {
   }
   async resetTraining(exam: ExamId) {
     for (const k of [...this.progress.keys()]) if (k.startsWith(`${exam}:`)) this.progress.delete(k);
-    const paths = new Set(examById(exam)?.sections.flatMap((s) => lessonPaths(s.id)) ?? []);
+    const paths = new Set(examById(exam)?.sections.flatMap((s) => allLessonPaths(s.id)) ?? []);
     for (const p of [...this.visits]) if (paths.has(p)) this.visits.delete(p);
   }
   async visitNotebook(path: string) {
@@ -448,7 +448,7 @@ export class MemoryStore implements StudyStore {
       notebook: copy?.notebook || null,
       resetCount: copy?.resetCount ?? 0,
       resetting: false,
-      gate: assignmentGate(lessonPaths(sectionId), this.visits),
+      gate: assignmentGate(assignmentById(sectionId)?.gate ?? [], this.visits),
     };
   }
   async provisionAssignment(sectionId: string) {
@@ -471,7 +471,7 @@ export class MemoryStore implements StudyStore {
   }
   async resetAllAssignments(exam: ExamId): Promise<ResetAllResult> {
     const sections = examById(exam)?.sections.map((s) => s.id) ?? [];
-    for (const sid of sections) {
+    for (const sid of sections.flatMap((s) => assignmentIdsFor(s))) {
       const copy = this.copies.get(sid);
       if (copy) copy.resetCount += 1;
       this.gradingRuns.delete(sid);
@@ -590,7 +590,7 @@ export class MemoryStore implements StudyStore {
   async grading(exam: ExamId) {
     const ex = examById(exam);
     const out: Record<string, GradingRun> = {};
-    for (const [sid, run] of this.gradingRuns) if (ex?.sections.some((s) => s.id === sid)) out[sid] = this.settleGrading(run);
+    for (const [sid, run] of this.gradingRuns) if (ex?.sections.some((s) => assignmentIdsFor(s.id).includes(sid))) out[sid] = this.settleGrading(run);
     return out;
   }
   async gradingRun(sectionId: string) {

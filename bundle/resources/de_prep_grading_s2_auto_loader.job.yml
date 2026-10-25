@@ -1,0 +1,17 @@
+# Runs the authoritative test suite for ASSOC-S2's optional Auto Loader
+# assignment. It is graded like a section's assignment but never counts toward
+# completing the section (app/shared/content/index.ts, assignmentById).
+resources:
+  jobs:
+    grade_assoc_s2_auto_loader:
+      name: "[DE prep] Grade ASSOC-S2-AUTO-LOADER"
+      description: >-
+        Runs the graded pytest suite against the five workspace.de_prep.ferry_* tables
+        of the optional Auto Loader assignment. Fails with the specific assertions
+        that did not hold.
+      tasks:
+        - task_key: grade
+          notebook_task:
+            notebook_path: ../../grading/ASSOC-S2-AUTO-LOADER/grade.py
+      queue:
+        enabled: true

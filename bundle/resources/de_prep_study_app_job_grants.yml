@@ -20,6 +20,8 @@ targets:
           permissions: *app_can_run
         grade_assoc_s2:
           permissions: *app_can_run
+        grade_assoc_s2_auto_loader:
+          permissions: *app_can_run
         grade_assoc_s3:
           permissions: *app_can_run
         grade_assoc_s4:
