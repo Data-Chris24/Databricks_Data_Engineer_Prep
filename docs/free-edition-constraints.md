@@ -146,6 +146,27 @@ Still to confirm from inside the running app: that a user can open notebooks und
 the service principal's bundle folder from the app's links, and that the relative
 links in the notebooks' closing cell resolve.
 
+### Unity Catalog quotas, measured
+
+`databricks resource-quotas list-quotas` reports each count against its limit.
+On 2026-10-26 it showed, for this workspace: tables **100 per schema** and
+**500 per metastore** (108 used), schemas **50 per catalog**, catalogs **50 per
+metastore** (4 counted while six were listed: `system` and `samples` are not
+counted), volumes **50 per metastore** (20 counted, more than the volumes the
+schemas listed), shares, recipients, connections and external locations **50
+each**, functions 100 per schema. A schema well below its limit can be missing
+from the list (seen for `workspace.de_prep` earlier; it was listed at 62 of 100
+on this date), so `tools/preinstall_check.py` falls back to counting with
+`tables list`. Metastore rows name the metastore by its ID: never paste them
+unfiltered.
+
+`tools/preinstall_check.py --profile FREE` on the same day, against the upstream
+deployment: 14 checks, all PASS (app 1 of 3, the `de-prep` project and an
+enabled endpoint, one 2X-Small warehouse, no pipelines, `workspace` 4 of 50
+schemas, `de_prep` 62 of 100 tables). Not yet run under the CI service
+principal: if it cannot read quotas or the Lakebase project there, those rows
+WARN rather than FAIL, so the deploy is not blocked on a guess.
+
 ---
 
 ## Objective coverage
