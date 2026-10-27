@@ -112,9 +112,12 @@ summary = spark.sql("""
     FROM s5_source_transactions
     GROUP BY channel
 """)
-summary.write.mode("overwrite").saveAsTable("s5_channel_summary")   # hardcoded destination
-display(spark.table("s5_channel_summary").orderBy("channel"))
-print(f"published {spark.table('s5_channel_summary').count()} rows to {CATALOG}.{SCHEMA}")
+# A lesson table of its own: the assignment publishes s5_channel_summary, and a
+# lesson writing that name would pass for assignment work (and a reset would drop it).
+LESSON_TABLE = "s5_lesson_channel_summary"
+summary.write.mode("overwrite").saveAsTable(LESSON_TABLE)   # hardcoded destination
+display(spark.table(LESSON_TABLE).orderBy("channel"))
+print(f"published {spark.table(LESSON_TABLE).count()} rows to {CATALOG}.{SCHEMA}.{LESSON_TABLE}")
 
 # COMMAND ----------
 

@@ -2,5 +2,10 @@
   "_comment": "What the ASSOC-S7 assignment produces, per its README's output contract. A reset drops exactly these. Never list an assess input.",
   "tables": [
     "workspace.de_prep.s7_governed_employees"
+  ],
+  "functions": [
+    "workspace.de_prep.s7_mask_salary",
+    "workspace.de_prep.s7_mask_case_note",
+    "workspace.de_prep.s7_filter_employee_region"
   ]
 }

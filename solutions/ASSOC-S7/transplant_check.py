@@ -87,6 +87,8 @@ if spark.catalog.tableExists(f"{T}_backup"):
     spark.sql(f"CREATE OR REPLACE TABLE {T} AS SELECT * FROM {T}_backup")
     spark.sql(f"DROP TABLE {T}_backup")
     print("restored the correct table")
+# The lesson-style mask is this check's own; nothing should outlive it.
+spark.sql("DROP FUNCTION IF EXISTS s7_lesson_mask")
 
 if code == 0:
     raise RuntimeError(

@@ -212,9 +212,12 @@ else:
 
 # COMMAND ----------
 
-# Clean up the scratch area now that the section is complete.
+# Clean up the scratch area now that the section is complete, and the table with
+# it: a table whose checkpoint is gone can never be resumed, only rebuilt, and
+# 02_auto_loader rebuilds it from scratch anyway.
 dbutils.fs.rm(WORK, True)
-print("lesson scratch removed")
+spark.sql("DROP TABLE IF EXISTS bronze_orders_al")
+print("lesson scratch and bronze_orders_al removed")
 
 # COMMAND ----------
 
