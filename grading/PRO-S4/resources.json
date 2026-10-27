@@ -1,0 +1,90 @@
+{
+  "_comment": "Everything this unit creates in Unity Catalog and the raw volume. The study app shows it on the unit's start page, checks each against Unity Catalog, and the cleanup_unit job removes exactly these. setup: made by the unit's set-up job. lesson/assignment: made as the learner works. optional: does not count towards the unit being worked through. transient: the notebook removes it itself; listed so clean-up catches leftovers. A name ending in * matches every table with that prefix. tools/tests/test_unit_resources.py fails when a notebook creates something this file does not name.",
+  "setup": [
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.pro_s4_teach_orders"
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.pro_s4_teach_customers"
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.pro_s4_assess_orders"
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.pro_s4_assess_customers"
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.pro_s4_assess_events"
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.pro_s4_assess_salaries"
+    },
+    {
+      "kind": "volume",
+      "name": "workspace.de_prep.pro_s4_assess_files"
+    },
+    {
+      "kind": "share",
+      "name": "pro_s4_trap_probe",
+      "transient": true
+    },
+    {
+      "kind": "recipient",
+      "name": "pro_s4_probe_open",
+      "transient": true
+    }
+  ],
+  "lesson": [
+    {
+      "kind": "share",
+      "name": "pro_s4_lesson_share",
+      "transient": true
+    },
+    {
+      "kind": "recipient",
+      "name": "pro_s4_lesson_recipient",
+      "transient": true
+    },
+    {
+      "kind": "catalog",
+      "name": "pro_s4_lesson_foreign",
+      "transient": true
+    },
+    {
+      "kind": "connection",
+      "name": "pro_s4_lesson_conn",
+      "transient": true
+    },
+    {
+      "kind": "recipient",
+      "name": "pro_s4_open_demo",
+      "transient": true
+    }
+  ],
+  "assignment": [
+    {
+      "kind": "share",
+      "name": "pro_s4_partner_share"
+    },
+    {
+      "kind": "recipient",
+      "name": "pro_s4_partner"
+    },
+    {
+      "kind": "file",
+      "name": "/Volumes/workspace/de_prep/raw/_pro_s4_expected.json",
+      "transient": true
+    },
+    {
+      "kind": "file",
+      "name": "/Volumes/workspace/de_prep/raw/_grading/PRO-S4-transplant.txt",
+      "transient": true
+    }
+  ]
+}

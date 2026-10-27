@@ -61,6 +61,8 @@
 # MAGIC    subject instead, so records remain groupable by subject.
 # MAGIC 5. Column order matters — the tests compare the whole schema.
 # MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
+# MAGIC
 # MAGIC ### Grading
 # MAGIC
 # MAGIC ```bash
@@ -243,6 +245,8 @@ erasures = spark.table(ERASURES)
 # MAGIC subject instead, so records remain groupable by subject.
 # MAGIC
 # MAGIC **Requirement 5.** Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------
@@ -285,6 +289,8 @@ erasures = spark.table(ERASURES)
 # MAGIC subject instead, so records remain groupable by subject.
 # MAGIC
 # MAGIC **Requirement 5.** Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------

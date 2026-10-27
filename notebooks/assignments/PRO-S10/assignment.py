@@ -83,6 +83,8 @@
 # MAGIC    order placed on a changeover date matches two versions.
 # MAGIC 6. Column order matters — the tests compare the whole schema.
 # MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
+# MAGIC
 # MAGIC ### Grading
 # MAGIC
 # MAGIC ```bash
@@ -157,6 +159,8 @@ orders = spark.table("pro_s10_assess_orders")
 # MAGIC fails this; a hash of the natural key plus `valid_from` does not.
 # MAGIC
 # MAGIC **Requirement 6.** Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------
@@ -197,6 +201,8 @@ orders = spark.table("pro_s10_assess_orders")
 # MAGIC order placed on a changeover date matches two versions.
 # MAGIC
 # MAGIC **Requirement 6.** Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------
@@ -256,6 +262,8 @@ orders = spark.table("pro_s10_assess_orders")
 # MAGIC order placed on a changeover date matches two versions.
 # MAGIC
 # MAGIC **Requirement 6.** Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------

@@ -161,4 +161,38 @@ export const migrations: Migration[] = [
         CHECK (level IN ('standard', 'medium', 'hard'));
     `,
   },
+  {
+    version: 7,
+    name: 'unit_resources',
+    sql: `
+      -- Workspace-wide, like dataset_runs: the resources are shared by everyone.
+      -- The app's latest set-up, clean-up or removal per unit ('_strays' for tables
+      -- no unit declares), and when the unit was last set up and cleaned.
+      CREATE TABLE IF NOT EXISTS study.unit_runs (
+        unit_id     TEXT PRIMARY KEY,
+        action      TEXT NOT NULL CHECK (action IN ('setup', 'cleanup', 'remove')),
+        phase       TEXT NOT NULL CHECK (phase IN ('cleaning_others', 'setting_up', 'cleaning', 'removing', 'done', 'failed')),
+        run_id      BIGINT,
+        targets     TEXT NOT NULL DEFAULT '',
+        started_by  TEXT,
+        started_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+        finished_at TIMESTAMPTZ,
+        error       TEXT,
+        set_up_at   TIMESTAMPTZ,
+        cleaned_at  TIMESTAMPTZ
+      );
+
+      -- When each declared resource was first seen and last seen gone. Written from
+      -- Unity Catalog snapshots, never trusted over one: a dot is green only if the
+      -- object exists at page load.
+      CREATE TABLE IF NOT EXISTS study.unit_resources (
+        unit_id    TEXT NOT NULL,
+        kind       TEXT NOT NULL,
+        name       TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        removed_at TIMESTAMPTZ,
+        PRIMARY KEY (unit_id, kind, name)
+      );
+    `,
+  },
 ];

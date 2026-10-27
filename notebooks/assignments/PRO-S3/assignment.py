@@ -59,6 +59,8 @@
 # MAGIC 3. Do not modify the source table.
 # MAGIC 4. `detail` must cite a number.
 # MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
+# MAGIC
 # MAGIC ### Grading
 # MAGIC
 # MAGIC ```bash
@@ -225,6 +227,8 @@ w = Window.partitionBy("device_id").orderBy("reading_ts")
 # MAGIC **Requirement 2.** `affected_devices` sorted and comma-separated, so it compares reliably.
 # MAGIC
 # MAGIC **Requirement 4.** `detail` must cite a number.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------
@@ -265,6 +269,8 @@ w = Window.partitionBy("device_id").orderBy("reading_ts")
 # MAGIC **Requirement 3.** Do not modify the source table.
 # MAGIC
 # MAGIC **Requirement 4.** `detail` must cite a number.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------

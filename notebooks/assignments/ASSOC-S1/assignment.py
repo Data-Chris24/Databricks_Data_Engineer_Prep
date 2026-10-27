@@ -63,6 +63,8 @@
 # MAGIC    current one.
 # MAGIC 4. Column order matters — the tests compare the whole schema.
 # MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
+# MAGIC
 # MAGIC ### Grading
 # MAGIC
 # MAGIC In the study app, open **Learn → ASSOC-S1** and press **Grade my assignment**: it
@@ -206,6 +208,8 @@ display(spark.sql(f"DESCRIBE HISTORY {SOURCE}"))
 # MAGIC **Requirement 2.** **Do not restore the source table in place.** The damaged history is the evidence.
 # MAGIC
 # MAGIC **Requirement 4.** Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------
@@ -236,6 +240,8 @@ display(spark.sql(f"DESCRIBE HISTORY {SOURCE}"))
 # MAGIC current one.
 # MAGIC
 # MAGIC **Requirement 4.** Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------
@@ -279,6 +285,8 @@ display(spark.sql(f"DESCRIBE HISTORY {SOURCE}"))
 # MAGIC current one.
 # MAGIC
 # MAGIC **Requirement 4.** Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------

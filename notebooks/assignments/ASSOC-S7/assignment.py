@@ -64,6 +64,8 @@
 # MAGIC    a policy that excludes everyone is unauditable and unrecoverable.
 # MAGIC 5. Column order matters — the tests compare the whole schema.
 # MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
+# MAGIC
 # MAGIC ### Grading
 # MAGIC
 # MAGIC ```bash
@@ -178,6 +180,8 @@ employees = spark.table(SOURCE)
 # MAGIC masks can be dropped by anyone who can alter the table. Hash it irreversibly.
 # MAGIC
 # MAGIC **Requirement 5.** Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------
@@ -272,6 +276,8 @@ employees = spark.table(SOURCE)
 # MAGIC a policy that excludes everyone is unauditable and unrecoverable.
 # MAGIC
 # MAGIC **Requirement 5.** Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------

@@ -60,6 +60,8 @@
 # MAGIC 4. **Keys deleted and later updated are present.**
 # MAGIC 5. Column order matters — the tests compare the whole schema.
 # MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
+# MAGIC
 # MAGIC ### Grading
 # MAGIC
 # MAGIC ```bash
@@ -201,6 +203,8 @@ changes = spark.table(SOURCE)
 # MAGIC | `last_event_ts` | `TIMESTAMP` | Its timestamp |
 # MAGIC
 # MAGIC **Requirement 5.** Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------
@@ -234,6 +238,8 @@ changes = spark.table(SOURCE)
 # MAGIC **Requirement 4.** **Keys deleted and later updated are present.**
 # MAGIC
 # MAGIC **Requirement 5.** Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------

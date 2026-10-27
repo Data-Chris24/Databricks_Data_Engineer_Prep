@@ -48,6 +48,8 @@ Recover the data and write up what happened.
    current one.
 4. Column order matters — the tests compare the whole schema.
 
+> **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
+
 ## Grading
 
 In the study app, open **Learn → ASSOC-S1** and press **Grade my assignment**: it

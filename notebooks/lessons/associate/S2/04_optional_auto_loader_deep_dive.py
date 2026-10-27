@@ -945,7 +945,9 @@ import json
 
 def evolution(mode, merge_schema, extra=None, name=None):
     name = name or f"evo_{mode}_{'merge' if merge_schema else 'nomerge'}".lower()
-    work, table = f"{WORK}/{name}", f"al_lesson_{name}"
+    # Fully qualified: the child notebook runs without this notebook's USE SCHEMA,
+    # and a bare name would land in workspace.default, out of clean-up's reach.
+    work, table = f"{WORK}/{name}", f"{CATALOG}.{SCHEMA}.al_lesson_{name}"
     try:
         dbutils.notebook.run("./_helpers/evolution_attempt", 900,
                              {"mode": mode, "merge_schema": str(merge_schema).lower(), "work": work, "table": table,

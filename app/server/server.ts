@@ -4,15 +4,16 @@ import { migrate } from './db/migrate';
 import { bootstrapEnv } from './lib/bootstrap';
 import type { AppKitLike } from './lib/appkit';
 import { sendIfAsleep, userMiddleware } from './lib/http';
+import { createUcProbe } from './lib/uc';
 import { createWaker, wakingDb } from './lib/wake';
 import { createLearnerWorkspace } from './lib/workspace';
 import { registerAssignmentRoutes } from './routes/assignment';
 import { registerConfigRoutes } from './routes/config';
-import { registerDatasetRoutes } from './routes/datasets';
 import { registerGradingRoutes } from './routes/grading';
 import { registerPracticeRoutes } from './routes/practice';
 import { registerTestRoutes } from './routes/tests';
 import { registerTrainingRoutes } from './routes/training';
+import { registerUnitRoutes } from './routes/units';
 
 // A deployment started from the Apps UI (or `apps deploy`) has app.yaml's
 // environment only; the job ids and files root the bundle would have passed are
@@ -80,7 +81,7 @@ createApp({
       });
       app.use('/api', userMiddleware(db));
       registerConfigRoutes(app, db);
-      registerDatasetRoutes(app, db, appkit);
+      registerUnitRoutes(app, db, appkit, createUcProbe());
       registerTrainingRoutes(app, db);
       registerPracticeRoutes(app, db);
       registerTestRoutes(app, db);

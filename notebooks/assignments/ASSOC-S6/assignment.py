@@ -58,6 +58,8 @@
 # MAGIC 3. Each `metric` is correct.
 # MAGIC 4. `detail` is non-trivial — a colleague should know what to do next.
 # MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
+# MAGIC
 # MAGIC ### Grading
 # MAGIC
 # MAGIC ```bash
@@ -242,6 +244,8 @@ orders = spark.table(SOURCE)
 # MAGIC **Requirement 1.** **All three findings**, one row each.
 # MAGIC
 # MAGIC **Requirement 4.** `detail` is non-trivial — a colleague should know what to do next.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------
@@ -284,6 +288,8 @@ orders = spark.table(SOURCE)
 # MAGIC **Requirement 3.** Each `metric` is correct.
 # MAGIC
 # MAGIC **Requirement 4.** `detail` is non-trivial — a colleague should know what to do next.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------

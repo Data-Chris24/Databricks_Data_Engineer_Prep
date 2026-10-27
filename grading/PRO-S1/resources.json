@@ -1,0 +1,25 @@
+{
+  "_comment": "Everything this unit creates in Unity Catalog and the raw volume. The study app shows it on the unit's start page, checks each against Unity Catalog, and the cleanup_unit job removes exactly these. setup: made by the unit's set-up job. lesson/assignment: made as the learner works. optional: does not count towards the unit being worked through. transient: the notebook removes it itself; listed so clean-up catches leftovers. A name ending in * matches every table with that prefix. tools/tests/test_unit_resources.py fails when a notebook creates something this file does not name.",
+  "setup": [
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.pro_s1_teach_accounts"
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.pro_s1_assess_changes"
+    }
+  ],
+  "lesson": [
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.pro_s1_teach_silver"
+    }
+  ],
+  "assignment": [
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.pro_s1_current_customers"
+    }
+  ]
+}

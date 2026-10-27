@@ -7,7 +7,7 @@ targets:
   free:
     resources:
       # Every job the app runs on a learner's behalf: grade a section, reset an
-      # assignment, generate a section's datasets, wake the database. The app's
+      # assignment, set up (generate) or clean up a unit, wake the database. The app's
       # principal gets CAN_MANAGE_RUN on each, which lets it see, trigger and
       # read the job's runs. A new job the app should run needs a line here and
       # a name bootstrap.ts recognises (jobEnvName).
@@ -16,6 +16,8 @@ targets:
           permissions: &app_can_run
             - level: CAN_MANAGE_RUN
               service_principal_name: ${resources.apps.study_app.service_principal_client_id}
+        cleanup_unit:
+          permissions: *app_can_run
         grade_assoc_s1:
           permissions: *app_can_run
         grade_assoc_s2:

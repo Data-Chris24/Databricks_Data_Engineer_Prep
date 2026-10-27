@@ -260,7 +260,8 @@ What replaced it, and why each choice:
   server resolves job ids and the files root at startup by listing the jobs it
   can see: the graders have stable names and their notebook paths sit under
   `<files root>/grading/`. Bundle-provided values still take precedence.
-- **The app prepares a section's data.** Each section's generate job used to be
+- **The app prepares a section's data** (superseded 2026-10-26 by *One unit set up
+  at a time*, below: set-up is now a button, not automatic on first open). Each section's generate job used to be
   a terminal step (`databricks bundle run generate_datasets_<section>`), which
   sent learners out of the browser before the first notebook. The section page
   now tracks the generate run it started: a successful run means the data
@@ -346,6 +347,51 @@ five minutes behind a "waking your study database" banner, and pages load on
 their own once it is back. A migration that failed at startup for the same
 reason is retried on a later request. Nothing here needs CI, a terminal, or a
 schedule, so a learner on a fork who comes back after weeks only waits.
+
+### One unit set up at a time
+
+Every unit writes into the one `workspace.de_prep` schema, and Free Edition
+allows 100 tables per schema (measured; the workspace held 62 with every unit
+set up, and the Auto Loader deep dive alone adds about 40 more while it runs).
+So since 2026-10-26 a unit is set up from its page in the app and the others
+are cleaned up first:
+
+- **Each unit declares what it creates**, in `grading/<SECTION>/resources.json`:
+  set-up data, lesson tables, views, functions, scratch and checkpoint folders,
+  assignment outputs, shares, catalogs. `tools/tests/test_unit_resources.py`
+  scans the unit's notebooks (`tools/unit_resources.py`) and fails when one
+  creates something the list does not name.
+- **The unit page reads Unity Catalog, not its own records.** Each load lists
+  the prep schemas, `workspace.default`, the raw volume, catalogs, shares,
+  recipients and connections as the app's principal (`app/server/lib/uc.ts`),
+  and a dot is green only if the object exists. Lessons drop and recreate
+  their tables and learners drop their own, so a record of "created" would go
+  stale. Lakebase (`study.unit_runs`, `study.unit_resources`) records the runs
+  the app started and when each resource was first and last seen; while a run
+  is active the page re-reads Unity Catalog every few seconds, so no job writes
+  to Lakebase.
+- **Set-up** is the existing `generate_datasets` dispatcher. It also grants
+  `BROWSE` on the `workspace` catalog and on catalogs the unit creates, so the
+  app can see `default` and PRO-S8's catalogs. **Clean-up** is a separate job,
+  `cleanup_unit` (`ops/cleanup_unit.py`), not the assignment reset: it never
+  touches notebooks, so the learner's copies and their outputs stay for review.
+  It removes shares before tables (a shared table cannot be dropped; PRO-S4),
+  and catalogs with `CASCADE` (PRO-S8). It never removes the schemas, the `raw`
+  volume or PRO-S8's account-level service principals.
+- **Pressing set-up with another unit present asks first**, listing that unit's
+  resources; on confirm the app runs clean-up for those units and, when it
+  succeeds, the set-up. The lessons and the assignment stay greyed out until
+  every set-up resource exists.
+- **Tables no unit declares are listed, never cleaned automatically.** The page
+  shows them under "Not managed by the app" with a "did you mean" for near
+  misses, and a per-table Remove that runs `cleanup_unit` with `tables`; the job
+  refuses any declared name.
+
+Verified on FREE (2026-10-26, verify target, running as the maintainer):
+clean-up of PRO-S4 dropped its three shares, four recipients, connection,
+foreign catalog, six tables and volume in one run; PRO-S8's clean-up dropped
+its three catalogs; both set up again and read ready; a stray in
+`workspace.default` was removed and a declared table was refused.
 
 Verified against the live workspace before merge: `${workspace.file_path}` does
 interpolate into the app resource's `config.env` (so notebook links get their

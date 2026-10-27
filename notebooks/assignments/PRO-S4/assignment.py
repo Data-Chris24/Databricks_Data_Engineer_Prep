@@ -57,6 +57,8 @@
 # MAGIC 5. Nothing about a wrong answer here raises an error. Check the configuration you
 # MAGIC    produced, don't assume it.
 # MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
+# MAGIC
 # MAGIC ### Grading
 # MAGIC
 # MAGIC ```bash
@@ -126,6 +128,8 @@ spark.sql(f"USE SCHEMA {SCHEMA}")
 # MAGIC
 # MAGIC **Requirement 5.** Nothing about a wrong answer here raises an error. Check the configuration you
 # MAGIC produced, don't assume it.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------
@@ -273,6 +277,8 @@ for t in ("pro_s4_assess_orders", "pro_s4_assess_customers",
 # MAGIC
 # MAGIC **Requirement 5.** Nothing about a wrong answer here raises an error. Check the configuration you
 # MAGIC produced, don't assume it.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------

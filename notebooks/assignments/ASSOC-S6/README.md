@@ -43,6 +43,8 @@ You are graded on the **diagnosis**, not on a fix. Do not clean the table.
 3. Each `metric` is correct.
 4. `detail` is non-trivial — a colleague should know what to do next.
 
+> **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
+
 ## Grading
 
 ```bash

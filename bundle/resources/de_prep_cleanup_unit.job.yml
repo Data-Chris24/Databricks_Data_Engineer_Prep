@@ -1,0 +1,29 @@
+# One clean-up job for every unit, parameterised by `sections` (and `tables`
+# for the app's "Not managed by the app" list). The study app runs it, granted
+# in de_prep_study_app_job_grants.yml: before setting a unit up it cleans every
+# other unit whose resources still exist, so `workspace.de_prep` holds one
+# unit's tables at a time and stays clear of the 100-tables-per-schema limit.
+#
+# Not the assignment reset: this never restores or touches a notebook.
+resources:
+  jobs:
+    cleanup_unit:
+      name: "[DE prep] Clean up a unit's resources"
+      description: >-
+        Removes exactly what grading/<SECTION>/resources.json declares for each
+        unit in `sections` (tables, views, functions, shares, catalogs, raw-volume
+        folders), or the undeclared tables in `tables`. Runs as the deploying
+        principal, which needs MANAGE on the prep schemas (docs/ci-cd.md, step 2c).
+        Also runnable as `databricks bundle run cleanup_unit -t free --params sections=PRO-S4`.
+      parameters:
+        - name: sections
+          default: ""
+        - name: tables
+          default: ""
+      tasks:
+        - task_key: cleanup
+          notebook_task:
+            notebook_path: ../../ops/cleanup_unit.py
+      max_concurrent_runs: 1
+      queue:
+        enabled: true

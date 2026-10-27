@@ -21,6 +21,7 @@ describe('jobEnvName', () => {
     expect(jobEnvName('[dev someone] [DE prep] Grade PRO-S10')).toBe('DATABRICKS_JOB_GRADE_PRO_S10');
     expect(jobEnvName("[DE prep] Reset an assignment's outputs")).toBe('DATABRICKS_JOB_RESET_ASSIGNMENT');
     expect(jobEnvName("[dev x] [DE prep] Generate a section's datasets")).toBe('DATABRICKS_JOB_GENERATE_DATASETS');
+    expect(jobEnvName("[DE prep] Clean up a unit's resources")).toBe('DATABRICKS_JOB_CLEANUP_UNIT');
     expect(jobEnvName('[dev x] [DE prep] Wake the study database')).toBe('DATABRICKS_JOB_WAKE_DATABASE');
     // An optional extra assignment's grader: every hyphen becomes an underscore, so the
     // jobs plugin's key is grade_assoc_s2_auto_loader, as gradeJobKey derives it.
