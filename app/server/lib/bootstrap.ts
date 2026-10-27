@@ -30,6 +30,7 @@ export function jobEnvName(jobName: string): string | null {
   if (grade) return `DATABRICKS_JOB_GRADE_${grade[1].toUpperCase().replace(/-/g, '_')}`;
   if (/^Generate a section's datasets/i.test(rest)) return 'DATABRICKS_JOB_GENERATE_DATASETS';
   if (/^Reset an assignment/i.test(rest)) return 'DATABRICKS_JOB_RESET_ASSIGNMENT';
+  if (/^Clean up a unit's resources/i.test(rest)) return 'DATABRICKS_JOB_CLEANUP_UNIT';
   if (/^Wake the study database/i.test(rest)) return 'DATABRICKS_JOB_WAKE_DATABASE';
   return null;
 }

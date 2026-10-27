@@ -1,3 +1,5 @@
+import type { UnitResources } from './units';
+
 /**
  * Types shared by the server and the client.
  *
@@ -130,20 +132,10 @@ export interface SectionNotebooks {
     grade_job: string | null;
   };
   extras: ExtraAssignment[];
-  /** The bundle job that generates the section's teach and assess data. */
+  /** The bundle job that sets the unit up (generates its teach and assess data). */
   datasets: { job: string | null };
-}
-
-export type DatasetStatus = 'ready' | 'preparing' | 'missing' | 'failed' | 'unconfigured';
-
-export interface DatasetState {
-  sectionId: string;
-  status: DatasetStatus;
-  /** The run in flight (preparing) or the run the status was read from. */
-  runId: number | null;
-  startedAt: string | null;
-  finishedAt: string | null;
-  error: string | null;
+  /** What the unit creates in the workspace (grading/<SECTION>/resources.json). */
+  resources: UnitResources;
 }
 
 export interface ContentMeta {

@@ -69,6 +69,8 @@
 # MAGIC    drops the column, or nulls it everywhere, the tests will say so.
 # MAGIC 5. **Column order matters.** The tests use `assertSchemaEqual`.
 # MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
+# MAGIC
 # MAGIC ### How you are graded
 # MAGIC
 # MAGIC **Unit tests — authoritative.** Run them with:
@@ -292,6 +294,8 @@ for f in dbutils.fs.ls(RAW):
 # MAGIC | `battery_pct` | `DOUBLE` | Percent. **Null for readings taken before the devices began reporting it** |
 # MAGIC
 # MAGIC **Requirement 5.** **Column order matters.** The tests use `assertSchemaEqual`.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------
@@ -333,6 +337,8 @@ for f in dbutils.fs.ls(RAW):
 # MAGIC drops the column, or nulls it everywhere, the tests will say so.
 # MAGIC
 # MAGIC **Requirement 5.** **Column order matters.** The tests use `assertSchemaEqual`.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------

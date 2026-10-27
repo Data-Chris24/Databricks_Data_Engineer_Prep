@@ -360,6 +360,12 @@ def generate_jobs() -> dict[str, str]:
     return jobs
 
 
+def unit_resources(sid: str) -> dict:
+    path = REPO_ROOT / "grading" / sid / "resources.json"
+    doc = json.loads(path.read_text()) if path.exists() else {}
+    return {g: doc.get(g, []) for g in ("setup", "lesson", "assignment")}
+
+
 def collect_notebooks(exams: list[dict]) -> dict[str, dict]:
     grade = grade_jobs()
     generate = generate_jobs()
@@ -388,9 +394,11 @@ def collect_notebooks(exams: list[dict]) -> dict[str, dict]:
                     "grade_job": grade.get(sid),
                 },
                 "extras": [extra_assignment(xid, lessons, grade) for xid in extra_assignment_ids(sid)],
-                # The app runs this job when a learner opens a section whose data
-                # has never been generated in the workspace.
+                # The job the unit page's "Set up unit resources" runs, and what the
+                # unit creates (grading/<SECTION>/resources.json): the page checks
+                # each against Unity Catalog and the cleanup_unit job removes them.
                 "datasets": {"job": generate.get(sid)},
+                "resources": unit_resources(sid),
             }
     return out
 

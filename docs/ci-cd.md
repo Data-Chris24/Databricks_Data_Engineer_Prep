@@ -256,6 +256,24 @@ deletes a row) fail with `PERMISSION_DENIED ... INSERT` without them (seen
 2026-09-14). `de_prep_staging` matters for ASSOC-S5, whose contract publishes to
 both schemas.
 
+The same `MANAGE` lets the `cleanup_unit` job, which the unit page runs, drop a
+unit's tables, views and functions in both schemas, whoever created them. Two
+more grants matter only when the deployer is not the learner (a CI principal):
+
+```bash
+# Let the study app see workspace.default (stray tables) and catalogs units create.
+databricks grants update catalog workspace --profile FREE \
+  --json '{"changes":[{"principal":"account users","add":["BROWSE"]}]}'
+# Let the clean-up job remove a stray table that landed in workspace.default.
+databricks grants update schema workspace.default --profile FREE \
+  --json '{"changes":[{"principal":"<DATABRICKS_CLIENT_ID>","add":["MANAGE"]}]}'
+```
+
+The set-up job tries the first itself on every run and succeeds when its
+principal can manage the catalog (a learner deploying as a workspace admin
+can). Without the second, Remove on a stray in `default` fails with the job's
+own error on the unit page; strays in `de_prep` are unaffected.
+
 Run it once as the schema owner (this is the Unity Catalog grants API, so no
 warehouse or notebook is needed). Confirmed 2026-09-10: before the grant a grade
 run failed all ten ASSOC-S3 checks with `INSUFFICIENT_PERMISSIONS`; after it,

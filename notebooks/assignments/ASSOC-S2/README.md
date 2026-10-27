@@ -49,6 +49,8 @@ schema, in this column order:
    drops the column, or nulls it everywhere, the tests will say so.
 5. **Column order matters.** The tests use `assertSchemaEqual`.
 
+> **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
+
 ## How you are graded
 
 **Unit tests — authoritative.** Run them with:

@@ -301,6 +301,13 @@ the live workspace. All four now have answers; none is flagged any more.
 
 ## Working within the quotas
 
+- **Tables:** 100 per schema, 500 per metastore. Every unit writes to
+  `workspace.de_prep`, which held 62 with every unit set up (2026-10-26), so
+  the study app sets up one unit at a time and cleans the others first
+  ([architecture.md](architecture.md#one-unit-set-up-at-a-time)). `databricks
+  resource-quotas get-quota SCHEMA workspace.de_prep table-quota` returned
+  nulls for this schema (measured 2026-10-26), so the app's meter counts the
+  listed tables against the fixed 100.
 - **Pipelines:** one active per type. Declarative-pipeline labs run one at a time
   and each ends with a teardown step.
 - **Jobs:** 5 concurrent tasks. Orchestration labs stay narrow — no wide fan-out

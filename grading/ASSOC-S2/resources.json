@@ -1,0 +1,91 @@
+{
+  "_comment": "Everything this unit creates in Unity Catalog and the raw volume. The study app shows it on the unit's start page, checks each against Unity Catalog, and the cleanup_unit job removes exactly these. setup: made by the unit's set-up job. lesson/assignment: made as the learner works. optional: does not count towards the unit being worked through. transient: the notebook removes it itself; listed so clean-up catches leftovers. A name ending in * matches every table with that prefix. tools/tests/test_unit_resources.py fails when a notebook creates something this file does not name.",
+  "setup": [
+    {
+      "kind": "folder",
+      "name": "/Volumes/workspace/de_prep/raw/s2_teach"
+    },
+    {
+      "kind": "folder",
+      "name": "/Volumes/workspace/de_prep/raw/s2_assess"
+    },
+    {
+      "kind": "folder",
+      "name": "/Volumes/workspace/de_prep/raw/s2_al_teach"
+    },
+    {
+      "kind": "folder",
+      "name": "/Volumes/workspace/de_prep/raw/s2_al_assess"
+    }
+  ],
+  "lesson": [
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.bronze_orders"
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.silver_orders"
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.bronze_orders_al"
+    },
+    {
+      "kind": "folder",
+      "name": "/Volumes/workspace/de_prep/raw/s2_teach_copy_into"
+    },
+    {
+      "kind": "folder",
+      "name": "/Volumes/workspace/de_prep/raw/s2_teach_autoloader"
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.al_lesson_*",
+      "optional": true,
+      "transient": true
+    },
+    {
+      "kind": "folder",
+      "name": "/Volumes/workspace/de_prep/raw/s2_al_lesson",
+      "optional": true,
+      "transient": true
+    }
+  ],
+  "assignment": [
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.silver_sensor_readings"
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.ferry_tickets",
+      "optional": true
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.ferry_vessels",
+      "optional": true
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.ferry_manifests",
+      "optional": true
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.ferry_crossings",
+      "optional": true
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.ferry_scans",
+      "optional": true
+    },
+    {
+      "kind": "folder",
+      "name": "/Volumes/workspace/de_prep/raw/s2_al_work",
+      "optional": true
+    }
+  ]
+}

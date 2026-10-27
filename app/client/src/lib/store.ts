@@ -12,7 +12,8 @@ import { grade } from '../../../shared/grading';
 import { sampleTest, BankTooSmallError as SamplerBankTooSmall } from '../../../shared/sampler';
 import { assignmentGate } from '../../../shared/gate';
 import { schedule, type ReviewState } from '../../../shared/sm2';
-import { meta } from '../../../shared/content';
+import { meta, notebooks } from '../../../shared/content';
+import { unitView, type UnitPresence, type UnitState } from '../../../shared/units';
 import type {
   AppConfig,
   Area,
@@ -27,7 +28,6 @@ import type {
   ProgressPatch,
   ProgressRow,
   Quality,
-  DatasetState,
   ResetAllResult,
   ReviewRow,
   ScoreResult,
@@ -150,6 +150,16 @@ export class LessonsUnvisitedError extends ApiError {
   }
 }
 
+/** Setting a unit up would first clean these other units: the learner must confirm. */
+export class CleanupConfirmError extends ApiError {
+  readonly others: UnitPresence[];
+  constructor(others: UnitPresence[]) {
+    super(409, { error: 'confirm_cleanup' });
+    this.name = 'CleanupConfirmError';
+    this.others = others;
+  }
+}
+
 export class AttemptActiveError extends ApiError {
   readonly attemptId: string;
   constructor(attemptId: string) {
@@ -181,10 +191,14 @@ export interface StudyStore {
   grade(sectionId: string): Promise<GradingRun>;
   /** Record that a lesson notebook was opened from the app. */
   visitNotebook(path: string): Promise<void>;
-  /** Whether the section's teach/assess data exists in this workspace. */
-  datasets(sectionId: string): Promise<DatasetState>;
-  /** Run the section's generate job unless the data is ready or being made; force regenerates. */
-  prepareDatasets(sectionId: string, force?: boolean): Promise<DatasetState>;
+  /** A unit's resources as Unity Catalog has them now, with its set-up or clean-up run. */
+  unit(unitId: string): Promise<UnitState>;
+  /** Set the unit up; throws CleanupConfirmError until `confirm` when other units must be cleaned first. */
+  setupUnit(unitId: string, confirm?: boolean): Promise<UnitState>;
+  /** Remove everything the unit declares. Notebooks, progress and grades stay. */
+  cleanupUnit(unitId: string): Promise<UnitState>;
+  /** Drop one table no unit declares. */
+  removeStray(unitId: string, table: string): Promise<UnitState>;
   assignment(sectionId: string): Promise<AssignmentState>;
   /** Create the learner's own copy of the starter notebooks (idempotent). */
   provisionAssignment(sectionId: string): Promise<AssignmentState>;
@@ -252,6 +266,7 @@ async function request<T>(
     if (data.error === 'bank_too_small') throw new BankTooSmallError(Number(data.have), Number(data.need));
     if (data.error === 'attempt_active') throw new AttemptActiveError(String(data.attemptId));
     if (data.error === 'grading_in_progress') throw new GradingInProgressError(data.run as GradingRun);
+    if (data.error === 'confirm_cleanup') throw new CleanupConfirmError(data.others as UnitPresence[]);
     if (data.error === 'lessons_unvisited') throw new LessonsUnvisitedError(data.gate as AssignmentState['gate']);
     throw new ApiError(res.status, data);
   }
@@ -310,11 +325,17 @@ export class ApiStore implements StudyStore {
   visitNotebook(path: string) {
     return request<void>('PUT', '/api/training/visits', { path });
   }
-  datasets(sectionId: string) {
-    return request<DatasetState>('GET', `/api/datasets/${sectionId}`);
+  unit(unitId: string) {
+    return request<UnitState>('GET', `/api/units/${unitId}`);
   }
-  prepareDatasets(sectionId: string, force = false) {
-    return request<DatasetState>('POST', `/api/datasets/${sectionId}/prepare`, { force });
+  setupUnit(unitId: string, confirm = false) {
+    return request<UnitState>('POST', `/api/units/${unitId}/setup`, { confirm });
+  }
+  cleanupUnit(unitId: string) {
+    return request<UnitState>('POST', `/api/units/${unitId}/cleanup`, {});
+  }
+  removeStray(unitId: string, table: string) {
+    return request<UnitState>('POST', `/api/units/${unitId}/strays/remove`, { table });
   }
   assignment(sectionId: string) {
     return request<AssignmentState>('GET', `/api/assignment/${sectionId}`);
@@ -426,17 +447,19 @@ export class MemoryStore implements StudyStore {
   async visitNotebook(path: string) {
     this.visits.add(path);
   }
-  private datasetStates = new Map<string, DatasetState>();
-  async datasets(sectionId: string): Promise<DatasetState> {
-    return this.datasetStates.get(sectionId) ?? { sectionId, status: 'missing', runId: null, startedAt: null, finishedAt: null, error: null };
+  // No workspace here: every unit reads as unconfigured, so nothing is gated.
+  async unit(unitId: string): Promise<UnitState> {
+    const all = Object.fromEntries(Object.entries(notebooks).map(([id, nb]) => [id, nb.resources]));
+    return { unitId, configured: false, ...unitView(unitId, all, null), run: null, strayRun: null, setUpAt: null };
   }
-  async prepareDatasets(sectionId: string, force = false): Promise<DatasetState> {
-    const current = await this.datasets(sectionId);
-    if (current.status === 'ready' && !force) return current;
-    const at = new Date(this.now()).toISOString();
-    const next: DatasetState = { sectionId, status: 'ready', runId: 1, startedAt: at, finishedAt: at, error: null };
-    this.datasetStates.set(sectionId, next);
-    return next;
+  async setupUnit(unitId: string): Promise<UnitState> {
+    return this.unit(unitId);
+  }
+  async cleanupUnit(unitId: string): Promise<UnitState> {
+    return this.unit(unitId);
+  }
+  async removeStray(unitId: string): Promise<UnitState> {
+    return this.unit(unitId);
   }
   async assignment(sectionId: string): Promise<AssignmentState> {
     const copy = this.copies.get(sectionId);

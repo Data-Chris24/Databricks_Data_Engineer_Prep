@@ -76,6 +76,8 @@
 # MAGIC 3. **Name the principals.** Application ids are not an audit deliverable.
 # MAGIC 4. Column order matters — the tests compare the whole schema.
 # MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
+# MAGIC
 # MAGIC ### Grading
 # MAGIC
 # MAGIC ```bash
@@ -181,6 +183,8 @@ display(spark.sql(f"""
 # MAGIC **Requirement 3.** **Name the principals.** Application ids are not an audit deliverable.
 # MAGIC
 # MAGIC **Requirement 4.** Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------
@@ -218,6 +222,8 @@ display(spark.sql(f"""
 # MAGIC > column carrying a comment.
 # MAGIC
 # MAGIC **Requirement 4.** Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------
@@ -281,6 +287,8 @@ display(spark.sql(f"""
 # MAGIC **Requirement 3.** **Name the principals.** Application ids are not an audit deliverable.
 # MAGIC
 # MAGIC **Requirement 4.** Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------

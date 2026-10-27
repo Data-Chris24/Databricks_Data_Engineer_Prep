@@ -5,7 +5,7 @@ import { lessonPaths, notebooks, notes, questionsFor, sectionById } from '../../
 import { completedIn, lessonDestination } from '../../../../shared/lessonFlow';
 import type { AppConfig, GradingRun, ProgressRow } from '../../../../shared/types';
 import { AssignmentBand } from '../../components/AssignmentBand';
-import { DatasetBand } from '../../components/DatasetBand';
+import { UnitResources } from '../../components/UnitResources';
 import { GradingPanel } from '../../components/GradingPanel';
 import { Icon } from '../../components/Icon';
 import { useExam } from '../../lib/exam';
@@ -28,6 +28,8 @@ export function SectionPage() {
   const [visited, setVisited] = useState<Set<string>>(() => new Set());
   const [visitError, setVisitError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressRow | null>(null);
+  // Until the unit's set-up resources exist, its notebooks would only fail.
+  const [unitReady, setUnitReady] = useState(false);
   /** Completed sections of this exam, for the "what next" step at the end. */
   const [completedSections, setCompletedSections] = useState<Set<string>>(() => new Set());
   const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
@@ -302,7 +304,9 @@ export function SectionPage() {
 
           <div className="end-block" id="hands-on">
             <div className="rail-title">Hands-on · in your workspace</div>
-            {nbs?.datasets.job ? <DatasetBand sectionId={section.id} /> : null}
+            <UnitResources key={section.id} unitId={section.id} onReady={setUnitReady} />
+            <div className={unitReady ? 'unit-work' : 'unit-work locked'} aria-disabled={!unitReady}>
+            {!unitReady ? <div className="notice">The lessons and the assignment open once this unit is set up.</div> : null}
             {config && !workspaceUrl(config, 'x') ? (
               <div className="notice">
                 Notebook links open once the app is deployed with the bundle. Locally, open the paths below in your workspace.
@@ -373,6 +377,7 @@ export function SectionPage() {
                 <GradingPanel sectionId={x.id} gradeJob={x.grade_job} label="Grade the optional assignment" />
               </div>
             ))}
+            </div>
 
             <div className="end-actions">
               {progress?.completed && nextStep.kind === 'section' && nextStep.why === 'next' ? (

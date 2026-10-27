@@ -10,6 +10,7 @@
 # COMMAND ----------
 
 import json
+import os
 import re
 
 dbutils.widgets.text("section", "", "Section id, e.g. ASSOC-S1 or PRO-S10")
@@ -19,6 +20,9 @@ if not re.fullmatch(r"(ASSOC|PRO)-S\d{1,2}", section):
 
 # Relative to this notebook's folder; the generators are deployed alongside it.
 result = dbutils.notebook.run(f"generate_{section}", timeout_seconds=1800)
+
+ctx = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
+here = "/Workspace" + os.path.dirname(ctx.notebookPath().get())
 
 # COMMAND ----------
 
@@ -53,4 +57,31 @@ for schema in ("de_prep", "de_prep_staging"):
     except Exception as e:  # the deployer may lack MANAGE here; say so rather than fail the data
         print(f"could not grant on {catalog}.{schema}: {type(e).__name__}: {str(e)[:200]}")
 
-dbutils.notebook.exit(json.dumps({"section": section, "child_result": (result or "")[:500], "granted_to_account_users": granted}))
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Let the study app see what exists
+# MAGIC
+# MAGIC The app's unit page checks every declared resource against Unity Catalog, and
+# MAGIC lists tables no unit declares, in `de_prep` and in `workspace.default` (where a
+# MAGIC notebook run without `USE SCHEMA` lands). Listing a table needs a privilege on
+# MAGIC it; `BROWSE` is the metadata-only one, so it is granted on the `workspace`
+# MAGIC catalog (it inherits to every schema) and on any catalog the unit creates
+# MAGIC (PRO-S8's). Granting on `workspace` needs the catalog's `MANAGE`: a learner who
+# MAGIC deploys as a workspace admin has it; a CI principal may not, and then the app
+# MAGIC simply cannot see strays in `default` (docs/ci-cd.md, step 2c).
+
+# COMMAND ----------
+
+with open(os.path.join(here, "..", "..", "grading", section, "resources.json")) as f:
+    unit = json.load(f)
+own_catalogs = [r["name"] for g in ("setup",) for r in unit.get(g, []) if r["kind"] == "catalog"]
+browse = []
+for cat in [catalog] + own_catalogs:
+    try:
+        spark.sql(f"GRANT BROWSE ON CATALOG `{cat}` TO `account users`")
+        browse.append(cat)
+    except Exception as e:
+        print(f"could not grant BROWSE on {cat}: {type(e).__name__}: {str(e)[:200]}")
+
+dbutils.notebook.exit(json.dumps({"section": section, "child_result": (result or "")[:500], "granted_to_account_users": granted, "browse": browse}))

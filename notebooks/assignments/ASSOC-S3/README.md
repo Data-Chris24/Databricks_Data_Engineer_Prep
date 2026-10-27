@@ -47,6 +47,8 @@ this order:
    no error.
 5. **Column order matters** — the tests compare the whole schema.
 
+> **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
+
 ## Grading
 
 ```bash

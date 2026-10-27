@@ -1,0 +1,46 @@
+{
+  "_comment": "Everything this unit creates in Unity Catalog and the raw volume. The study app shows it on the unit's start page, checks each against Unity Catalog, and the cleanup_unit job removes exactly these. setup: made by the unit's set-up job. lesson/assignment: made as the learner works. optional: does not count towards the unit being worked through. transient: the notebook removes it itself; listed so clean-up catches leftovers. A name ending in * matches every table with that prefix. tools/tests/test_unit_resources.py fails when a notebook creates something this file does not name.",
+  "setup": [
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.s3_teach_products"
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.s3_teach_stores"
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.s3_teach_orders"
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.s3_assess_plans"
+    },
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.s3_assess_billing_events"
+    }
+  ],
+  "lesson": [
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.s3_silver_orders"
+    },
+    {
+      "kind": "view",
+      "name": "workspace.de_prep.s3_gold_sales_by_region_v"
+    },
+    {
+      "kind": "materialized_view",
+      "name": "workspace.de_prep.s3_gold_sales_by_region_mv",
+      "optional": true
+    }
+  ],
+  "assignment": [
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.s3_gold_billing_enriched"
+    }
+  ]
+}

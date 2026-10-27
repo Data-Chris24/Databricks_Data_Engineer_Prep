@@ -80,6 +80,8 @@
 # MAGIC    the types you want rather than accepting what the union settled on.
 # MAGIC 6. Column order matters — the tests compare the whole schema.
 # MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
+# MAGIC
 # MAGIC ### Grading
 # MAGIC
 # MAGIC ```bash
@@ -249,6 +251,8 @@ display(dbutils.fs.ls(ROOT))
 # MAGIC the types you want rather than accepting what the union settled on.
 # MAGIC
 # MAGIC **Requirement 6.** Column order matters — the tests compare the whole schema.
+# MAGIC
+# MAGIC > **Clean-up removes only the resources listed on this unit's page in the study app**, the output tables above among them. A table you create under any other name is not removed by it: drop it yourself, or use **Remove** under *Not managed by the app*.
 # MAGIC <!-- excerpt:end -->
 
 # COMMAND ----------
