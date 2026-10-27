@@ -54,6 +54,13 @@ jobs:
         working-directory: bundle
         run: databricks bundle validate -t free
 
+      # Is there room for the app and its content? Fails only where the deploy
+      # itself would fail (no free app slot, no Lakebase project); a quota that
+      # only a later unit would hit is a warning. Prints counts, never names,
+      # hosts or IDs, since this log is public (tools/preinstall_check.py).
+      - name: Pre-install capacity check
+        run: python tools/preinstall_check.py
+
       # Free Edition disables the Lakebase endpoint after a few idle days
       # (measured 2026-09-14, see docs/free-edition-constraints.md). A disabled
       # endpoint fails the deploy at the step that grants the app access to the
