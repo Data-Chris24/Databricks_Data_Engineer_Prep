@@ -9,8 +9,9 @@
 # MAGIC    starters the build embedded (`app/shared/content/starters.json`, generated
 # MAGIC    from `notebooks/assignments/<SECTION>/*.py` at the deployed commit). A
 # MAGIC    learner who edited the deployed notebook directly gets the repo's copy back.
-# MAGIC 2. The objects the section's `outputs.json` names - the tables (and for PRO-S4
-# MAGIC    the share and recipient) the assignment produces - are dropped, so a fresh
+# MAGIC 2. The objects the section's `outputs.json` names - the tables (for ASSOC-S7
+# MAGIC    also its mask and filter functions, for PRO-S4 the share and recipient) the
+# MAGIC    assignment produces - are dropped, so a fresh
 # MAGIC    attempt starts from nothing and a stale grade cannot pass on old work.
 # MAGIC    Assess inputs are never listed and never touched.
 # MAGIC
@@ -86,6 +87,10 @@ def reset_section(section):
         attempt("table", t, f"DROP TABLE IF EXISTS {t}")
     for v in outputs.get("views", []):
         attempt("view", v, f"DROP VIEW IF EXISTS {v}")
+    # After the tables: a column mask or row filter refers to its function, so
+    # the function goes once nothing uses it (ASSOC-S7).
+    for fn in outputs.get("functions", []):
+        attempt("function", fn, f"DROP FUNCTION IF EXISTS {fn}")
     for sh in outputs.get("shares", []):
         attempt("share", sh, f"DROP SHARE IF EXISTS {sh}")
     for r in outputs.get("recipients", []):

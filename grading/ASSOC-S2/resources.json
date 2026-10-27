@@ -29,7 +29,8 @@
     },
     {
       "kind": "table",
-      "name": "workspace.de_prep.bronze_orders_al"
+      "name": "workspace.de_prep.bronze_orders_al",
+      "transient": true
     },
     {
       "kind": "folder",

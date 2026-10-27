@@ -6,7 +6,12 @@
       "name": "workspace.de_prep.s5_source_transactions"
     }
   ],
-  "lesson": [],
+  "lesson": [
+    {
+      "kind": "table",
+      "name": "workspace.de_prep.s5_lesson_channel_summary"
+    }
+  ],
   "assignment": [
     {
       "kind": "table",

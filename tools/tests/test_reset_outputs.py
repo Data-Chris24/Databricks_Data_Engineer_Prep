@@ -23,9 +23,9 @@ def test_outputs_manifest_names_only_products_of_the_assignment(sid):
     path = REPO_ROOT / "grading" / sid / "outputs.json"
     assert path.exists(), f"{sid}: missing grading/{sid}/outputs.json"
     doc = json.loads(path.read_text())
-    objects = doc.get("tables", []) + doc.get("views", []) + doc.get("shares", []) + doc.get("recipients", [])
+    objects = doc.get("tables", []) + doc.get("views", []) + doc.get("functions", []) + doc.get("shares", []) + doc.get("recipients", [])
     assert objects, f"{sid}: a reset would drop nothing"
-    for t in doc.get("tables", []) + doc.get("views", []):
+    for t in doc.get("tables", []) + doc.get("views", []) + doc.get("functions", []):
         assert FQN.match(t), f"{sid}: {t} is not a fully qualified workspace.<schema>.<name>"
         assert "_assess" not in t, f"{sid}: {t} is an assess input and must never be dropped"
         assert "teach" not in t, f"{sid}: {t} looks like a lesson table"
@@ -53,6 +53,25 @@ def test_reset_notebook_refuses_assess_inputs():
     text = (REPO_ROOT / "grading" / "reset_assignment.py").read_text()
     assert "refusing to drop an assess input" in text
     assert "DROP TABLE IF EXISTS" in text
+
+
+def test_reset_drops_functions_after_the_tables_that_use_them():
+    text = (REPO_ROOT / "grading" / "reset_assignment.py").read_text()
+    assert "DROP FUNCTION IF EXISTS" in text
+    assert text.index('outputs.get("tables"') < text.index('outputs.get("functions"')
+
+
+@pytest.mark.parametrize("sid", SECTIONS)
+def test_every_function_the_solution_creates_is_reset(sid):
+    """A mask or filter the solution defines must be in outputs.json, or a reset leaves it behind."""
+    import re
+    sol = REPO_ROOT / "solutions" / sid / "solution.py"
+    if not sol.exists():
+        return
+    made = set(re.findall(r"CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:workspace\.de_prep\.)?(\w+)", sol.read_text(), re.I))
+    doc = json.loads((REPO_ROOT / "grading" / sid / "outputs.json").read_text())
+    listed = {f.split(".")[-1] for f in doc.get("functions", [])}
+    assert made <= listed, f"{sid}: reset would leave {sorted(made - listed)}"
 
 
 def test_reset_notebook_accepts_a_list_of_sections():
