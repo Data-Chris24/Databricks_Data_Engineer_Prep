@@ -444,7 +444,12 @@ A quick check that a merge really deployed:
 `gh run list --workflow=deploy.yml --limit 1` should show `event: push`.
 
 Once approved it re-runs validation and tests before deploying, since two
-individually-valid PRs can merge into a broken `main`. Then
+individually-valid PRs can merge into a broken `main`. Then the pre-install
+capacity check (`tools/preinstall_check.py`, README "Capacity this needs"):
+it fails the run only where the deploy itself would fail (no free app slot, no
+`de-prep` Lakebase project) and warns about quotas a later unit would hit. It
+prints counts and this repo's own resource names only, never a host, ID or
+another resource's name, because a public repo's Actions logs are public. Then
 `databricks bundle deploy -t free`, with a concurrency group so two deploys can't
 race.
 
@@ -518,6 +523,9 @@ first, deliberately, so content lands on rails that already work.
 ./.venv/bin/python tools/render_objectives.py --check
 ./.venv/bin/python -m pytest tools/tests -v
 ./.venv/bin/python tools/validate_bundle.py
+
+# is there room in the workspace for the app and its content?
+./.venv/bin/python tools/preinstall_check.py --profile FREE
 
 # check the GitHub side matches this doc (needs: gh auth login)
 ./.venv/bin/python tools/verify_ci_setup.py

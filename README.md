@@ -70,7 +70,66 @@ apps auto-stop after 24h). They're documented, along with exactly which objectiv
 they affect, in
 [`docs/free-edition-constraints.md`](docs/free-edition-constraints.md).
 
-### 2. Local tooling
+### 2. Capacity this needs
+
+Free Edition counts some things per **account** or **metastore**, so a
+workspace you already use may have spent part of what this repo needs. Check
+before deploying:
+
+```bash
+python3 tools/preinstall_check.py --profile <PROFILE>
+```
+
+It reports PASS, WARN or FAIL for each row below and exits non-zero on a FAIL.
+**FAIL** means `bundle deploy` would fail or the app could not work at all;
+**WARN** means the deploy works but a particular unit would hit a limit later.
+A re-deploy passes: the app, project and schemas this repo made count as its
+own. Run before step 2 of [Deploy your own copy](#deploy-your-own-copy), it
+fails on the missing Lakebase project and prints the command that creates it;
+what matters then is that no *other* project holds the account's one slot. The
+deploy workflow runs the same check before it deploys.
+
+| Limit | Free Edition allows | This repo uses | If it is already used up |
+| --- | --- | --- | --- |
+| Apps | 3 per account | **1** (`de-prep-study`) | FAIL: delete an app you no longer need |
+| Lakebase projects | 1 per account | **1** (`projects/de-prep`, the app's progress store) | FAIL: the app has no other place to store progress |
+| Resources per app | 20 | 1 (the Lakebase database; jobs are granted, not bound) | - |
+| Schemas | 50 per catalog | 2 in `workspace`: `de_prep`, `de_prep_staging` (ASSOC-S5) | FAIL |
+| Tables | 100 per schema | `workspace.de_prep`: about a dozen per unit, 80-100 if every unit is set up at once | WARN: clean up finished units |
+| Tables | 500 per metastore | the same tables, plus a few in PRO-S8's catalogs | WARN |
+| Volumes | 50 per metastore | 2 (`de_prep.raw`, PRO-S4's files) | WARN |
+| Catalogs | 50 per metastore | up to 4: PRO-S8 makes `pro_s8_teach`, `pro_s8_assess` and a demo; PRO-S4 a foreign catalog | WARN: only those units are affected |
+| Shares / recipients / connections | 50 each per metastore | PRO-S4: 3 / 4 / 1 | WARN: only PRO-S4 is affected |
+| SQL warehouses | 1, 2X-Small | uses the one you have (ASSOC-S2 JDBC, PRO-S4 federation) | WARN if it was deleted |
+| Pipelines | 1 active per type | ASSOC-S3's materialized view needs one briefly | WARN if one is running |
+| Concurrent job tasks | 5 | one unit's job at a time | jobs queue rather than fail |
+| Jobs | no limit found | about 55, all named `[DE prep] …` | - |
+| Service principals | no limit found | PRO-S8 creates 4 account-level ones | - |
+
+Only one unit's tables need to exist at a time: set a unit up when you start
+it and clean it up when you are done, which keeps `workspace.de_prep` well
+under its 100-table limit even in a workspace you also use for other things.
+
+To look for yourself, these are the commands the check runs:
+
+```bash
+databricks apps list --profile <PROFILE>                      # app slots: 3 per account
+databricks postgres list-projects --profile <PROFILE>         # Lakebase: 1 per account
+databricks warehouses list --profile <PROFILE>
+databricks pipelines list-pipelines --profile <PROFILE>
+databricks schemas list workspace --profile <PROFILE>
+databricks tables list workspace de_prep --profile <PROFILE> -o json | jq length
+# Unity Catalog counts against their limits: tables, volumes, catalogs, shares, ...
+databricks resource-quotas list-quotas --profile <PROFILE> -o json \
+  | jq -r '.[] | "\(.parent_securable_type) \(.quota_name) \(.quota_count)/\(.quota_limit)"'
+```
+
+`list-quotas` leaves out a schema that is well below its limit, so count
+`workspace.de_prep` with `tables list` as above if it is missing there. Its
+metastore rows name the metastore by its ID; the `jq` filter above leaves that
+out, so the output is safe to paste into an issue.
+
+### 3. Local tooling
 
 ```bash
 python3 -m venv .venv
@@ -97,7 +156,10 @@ databricks auth login --host <your-workspace-url> --profile FREE
 #    intact in any shell (PowerShell and cmd.exe mangle inline JSON).
 databricks postgres create-project de-prep --json @ops/lakebase-project.json --profile FREE
 
-# 3. Deploy everything - labs, graders and the app - and start the app
+# 3. Check there is room for it (README, "Capacity this needs")
+python3 tools/preinstall_check.py --profile FREE
+
+# 4. Deploy everything - labs, graders and the app - and start the app
 cd bundle
 databricks bundle deploy -t free --profile FREE
 databricks bundle run study_app -t free --profile FREE
