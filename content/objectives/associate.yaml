@@ -1,7 +1,24 @@
 # Databricks Certified Data Engineer Associate - objective map
-# Source: official exam guide, version May 4, 2026 (see docs/exam-guides/SOURCES.md)
+# Source: the official exam guides listed under guide_versions (see
+# docs/exam-guides/SOURCES.md).
 # Objective text is quoted from the guide. Stable IDs (ASSOC-Sn-On) are ours and
 # MUST NOT be renumbered - lessons, notebooks and questions reference them.
+#
+# Guide versions (see docs/authoring-guide.md, "When the exam guide changes"):
+#   guide_versions lists every guide this map has tracked, oldest first. Each
+#   holds what belongs to that guide: its date, item count, and its numbered
+#   sections with their weights. A guide section lists the stable units
+#   (sections: below) it is made of - usually one, more when a guide merges
+#   sections. A unit missing from a version is not part of that exam.
+#   An objective is one Type 2 history. The short form is
+#       text: ...            (optional from: / to: beside it)
+#   and the long form, for wording that changed between guides, is
+#       versions:
+#         - {from: "2026-07-03", to: "2026-10-09", text: ...}
+#         - {from: "2026-10-09", text: ...}
+#   `from` is the first guide version that has the row (default: the oldest),
+#   `to` the first that no longer does. No `to` means it is current. Rows are
+#   never deleted: a learner can still view the map as it was.
 #
 # Lab-feasibility tags (see docs/free-edition-constraints.md):
 #   free_edition_lab: full | partial | theory_only
@@ -18,13 +35,9 @@
 exam:
   id: associate
   name: Databricks Certified Data Engineer Associate
-  guide_version: "2026-05-04"
-  retrieved: "2026-09-09"
-  scored_items: 45
   time_limit_minutes: 90
   fee_usd: 200
   validity_years: 2
-  weighting_source: exam_guide_pdf
 
 recommended_training:
   instructor_led:
@@ -37,11 +50,44 @@ recommended_training:
     - Build Data Pipelines with Lakeflow Spark Declarative Pipelines
     - Get Started with Data Governance on Databricks
 
+guide_versions:
+  - version: "2026-05-04"
+    retrieved: "2026-09-09"
+    scored_items: 45
+    weighting_source: exam_guide_pdf
+    sections:
+      - number: 1
+        title: Databricks Intelligence Platform
+        weighting_pct: 6
+        units: [ASSOC-S1]
+      - number: 2
+        title: Data Ingestion and Loading
+        weighting_pct: 21
+        units: [ASSOC-S2]
+      - number: 3
+        title: Data Transformation and Modeling
+        weighting_pct: 22
+        units: [ASSOC-S3]
+      - number: 4
+        title: Working with Lakeflow Jobs
+        weighting_pct: 16
+        units: [ASSOC-S4]
+      - number: 5
+        title: Implementing CI/CD
+        weighting_pct: 10
+        units: [ASSOC-S5]
+      - number: 6
+        title: Troubleshooting, Monitoring, and Optimization
+        weighting_pct: 10
+        units: [ASSOC-S6]
+      - number: 7
+        title: Governance and Security
+        weighting_pct: 15
+        units: [ASSOC-S7]
+
 sections:
   - id: ASSOC-S1
-    number: 1
     title: Databricks Intelligence Platform
-    weighting_pct: 6
     objectives:
       - id: ASSOC-S1-O1
         text: >-
@@ -60,9 +106,7 @@ sections:
           select the most suitable option for each workload use case.
 
   - id: ASSOC-S2
-    number: 2
     title: Data Ingestion and Loading
-    weighting_pct: 21
     objectives:
       - id: ASSOC-S2-O1
         text: >-
@@ -128,9 +172,7 @@ sections:
           Unity Catalog-governed Delta tables.
 
   - id: ASSOC-S3
-    number: 3
     title: Data Transformation and Modeling
-    weighting_pct: 22
     objectives:
       - id: ASSOC-S3-O1
         text: >-
@@ -168,9 +210,7 @@ sections:
           Silver and Gold datasets.
 
   - id: ASSOC-S4
-    number: 4
     title: Working with Lakeflow Jobs
-    weighting_pct: 16
     objectives:
       - id: ASSOC-S4-O1
         text: >-
@@ -191,9 +231,7 @@ sections:
           availability and pipeline dependencies.
 
   - id: ASSOC-S5
-    number: 5
     title: Implementing CI/CD
-    weighting_pct: 10
     objectives:
       - id: ASSOC-S5-O1
         text: >-
@@ -219,9 +257,7 @@ sections:
           other workspace assets in automated CI/CD workflows.
 
   - id: ASSOC-S6
-    number: 6
     title: Troubleshooting, Monitoring, and Optimization
-    weighting_pct: 10
     objectives:
       - id: ASSOC-S6-O1
         text: >-
@@ -261,9 +297,7 @@ sections:
           out-of-memory issues.
 
   - id: ASSOC-S7
-    number: 7
     title: Governance and Security
-    weighting_pct: 15
     objectives:
       - id: ASSOC-S7-O1
         text: >-

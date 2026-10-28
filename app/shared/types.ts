@@ -49,6 +49,16 @@ export interface Exam {
   minutes: number;
   guide: string;
   sections: SectionSummary[];
+  /** Every tracked guide version, oldest first; the fields above are the latest. */
+  versions: GuideVersionSnapshot[];
+}
+
+/** The objective map as one guide version printed it. */
+export interface GuideVersionSnapshot {
+  guide: string;
+  items: number;
+  weightingSource: string;
+  sections: SectionSummary[];
 }
 
 export interface Question {
