@@ -27,7 +27,7 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from objectives import REPO_ROOT, load_all  # noqa: E402
+from objectives import REPO_ROOT, load_all, load_exam  # noqa: E402
 
 QUESTIONS_DIR = REPO_ROOT / "content" / "questions"
 LESSONS_DIR = REPO_ROOT / "content" / "lessons"
@@ -136,24 +136,42 @@ def toc_for(markdown: str, prefix: str = "") -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
+def section_summaries(exam) -> list[dict]:
+    return [
+        {
+            "id": s.id,
+            "number": s.number,
+            "title": s.title,
+            "weight": s.weighting_pct,
+            "objectives": [
+                {"id": o.id, "text": o.text, "lab": o.lab_feasibility}
+                for o in s.objectives
+            ],
+        }
+        for s in exam.sections
+    ]
+
+
 def collect_exams() -> tuple[list[dict], dict[str, dict]]:
     exams = []
     all_objectives: dict[str, dict] = {}
     for exam in load_all():
-        sections = []
-        for s in exam.sections:
-            sections.append({
-                "id": s.id,
-                "number": s.number,
-                "title": s.title,
-                "weight": s.weighting_pct,
-                "objectives": [
-                    {"id": o.id, "text": o.text, "lab": o.lab_feasibility}
-                    for o in s.objectives
-                ],
+        # Retired objectives still resolve: their questions belong to an
+        # earlier guide version and stay in the bank.
+        for u in exam.units.values():
+            for o in u.objectives:
+                all_objectives[o.id] = {"section": u.id, "exam": exam.id}
+        # One snapshot per tracked guide, oldest first, so the app can show
+        # the map as any version printed it. The top level is the latest.
+        versions = []
+        for v in exam.versions:
+            snap = load_exam(exam.id, v.version)
+            versions.append({
+                "guide": snap.guide_version,
+                "items": snap.scored_items,
+                "weightingSource": snap.weighting_source,
+                "sections": section_summaries(snap),
             })
-            for o in s.objectives:
-                all_objectives[o.id] = {"section": s.id, "exam": exam.id}
         exams.append({
             "id": exam.id,
             "name": exam.name,
@@ -161,7 +179,8 @@ def collect_exams() -> tuple[list[dict], dict[str, dict]]:
             "items": exam.scored_items,
             "minutes": exam.time_limit_minutes,
             "guide": exam.guide_version,
-            "sections": sections,
+            "sections": section_summaries(exam),
+            "versions": versions,
         })
     return exams, all_objectives
 
@@ -221,9 +240,48 @@ def section_from_stem(stem: str) -> str | None:
     return m.group(0) if m else None
 
 
+# A passage of a note that belongs to some guide versions only:
+#   <!-- guide: to=2026-10-09 -->  ...  <!-- /guide -->
+# from= and to= mean what they mean on an objective row (to is exclusive). The
+# markers are HTML comments, so a renderer that ignores them shows every
+# passage; the app picks the ones for the guide version a learner selected.
+GUIDE_FENCE_RE = re.compile(r"<!--\s*(/?)guide\b(.*?)-->")
+FENCE_ATTR_RE = re.compile(r"(from|to)=(\d{4}-\d{2}-\d{2})")
+
+
+def check_fences(markdown: str, where: str, versions: list[str]) -> None:
+    """Fences must pair up, not nest, and name only tracked guide versions."""
+    open_at: int | None = None
+    for m in GUIDE_FENCE_RE.finditer(markdown):
+        line = markdown.count("\n", 0, m.start()) + 1
+        if m.group(1):
+            if open_at is None:
+                raise SystemExit(f"{where}:{line}: <!-- /guide --> without an opening fence")
+            open_at = None
+            continue
+        if open_at is not None:
+            raise SystemExit(f"{where}:{line}: guide fence opened inside the one from line {open_at}")
+        attrs = dict(FENCE_ATTR_RE.findall(m.group(2)))
+        leftover = FENCE_ATTR_RE.sub("", m.group(2)).strip(" :")
+        if not attrs or leftover:
+            raise SystemExit(
+                f"{where}:{line}: write <!-- guide: from=YYYY-MM-DD to=YYYY-MM-DD --> "
+                f"(either or both), got {m.group(0)!r}"
+            )
+        for key, value in attrs.items():
+            if value not in versions:
+                raise SystemExit(f"{where}:{line}: {key}={value} is not a guide version ({versions})")
+        if "from" in attrs and "to" in attrs and attrs["to"] <= attrs["from"]:
+            raise SystemExit(f"{where}:{line}: fence ends before it starts")
+        open_at = line
+    if open_at is not None:
+        raise SystemExit(f"{where}:{open_at}: guide fence is never closed")
+
+
 def collect_notes(exams: list[dict]) -> dict[str, dict]:
     """Section notes keyed by section id, with sub-pages from S<n>/ folders."""
     known = {s["id"]: (e["id"], s) for e in exams for s in e["sections"]}
+    versions = {e["id"]: [v["guide"] for v in e["versions"]] for e in exams}
     notes: dict[str, dict] = {}
 
     for path in sorted(LESSONS_DIR.rglob("*.md")):
@@ -241,6 +299,7 @@ def collect_notes(exams: list[dict]) -> dict[str, dict]:
             if sid is None or sid not in known:
                 raise SystemExit(f"{rel}: file name must be a section id like {prefix}-S3.md")
             markdown = path.read_text()
+            check_fences(markdown, f"content/lessons/{rel}", versions[exam_id])
             _, section = known[sid]
             notes.setdefault(sid, _empty_note(sid, exam_id, section))
             notes[sid]["markdown"] = markdown
@@ -256,6 +315,7 @@ def collect_notes(exams: list[dict]) -> dict[str, dict]:
             if sid not in known:
                 raise SystemExit(f"{rel}: folder {parts[1]} is not a section of the {exam_id} exam")
             markdown = path.read_text()
+            check_fences(markdown, f"content/lessons/{rel}", versions[exam_id])
             _, section = known[sid]
             notes.setdefault(sid, _empty_note(sid, exam_id, section))
             slug = path.stem

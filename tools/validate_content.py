@@ -28,6 +28,7 @@ from pathlib import Path
 from objectives import (
     REPO_ROOT,
     VALID_LAB_FEASIBILITY,
+    check_history,
     load_all,
     objective_index,
 )
@@ -69,8 +70,9 @@ def check_objectives() -> None:
     for exam in load_all():
         src = rel(exam.source_path)
 
-        if exam.total_weighting != 100:
-            error(f"{src}: section weightings total {exam.total_weighting}%, expected 100%")
+        # Weightings, numbering and row overlaps, for every guide version.
+        for problem in check_history(exam):
+            error(f"{src}: {problem}")
 
         if not exam.sections:
             error(f"{src}: no sections defined")
@@ -81,8 +83,11 @@ def check_objectives() -> None:
 
         for section in exam.sections:
             if not section.objectives:
-                error(f"{src}: section {section.id} has no objectives")
+                error(f"{src}: section {section.id} has no objectives in guide {exam.guide_version}")
 
+        # Every objective ever tracked, retired ones included: an ID keeps its
+        # meaning and its rules after the guide drops it.
+        for section in exam.units.values():
             for obj in section.objectives:
                 if obj.id in seen:
                     error(f"{src}: duplicate objective ID {obj.id} (also in {seen[obj.id]})")
@@ -114,13 +119,16 @@ def check_objectives() -> None:
                         f"and no note explaining why"
                     )
 
-                if len(obj.text) < 20:
-                    error(f"{src}: {obj.id} text looks truncated: {obj.text!r}")
+                for row in obj.rows:
+                    if len(row.text) < 20:
+                        error(f"{src}: {obj.id} text looks truncated: {row.text!r}")
 
         print(
             f"  {exam.id:13} {len(exam.sections):2} sections, "
             f"{len(exam.objectives):2} objectives, "
-            f"weightings {exam.total_weighting}%  [guide {exam.guide_version}]"
+            f"weightings {exam.total_weighting}%  [guide {exam.guide_version}"
+            + (f", {len(exam.versions)} versions tracked" if len(exam.versions) > 1 else "")
+            + "]"
         )
 
 

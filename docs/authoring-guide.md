@@ -31,6 +31,41 @@ After editing, regenerate the docs (they're generated, so don't hand-edit them):
 python3 tools/render_objectives.py
 ```
 
+### When the exam guide changes
+
+The map keeps every guide it has tracked, so a learner who prepared for an
+earlier exam can still view it as it was. Nothing is deleted when a guide
+changes. Instead:
+
+1. **Add the version.** Append an entry to `guide_versions` (oldest first) with
+   the new guide's date, item count, weighting source and its numbered sections.
+   Each guide section lists the stable units (`sections:` IDs) it is made of. If
+   the guide merges two sections, list both units under one number; the units,
+   their folders, jobs and learner progress stay as they are.
+2. **Close and open objective rows.** An objective is a Type 2 history:
+   - wording changed, same skill → close the old row with `to: <new date>` and
+     add a row `from: <new date>` under `versions:`. The ID stays.
+   - dropped → give its last row `to: <new date>`.
+   - new → a new ID with `from: <new date>`.
+   - moved to another section → close the old ID and open a new one in the new
+     section; IDs carry their section prefix.
+3. **Fence version-specific note passages.** In a note, wrap a passage that
+   belongs to some guides only:
+
+   ```markdown
+   <!-- guide: to=2026-10-09 -->
+   ...taught for the guides before 9 Oct 2026...
+   <!-- /guide -->
+   ```
+
+   `from=` and `to=` mean what they mean on a row (`to` is exclusive). Fences
+   pair up, never nest, and name only tracked versions; the build fails
+   otherwise.
+4. **Questions follow their objectives.** A question belongs to every guide in
+   which one of its objectives is live, so it needs no change of its own.
+   Question IDs are still never reused.
+5. Update `docs/exam-guides/SOURCES.md` and re-run the checks.
+
 ### Lab-feasibility tags
 
 Only annotate exceptions. An absent tag is a positive claim that the objective is
